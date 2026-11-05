@@ -118,6 +118,16 @@ suite('divergences et convergences', () => {
     expect(removeBranch(g, g.links[0]!.nodes[2]!)).not.toBeUndefined();
     expect(checkGraph(g)).toBeNull();
   });
+  it('convergence sur une transition : la barre se place juste en dessous de celle-ci', () => {
+    const g = demoProject().grafcets[1]!;
+    const P = proj();
+    const t = nid(g, 2); // transition ; l'étape suivante ouvre la base
+    expect(addConvergence(P, g, t, 'or')).toBeTruthy();
+    const l = g.links.find((x) => x.kind === 'conv')!;
+    const head = g.seqs.find((q) => q.id === l.nodes[0])!;
+    expect(head.items[head.items.length - 1]!.id).toBe(t);
+    expect(checkGraph(g)).toBeNull();
+  });
   it('supprimer une branche jusqu’à un seul reste fusionne les séquences', () => {
     const P = proj(); const g = newGrafcet(P, 'x');
     const s0 = g.seqs[0]!.items[0]!.id;
