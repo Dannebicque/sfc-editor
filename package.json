@@ -1,5 +1,5 @@
 {
-  "name": "grafcet-studio",
+  "name": "sfc-editor",
   "private": true,
   "version": "0.1.0",
   "description": "Éditeur / validateur de GRAFCET (IEC 60848), local-first.",
