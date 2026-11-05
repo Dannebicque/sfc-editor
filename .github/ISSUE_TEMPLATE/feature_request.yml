@@ -1,0 +1,20 @@
+name: Proposer une fonctionnalité
+description: Une idée ou un besoin d'usage (GRAFCET, formats, ergonomie…)
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: Besoin
+      description: Quel problème voulez-vous résoudre ? Un exemple concret de GRAFCET aide beaucoup.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Piste de solution
+  - type: textarea
+    id: ref
+    attributes:
+      label: Références
+      description: Passage de la norme IEC 60848, comportement d'un autre outil, fichier d'exemple (si vous avez le droit de le partager).

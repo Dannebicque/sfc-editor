@@ -242,5 +242,10 @@
   "a_wrap_impossible": "Impossible d’encadrer cet élément ici.",
   "a_unwrapped": "Divergence dissoute, branche {n} conservée.",
   "a_unwrap_impossible": "Impossible : le résultat ne serait pas un GRAFCET valide.",
-  "a_branch_moved": "Branche déplacée."
+  "a_branch_moved": "Branche déplacée.",
+  "legal_link": "Informations légales",
+  "legal_close": "Fermer",
+  "legal_nav_aria": "Documents juridiques",
+  "legal_todo": "[à compléter]",
+  "legal_dialog_aria": "Informations légales"
 }

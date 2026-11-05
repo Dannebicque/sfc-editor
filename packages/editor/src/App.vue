@@ -6,6 +6,7 @@ import AppHeader from './components/AppHeader.vue';
 import CanvasStage from './components/CanvasStage.vue';
 import InspectorPanel from './components/InspectorPanel.vue';
 import ProjectSidebar from './components/ProjectSidebar.vue';
+import LegalDialog from './components/LegalDialog.vue';
 import StatusBar from './components/StatusBar.vue';
 
 const ui = useUiStore();
@@ -22,6 +23,7 @@ onMounted(() => ui.init());
       <InspectorPanel />
     </main>
     <StatusBar />
+    <LegalDialog />
     <div class="sr" role="status" aria-live="polite">{{ liveMsg }}</div>
   </div>
 </template>

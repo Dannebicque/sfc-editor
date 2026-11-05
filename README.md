@@ -43,3 +43,19 @@ Les paquets internes sont consommés **directement en TypeScript** (pas d'étape
 - **4+** serveur (comptes, partage), puis co-édition temps réel si le besoin est avéré.
 
 Décisions d'architecture : [docs/adr](docs/adr).
+
+## Licence et contribution
+
+Code sous licence [Mozilla Public License 2.0](LICENSE) (copyleft au niveau du fichier : les fichiers modifiés restent sous MPL, mais le code peut être combiné avec du code propriétaire).
+Composants tiers : [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (régénéré par `node scripts/generate-third-party.mjs`).
+
+- [Contribuer](CONTRIBUTING.md) · [Code de conduite](CODE_OF_CONDUCT.md) ([English](CODE_OF_CONDUCT.en.md)) · [Sécurité](SECURITY.md)
+
+## Mentions légales et confidentialité
+
+L'application affiche ses textes juridiques (mentions légales, confidentialité, cookies et stockage local, conditions d'utilisation, licence) dans le dialogue **Informations légales** du pied de page, adressable par `#/legal/mentions`, `#/legal/privacy`, `#/legal/cookies`, `#/legal/terms` et `#/legal/licence`.
+
+- Textes : `packages/editor/src/legal/{fr,en}.ts` ; identité de l'éditeur et de l'hébergeur : `packages/editor/src/legal/config.ts`.
+- Les champs vides de la configuration s'affichent « [à compléter] » dans l'application : **les renseigner avant toute mise en ligne publique** (adresse e-mail de contact, hébergeur, et adresse de l'éditeur si nécessaire). Renseigner aussi l'adresse de contact dans `CODE_OF_CONDUCT.md` et `CODE_OF_CONDUCT.en.md`.
+- Ces textes sont des modèles rédigés pour l'état actuel de l'application (local-first, sans compte ni service tiers). Ils sont à relire, et à réviser si des comptes, un serveur ou des mesures d'audience sont ajoutés. Ils ne constituent pas un avis juridique.
+- Pour recevoir les signalements de sécurité en privé, activer *Settings → Code security → Private vulnerability reporting* sur GitHub.

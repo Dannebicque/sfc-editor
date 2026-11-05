@@ -1,0 +1,28 @@
+name: Signaler un bug
+description: Quelque chose ne fonctionne pas comme prévu
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Que s'est-il passé ?
+      description: Comportement observé et comportement attendu.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Étapes pour reproduire
+      description: Si possible, joignez le JSON du GRAFCET (onglet Données). Retirez toute donnée confidentielle.
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Navigateur et système
+      placeholder: Firefox 130, Windows 11
+  - type: dropdown
+    id: a11y
+    attributes:
+      label: Est-ce un problème d'accessibilité ?
+      options: ["Non", "Oui, au clavier", "Oui, avec un lecteur d'écran", "Oui, autre"]

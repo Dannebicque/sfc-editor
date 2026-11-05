@@ -3,11 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json"
   },
-  "dependencies": { "@grafcet/core": "workspace:*" },
-  "devDependencies": { "vitest": "^3.2.4" }
+  "dependencies": {
+    "@grafcet/core": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  },
+  "license": "MPL-2.0"
 }

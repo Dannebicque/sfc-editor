@@ -4,7 +4,8 @@ import { T } from '../i18n';
 import { useProjectStore } from '../stores/project';
 import { useUiStore } from '../stores/ui';
 
-const { selText } = storeToRefs(useUiStore());
+const ui = useUiStore();
+const { selText } = storeToRefs(ui);
 const { stats, issues, issueErr } = storeToRefs(useProjectStore());
 </script>
 
@@ -15,5 +16,6 @@ const { stats, issues, issueErr } = storeToRefs(useProjectStore());
     <span v-if="issueErr" style="color: var(--err)">{{ T('n_errors', { n: issueErr }) }}</span>
     <span v-else-if="issues.length" style="color: var(--warn)">{{ T('n_warnings', { n: issues.length }) }}</span>
     <span v-else style="color: var(--ok)">{{ T('no_problem') }}</span>
+    <button type="button" class="linklike" @click="ui.openLegal('mentions')">{{ T('legal_link') }}</button>
   </footer>
 </template>

@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts", "./styles.css": "./src/styles/app.css" },
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles/app.css"
+  },
   "scripts": {
     "test": "vitest run",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json"
@@ -22,5 +25,6 @@
     "happy-dom": "^18.0.1",
     "vitest": "^3.2.4",
     "vue-tsc": "^3.0.0"
-  }
+  },
+  "license": "MPL-2.0"
 }
