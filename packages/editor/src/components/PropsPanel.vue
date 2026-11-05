@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
-import { walkAll } from '@grafcet/core';
+import { arrivalSources, arrivalsTo, describeId, walkAll } from '@grafcet/core';
+import { describeText } from '../format';
 import { T, keys as K } from '../i18n';
 import { useProjectStore } from '../stores/project';
 import { useUiStore } from '../stores/ui';
@@ -18,6 +19,8 @@ const allSteps = computed(() => {
 });
 const stepLabel = (id: string) => allSteps.value.find((s) => s.id === id)?.num ?? '?';
 const syncChoices = computed(() => allSteps.value.filter((s) => !(selItem.value && selItem.value.kind === 'trans' && selItem.value.sync?.includes(s.id))));
+const arrivalList = computed(() => (selItem.value ? arrivalsTo(activeG.value, selItem.value.id).map((j) => ({ id: j.id, label: describeText(describeId(activeG.value, j.id)) })) : []));
+const arrivalChoices = computed(() => (selItem.value ? arrivalSources(activeG.value, selItem.value.id).map((id) => ({ id, label: describeText(describeId(activeG.value, id)) })) : []));
 const val = (e: Event) => (e.target as HTMLInputElement).value;
 const checked = (e: Event) => (e.target as HTMLInputElement).checked;
 </script>
@@ -68,6 +71,21 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
           <button v-else class="btn solid" @click="ui.openExpansion()">{{ T('exp_open') }}</button>
         </div>
       </template>
+      <h3>{{ T('h_conv_or') }}</h3>
+      <p class="hint">{{ T('conv_or_hint') }}</p>
+      <ul v-if="arrivalList.length" class="acts">
+        <li v-for="a in arrivalList" :key="a.id" class="mini">
+          <button class="btn solid" @click="ui.pickFromText(a.id)">{{ a.label }}</button>
+          <button class="btn icon" :aria-label="T('conv_del_aria', { d: a.label })" @click="ui.removeArrival(a.id)"><Icon n="trash" /></button>
+        </li>
+      </ul>
+      <div v-if="arrivalChoices.length" class="field">
+        <label for="f-arr">{{ T('conv_add') }}</label>
+        <select id="f-arr" @change="ui.addArrivalFrom(val($event)); ($event.target as HTMLSelectElement).value = ''">
+          <option value="">{{ T('conv_choose') }}</option>
+          <option v-for="c in arrivalChoices" :key="c.id" :value="c.id">{{ c.label }}</option>
+        </select>
+      </div>
       <template v-if="selItem.expansion === undefined">
       <h3>{{ T('h_actions') }}</h3>
       <ul v-if="selItem.actions.length" class="acts">
@@ -101,6 +119,21 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
         <button v-for="t in tokens" :key="t.v" class="chip" :title="t.t" @click="ui.addToken(t.v)">{{ t.v.trim() }}</button>
       </div>
       <p class="hint">{{ T('syntax') }} <code class="mono">.</code> {{ T('s_and') }}, <code class="mono">+</code> {{ T('s_or') }}, <code class="mono">/a</code> {{ T('s_not') }}, <code class="mono">↑a</code> {{ T('s_rise') }}, <code class="mono">X3</code> {{ T('s_step') }}, <code class="mono">t1/X2/3s</code> {{ T('s_delay') }}.</p>
+      <h3>{{ T('h_conv_or') }}</h3>
+      <p class="hint">{{ T('conv_or_hint') }}</p>
+      <ul v-if="arrivalList.length" class="acts">
+        <li v-for="a in arrivalList" :key="a.id" class="mini">
+          <button class="btn solid" @click="ui.pickFromText(a.id)">{{ a.label }}</button>
+          <button class="btn icon" :aria-label="T('conv_del_aria', { d: a.label })" @click="ui.removeArrival(a.id)"><Icon n="trash" /></button>
+        </li>
+      </ul>
+      <div v-if="arrivalChoices.length" class="field">
+        <label for="f-arr">{{ T('conv_add') }}</label>
+        <select id="f-arr" @change="ui.addArrivalFrom(val($event)); ($event.target as HTMLSelectElement).value = ''">
+          <option value="">{{ T('conv_choose') }}</option>
+          <option v-for="c in arrivalChoices" :key="c.id" :value="c.id">{{ c.label }}</option>
+        </select>
+      </div>
       <h3>{{ T('h_sync') }}</h3>
       <p class="hint">{{ T('sync_hint') }}</p>
       <ul v-if="selItem.sync?.length" class="acts">

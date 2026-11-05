@@ -1,7 +1,7 @@
 import { describe as suite, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
-  addBranch, allowedInsertions, insertAt, checkSeq, describeId, flatten, insertAfter, newGrafcet, parseRecept,
+  addBranch, addArrival, arrivalSources, arrivalsTo, allowedInsertions, insertAt, checkSeq, describeId, flatten, insertAfter, newGrafcet, parseRecept,
   createExpansion, provablyExclusive, referencesTo, syncLinks, setMacro, removeBranch, removeItem, renumber, stats, validateGrafcet, walkAll, duplicateGrafcet, INSERT_KINDS,
   type Grafcet, type Project,
 } from '../src';
@@ -492,5 +492,25 @@ suite('synchronisation (convergence ET libre)', () => {
     expect(removeItem(g, 'a').ok).toBe(true);
     expect(g.items.find((i) => i.id === 't2')).toBeDefined();
     expect((g.items.find((i) => i.id === 't2') as { sync?: string[] }).sync).toBeUndefined();
+  });
+});
+
+suite('convergence OU libre (arrivées)', () => {
+  const S = (id: string, n: string, initial = false) => ({ id, kind: 'step' as const, num: n, name: '', initial, actions: [] });
+  const T = (id: string, n: number) => ({ id, kind: 'trans' as const, num: n, recept: 'a' });
+  it('propose les fins de branche compatibles et ajoute le renvoi', () => {
+    const P = demoProject();
+    const g = newGrafcet(P, 'x');
+    g.items = [S('s0', '0', true), T('t1', 1), S('s1', '1'),
+      { id: 'o', kind: 'or', branches: [[T('t2', 2)], [T('t3', 3), S('s2', '2'), T('t4', 4)]] }, S('s3', '3'), T('t5', 5)];
+    const src = arrivalSources(g, 's0');
+    expect(src).toContain('t2');
+    expect(src).toContain('t5');
+    expect(src).not.toContain('s2');
+    const id = addArrival(P, g, 's0', 't2');
+    expect(id).not.toBeNull();
+    expect(arrivalsTo(g, 's0').map((j) => j.id)).toEqual([id]);
+    expect(checkSeq(g.items, 'root')).toBeNull();
+    expect(addArrival(P, g, 's0', 's1')).toBeNull();
   });
 });

@@ -8,6 +8,7 @@ export {
 } from './commands';
 export { parseRecept, type ReceptResult } from './recept';
 export { endsApart } from './grammar';
+export { arrivalsTo, arrivalSources, addArrival } from './convergence';
 export { referencesTo, syncLinks, type SyncLink } from './references';
 export { flatten, stepsOf, type FlatGraph, type FlatNode, type FlatLink } from './flatten';
 export { isMacro, macrosOf, setMacro, createExpansion, expansionReaches } from './macro';

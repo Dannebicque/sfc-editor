@@ -376,5 +376,12 @@
   "sync_add": "Attendre aussi l’étape",
   "sync_choose": "Choisir une étape…",
   "sync_del_aria": "Ne plus attendre l’étape {n}",
-  "rep_x_sync": "« {g} » : la synchronisation de la transition ({n}) n’est pas exportée en XML SFCEdit (les étapes attendues en plus sont ignorées)."
+  "rep_x_sync": "« {g} » : la synchronisation de la transition ({n}) n’est pas exportée en XML SFCEdit (les étapes attendues en plus sont ignorées).",
+  "h_conv_or": "Convergence OU (arrivées)",
+  "conv_or_hint": "Renvois qui arrivent ici depuis d’autres branches. Ils s’affichent en flèches étiquetées reliées par une barre.",
+  "conv_add": "Ajouter une arrivée depuis",
+  "conv_choose": "Choisir une fin de branche…",
+  "conv_del_aria": "Supprimer l’arrivée : {d}",
+  "a_arrival_added": "Arrivée ajoutée.",
+  "a_arrival_removed": "Arrivée supprimée."
 }
