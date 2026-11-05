@@ -110,3 +110,26 @@ describe('actions liées à une transition', () => {
     expect(t.acts[0]!.cell).toBe(true);
   });
 });
+
+describe('renvois dans des branches', () => {
+  const S = (id: string, n: string, initial = false) => ({ id, kind: 'step', num: n, name: '', initial, actions: [] });
+  const T = (id: string, n: number) => ({ id, kind: 'trans', num: n, recept: 'a' });
+  const g = { id: 'g', name: 'g', nextStep: 9, nextTrans: 9, items: [
+    S('s0', '2_1', true), T('t1', 1), S('s1', '1'),
+    { id: 'o', kind: 'or', branches: [
+      [T('t2', 2), { id: 'j1', kind: 'jump', target: 's0' }],
+      [{ id: 'a', kind: 'and', branches: [[S('s3', '3')], [{ id: 'j2', kind: 'jump', target: 's0' }]] }, T('t3', 3)],
+    ] },
+    S('s2', '2'), T('t4', 4),
+  ] } as unknown as Grafcet;
+  it('signale tous les renvois sur l’étape cible, même depuis une branche', () => {
+    const s0 = layoutGrafcet(g, tw).views.find((v) => v.kind === 'step' && v.id === 's0') as StepView;
+    expect(s0.arrivals).toEqual(['1']);
+  });
+  it('sépare la barre OU de la barre ET qui la suit', () => {
+    const L = layoutGrafcet(g, tw);
+    const bars = L.views.filter((v) => v.kind === 'bar' && (v.id === 'o' || v.id === 'a') && v.part === 'd') as { id: string; ys: number[] }[];
+    const or = bars.find((b) => b.id === 'o')!, and = bars.find((b) => b.id === 'a')!;
+    expect(and.ys[0]! - or.ys[0]!).toBeGreaterThanOrEqual(12);
+  });
+});

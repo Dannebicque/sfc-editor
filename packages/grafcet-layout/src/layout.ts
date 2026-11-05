@@ -1,6 +1,6 @@
 import { walkAll, type Grafcet, type Item, type Block } from '@grafcet/core';
 
-export const GEO = { stepW: 44, stepH: 40, transH: 40, tick: 9, actH: 22, actGap: 14, orPad: 18, andPad: 18, bar: 6, branchGap: 40, ov: 6, jumpH: 46, arrivalH: 28 } as const;
+export const GEO = { stepW: 44, stepH: 40, transH: 40, tick: 9, actH: 22, actGap: 14, orPad: 18, andPad: 18, bar: 6, branchGap: 40, ov: 6, jumpH: 46, arrivalH: 28, chain: 16 } as const;
 
 /** Mesure de la largeur d'un texte en pixels (fournie par le moteur de rendu). */
 export type TextWidth = (s: string) => number;
@@ -53,18 +53,18 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
   }
   /** Pour chaque cible de renvoi : les numéros des étapes d'où l'on arrive. */
   const arrivalsOf = new Map<string, string[]>();
-  (function collect(seq: Item[]): void {
+  (function collect(seq: Item[], outer: string | null): void {
     seq.forEach((it, i) => {
       if (it.kind === 'jump') {
-        const n = it.target ? stepBefore(seq, i) : null;
+        const n = it.target ? (stepBefore(seq, i) ?? outer) : null;
         if (it.target && n != null) {
           const a = arrivalsOf.get(it.target) ?? [];
           if (!a.includes(String(n))) a.push(String(n));
           arrivalsOf.set(it.target, a);
         }
-      } else if (it.kind === 'or' || it.kind === 'and') it.branches.forEach(collect);
+      } else if (it.kind === 'or' || it.kind === 'and') { const o = stepBefore(seq, i) ?? outer; it.branches.forEach((b) => collect(b, o)); }
     });
-  })(g.items);
+  })(g.items, null);
   const arrivals = (id: string): string[] => arrivalsOf.get(id) ?? [];
   const arrTop = (id: string): number => (arrivals(id).length ? GEO.arrivalH : 0);
   const arrHalf = (id: string): number => (arrivals(id).length ? tw(arrivals(id).join(', ')) / 2 + 4 : 0);
@@ -106,7 +106,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
       const half = Math.max(14, tw(jumpLabel(it)) / 2 + 4);
       m = { l: half, r: half, h: GEO.jumpH };
     } else {
-      const bm = it.branches.map(mSeq);
+      const bm = it.branches.map((b) => { const s = mSeq(b); return lead(it, b) ? { ...s, h: s.h + GEO.chain } : s; });
       const xs = [0];
       for (let k = 1; k < bm.length; k++) xs.push(xs[k - 1]! + bm[k - 1]!.r + GEO.branchGap + bm[k]!.l);
       const last = xs.length - 1, mx = (xs[0]! + xs[last]!) / 2;
@@ -121,6 +121,8 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
     memo.set(it, m);
     return m;
   }
+  /** Une branche OU qui commence par un ET : on laisse un espace entre la barre OU et les barres ET. */
+  const lead = (blk: Block, b: Item[]): boolean => blk.kind === 'or' && b[0]?.kind === 'and';
   function mSeq(seq: Item[]): Measure {
     let l = 0, r = 0, h = 0;
     for (const it of seq) { const m = mItem(it); l = Math.max(l, m.l); r = Math.max(r, m.r); h += m.h; }
@@ -176,7 +178,8 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
       views.push({ kind: 'bar', id: it.id, part: 'd', ys: [yb1], x1: bxs[0]! - GEO.ov, x2: bxs[lastK]! + GEO.ov });
       focus.push({ id: it.id + ':d', x, y: yb1, slot: null, slotBefore: { x, y: y - 11 } });
       it.branches.forEach((b, k) => {
-        dSeq(b, bxs[k]!, yb1);
+        if (lead(it, b)) L(bxs[k]!, yb1, bxs[k]!, yb1 + GEO.chain);
+        dSeq(b, bxs[k]!, lead(it, b) ? yb1 + GEO.chain : yb1);
         if (conv[k] && bm[k]!.h < maxH) L(bxs[k]!, yb1 + bm[k]!.h, bxs[k]!, yb2);
       });
       const cx = bxs.filter((_, k) => conv[k]);
