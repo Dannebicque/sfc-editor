@@ -92,6 +92,20 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
         <button v-for="t in tokens" :key="t.v" class="chip" :title="t.t" @click="ui.addToken(t.v)">{{ t.v.trim() }}</button>
       </div>
       <p class="hint">{{ T('syntax') }} <code class="mono">.</code> {{ T('s_and') }}, <code class="mono">+</code> {{ T('s_or') }}, <code class="mono">/a</code> {{ T('s_not') }}, <code class="mono">↑a</code> {{ T('s_rise') }}, <code class="mono">X3</code> {{ T('s_step') }}, <code class="mono">t1/X2/3s</code> {{ T('s_delay') }}.</p>
+      <h3>{{ T('h_trans_actions') }}</h3>
+      <p class="hint">{{ T('trans_act_help') }}</p>
+      <ul v-if="selItem.actions?.length" class="acts">
+        <li v-for="(a, i) in selItem.actions" :key="i">
+          <div class="mini">
+            <input type="text" class="mono" :aria-label="T('act_label_aria', { n: i + 1 })" :placeholder="T('act_ph')" :value="a.label" @input="ui.setAction(i, 'label', val($event))" />
+            <button class="btn icon" :aria-label="T('act_del_aria', { n: i + 1 })" @click="ui.delAction(i)"><Icon n="trash" /></button>
+          </div>
+          <div class="mini">
+            <input type="text" class="mono" :aria-label="T('act_cond_aria', { n: i + 1 })" :placeholder="T('act_cond_ph')" :value="a.cond" @input="ui.setAction(i, 'cond', val($event))" />
+          </div>
+        </li>
+      </ul>
+      <button class="btn solid" @click="ui.addAction()"><Icon n="plus" />{{ T('act_add') }}</button>
     </template>
 
     <template v-else-if="selItem && selItem.kind === 'jump'">

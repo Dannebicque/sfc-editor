@@ -77,3 +77,36 @@ describe('transition source et puits', () => {
     expect(L.views.filter((v) => v.kind === 'trans')).toHaveLength(2);
   });
 });
+
+describe('OU enchaîné sur un ET', () => {
+  it('produit une mise en page finie', () => {
+    const S = (id: string, n: string, initial = false) => ({ id, kind: 'step', num: n, name: '', initial, actions: [] });
+    const T = (id: string, n: number) => ({ id, kind: 'trans', num: n, recept: 'a' });
+    const g = { id: 'g', name: 'g', nextStep: 9, nextTrans: 9, items: [
+      S('s0', '0', true),
+      { id: 'o', kind: 'or', branches: [
+        [{ id: 'a', kind: 'and', branches: [[S('s1', '1')], [S('s2', '2')]] }, T('t9', 9)],
+        [T('t1', 1), S('s3', '3'), T('t5', 5)],
+      ] },
+      S('s7', '7'), T('t0', 0),
+    ] } as unknown as Grafcet;
+    const L = layoutGrafcet(g, tw);
+    for (const l of L.lines) for (const v of Object.values(l)) expect(Number.isFinite(v)).toBe(true);
+    expect(L.views.filter((v) => v.kind === 'step')).toHaveLength(5);
+  });
+});
+
+describe('actions liées à une transition', () => {
+  it('place les actions à droite de la réceptivité', () => {
+    const g = { id: 'g', name: 'g', nextStep: 3, nextTrans: 3, items: [
+      { id: 's0', kind: 'step', num: '0', name: '', initial: true, actions: [] },
+      { id: 't1', kind: 'trans', num: 1, recept: 'abc', actions: [{ kind: 'event', label: 'B:=0', cond: 'X5' }] },
+      { id: 's1', kind: 'step', num: '1', name: '', initial: false, actions: [] },
+    ] } as unknown as Grafcet;
+    const L = layoutGrafcet(g, tw);
+    const t = L.views.find((v) => v.kind === 'trans') as { acts: { x: number; cell: boolean }[]; x: number };
+    expect(t.acts).toHaveLength(1);
+    expect(t.acts[0]!.x).toBeGreaterThan(t.x + 7 * 3);
+    expect(t.acts[0]!.cell).toBe(true);
+  });
+});

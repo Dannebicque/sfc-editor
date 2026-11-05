@@ -39,6 +39,8 @@ export interface Transition {
   num: number;
   /** Texte source de la réceptivité. */
   recept: string;
+  /** Actions exécutées au franchissement de la transition (type « sur événement » ; `cond` : condition facultative). */
+  actions?: Action[];
 }
 
 export interface Jump {
