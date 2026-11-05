@@ -1,0 +1,1872 @@
+<title>Éditeur GRAFCET</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Concept : poste de travail d'automaticien. Explorateur | canevas sur papier pointé | inspecteur.
+   Les tracés sont à l'encre (jeton --shape), l'accent sert uniquement au curseur et à la sélection. */
+:root{
+  --font-ui:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --bg:#e9eeec; --panel:#f8faf9; --panel-2:#e3e9e6; --canvas:#fbfcfb; --grid:#cbd4d0;
+  --ink:#12201d; --ink-2:#41504b; --ink-3:#5b6a65; --line:#ccd5d1; --line-2:#aebab5;
+  --accent:#0a6f82; --accent-ink:#ffffff; --accent-soft:#d3eaef;
+  --ok:#17733a; --ok-soft:#d8efdf; --warn:#865600; --warn-soft:#f8e9c4; --err:#b3261e; --err-soft:#f8d9d6;
+  --shape:#14211e;
+  --shadow:0 8px 28px rgba(10,30,26,.16);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a100f; --panel:#111a18; --panel-2:#192523; --canvas:#0d1514; --grid:#1d2c29;
+    --ink:#e3ece9; --ink-2:#a9b9b4; --ink-3:#8697a1; --line:#24332f; --line-2:#37484a;
+    --accent:#4cc7db; --accent-ink:#04222a; --accent-soft:#12363f;
+    --ok:#4fd27e; --ok-soft:#12331f; --warn:#e6b64f; --warn-soft:#372c0f; --err:#ff8b80; --err-soft:#3d1b19;
+    --shape:#dde7e4; --shadow:0 10px 30px rgba(0,0,0,.55);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0a100f; --panel:#111a18; --panel-2:#192523; --canvas:#0d1514; --grid:#1d2c29;
+  --ink:#e3ece9; --ink-2:#a9b9b4; --ink-3:#8697a1; --line:#24332f; --line-2:#37484a;
+  --accent:#4cc7db; --accent-ink:#04222a; --accent-soft:#12363f;
+  --ok:#4fd27e; --ok-soft:#12331f; --warn:#e6b64f; --warn-soft:#372c0f; --err:#ff8b80; --err-soft:#3d1b19;
+  --shape:#dde7e4; --shadow:0 10px 30px rgba(0,0,0,.55);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:14px;line-height:1.45;
+  padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px));overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+kbd{font-family:var(--font-mono);font-size:11px;font-weight:500;border:1px solid var(--line-2);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--panel);color:var(--ink-2);min-width:20px;text-align:center;display:inline-block;line-height:17px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- Coquille ---------- */
+.app{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+.topbar{display:flex;align-items:center;gap:10px;padding:8px max(12px,env(safe-area-inset-left,0px)) 8px max(12px,env(safe-area-inset-left,0px));background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:9px;margin-right:6px}
+.brand h1{font-size:15px;font-weight:600;margin:0;letter-spacing:.1px}
+.logo{width:26px;height:26px;display:grid;place-items:center;border-radius:6px;background:var(--shape);color:var(--canvas)}
+.tag{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-3);border:1px solid var(--line-2);border-radius:99px;padding:1px 8px}
+.tools{display:flex;align-items:center;gap:4px;padding:2px;border:1px solid var(--line);border-radius:9px;background:var(--panel-2)}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;gap:7px;border:1px solid transparent;background:transparent;border-radius:7px;padding:6px 10px;cursor:pointer;color:var(--ink);white-space:nowrap}
+.btn:hover:not(:disabled){background:var(--panel)}
+.btn:disabled{opacity:.42;cursor:default}
+.btn.icon{padding:6px 7px}
+.btn.solid{background:var(--panel);border-color:var(--line-2)}
+.btn.solid:hover:not(:disabled){border-color:var(--accent)}
+.btn.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.on:hover{background:var(--accent)}
+.btn.danger{color:var(--err)}
+.ic{width:17px;height:17px;flex:none}
+.zlevel{font-family:var(--font-mono);font-size:12px;min-width:44px;text-align:center;color:var(--ink-2)}
+
+.work{display:grid;grid-template-columns:232px minmax(0,1fr) 352px;min-height:0}
+.side{background:var(--panel);display:flex;flex-direction:column;min-height:0;min-width:0}
+.left{border-right:1px solid var(--line)}
+.right{border-left:1px solid var(--line)}
+.side-h{padding:12px 12px 6px}
+.pname{width:100%;font-weight:600;font-size:14px;border:1px solid transparent;background:transparent;border-radius:6px;padding:5px 7px;margin:0 -7px;width:calc(100% + 14px)}
+.pname:hover{border-color:var(--line)}
+.pname:focus{border-color:var(--accent);background:var(--canvas)}
+.side-title{display:flex;justify-content:space-between;align-items:center;padding:8px 12px 6px;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.side-title span{font-family:var(--font-mono);letter-spacing:0}
+.glist{list-style:none;margin:0;padding:0 6px;overflow:auto;flex:1;min-height:60px}
+.gitem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;align-items:center;width:100%;text-align:left;border:1px solid transparent;background:transparent;border-radius:7px;padding:7px 8px;cursor:pointer}
+.gitem:hover{background:var(--panel-2)}
+.gitem.on{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.gname{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gmeta{grid-column:1;font-size:12px;color:var(--ink-3);font-family:var(--font-mono)}
+.badge{font-family:var(--font-mono);font-size:11px;border-radius:99px;padding:0 7px;line-height:18px;grid-row:1/3;grid-column:2}
+.badge.err{background:var(--err-soft);color:var(--err)}
+.badge.warn{background:var(--warn-soft);color:var(--warn)}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}
+.side-actions{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;border-top:1px solid var(--line)}
+.side-note{margin:0;padding:10px 12px 14px;font-size:12px;color:var(--ink-3);border-top:1px solid var(--line)}
+
+/* ---------- Canevas ---------- */
+.stage{position:relative;min-width:0;min-height:0;display:flex}
+.host{position:relative;flex:1;min-width:0;overflow:hidden;background-color:var(--canvas);
+  background-image:radial-gradient(var(--grid) 1px,transparent 1.5px);
+  background-size:calc(24px * var(--z)) calc(24px * var(--z));background-position:var(--px) var(--py);outline-offset:-3px}
+.host:focus-visible{outline:2px solid var(--accent)}
+.cv{width:100%;height:100%;display:block;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.cv:active{cursor:grabbing}
+.cv .lk{stroke:var(--shape);stroke-width:1.5;fill:none}
+.cv .bar{stroke:var(--shape);stroke-width:1.9;stroke-linecap:butt}
+.cv .st-box{fill:var(--canvas);stroke:var(--shape);stroke-width:1.6}
+.cv .st-in{fill:none;stroke:var(--shape);stroke-width:1.2}
+.cv .st-num{font:500 14px var(--font-mono);fill:var(--shape)}
+.cv .st-name{font:400 12px var(--font-ui);fill:var(--ink-3)}
+.cv .tick{stroke:var(--shape);stroke-width:2.6}
+.cv .tnum{font:400 11px var(--font-mono);fill:var(--ink-3)}
+.cv .rec{font:400 12.5px var(--font-mono);fill:var(--shape)}
+.cv .rec.empty{fill:var(--warn);font-style:italic}
+.cv .act-box{fill:var(--canvas);stroke:var(--shape);stroke-width:1.3}
+.cv .act-txt{font:400 12.5px var(--font-mono);fill:var(--shape)}
+.cv .jtxt{font:500 12px var(--font-mono);fill:var(--shape)}
+.cv .jtxt.broken{fill:var(--err)}
+.cv .arrow{fill:var(--shape)}
+.cv .ring{fill:none;stroke:var(--accent);stroke-width:2.2}
+.cv .region{fill:var(--accent-soft);opacity:.6}
+.cv .hit{fill:transparent}
+.cv .el{cursor:pointer}
+.cv .slot circle{fill:var(--canvas);stroke:var(--accent);stroke-width:1.8;stroke-dasharray:3.2 2.6}
+.cv .slot path{stroke:var(--accent);stroke-width:2.1;stroke-linecap:round;fill:none}
+.cv .active .st-box{stroke:var(--ok);stroke-width:2.6;fill:var(--ok-soft)}
+.cv .tok{fill:var(--ok)}
+.cv .enabled .tick{stroke:var(--accent);stroke-width:3.6}
+.cv .enabled .rec{fill:var(--accent);font-weight:500}
+@media (prefers-reduced-motion:no-preference){
+  .cv .slot circle{animation:spin 9s linear infinite;transform-box:fill-box;transform-origin:center}
+  .cv .enabled .tick{animation:pulse 1.2s ease-in-out infinite}
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{50%{opacity:.45}}
+
+.cues{position:absolute;left:12px;top:12px;display:flex;flex-wrap:wrap;gap:6px 12px;max-width:calc(100% - 24px);padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:color-mix(in srgb,var(--panel) 92%,transparent);font-size:12px;color:var(--ink-2);pointer-events:none}
+.cues span{display:inline-flex;align-items:center;gap:5px}
+.insbar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;align-items:stretch;flex-wrap:wrap;justify-content:center;gap:6px;max-width:calc(100% - 20px);padding:7px;border:1px solid var(--line-2);border-radius:13px;background:var(--panel);box-shadow:var(--shadow)}
+.ins-ctx{display:flex;align-items:center;gap:8px;padding:0 8px 0 6px;font-size:12.5px;color:var(--ink-2);border-right:1px solid var(--line);margin-right:2px}
+.ins-ctx b{color:var(--ink);font-weight:600}
+.dotc{width:9px;height:9px;border-radius:50%;border:2px dashed var(--accent);flex:none}
+.ins{display:flex;align-items:center;gap:8px;border:1px solid var(--line-2);background:var(--canvas);border-radius:9px;padding:6px 10px;cursor:pointer;text-align:left}
+.ins:hover{border-color:var(--accent);background:var(--accent-soft)}
+.ins .l{display:flex;flex-direction:column;line-height:1.2}
+.ins .l small{font-size:11px;color:var(--ink-3)}
+.ins.danger{border-color:transparent;background:transparent;color:var(--err)}
+.ins.danger:hover{background:var(--err-soft);border-color:var(--err)}
+.ins-none{align-self:center;padding:0 8px;font-size:12.5px;color:var(--ink-3)}
+.simbar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;padding:8px 12px;border:1px solid var(--accent);border-radius:13px;background:var(--panel);box-shadow:var(--shadow);max-width:calc(100% - 20px)}
+.simbar p{margin:0;font-size:12.5px;color:var(--ink-2)}
+
+/* ---------- Panneaux droits ---------- */
+.tabs{display:flex;border-bottom:1px solid var(--line);padding:0 6px}
+.tab{border:0;background:transparent;padding:10px 9px 9px;cursor:pointer;border-bottom:2px solid transparent;color:var(--ink-2);font-weight:500;display:flex;align-items:center;gap:6px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab:hover{color:var(--ink)}
+.panel{flex:1;overflow:auto;padding:14px 14px 22px;min-height:0}
+.panel h2{margin:0 0 10px;font-size:15px;font-weight:600}
+.panel h3{margin:18px 0 8px;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.field{display:grid;gap:4px;margin-bottom:10px}
+.field label,.lbl{font-size:12.5px;color:var(--ink-2);font-weight:500}
+.field input[type=text],.field input[type=number],.field select,.field textarea,.mini input,.mini select,.imp{width:100%;border:1px solid var(--line-2);background:var(--canvas);border-radius:7px;padding:6px 8px}
+.field input:focus,.field select:focus,.field textarea:focus,.mini input:focus,.mini select:focus,.imp:focus{border-color:var(--accent);outline:2px solid color-mix(in srgb,var(--accent) 35%,transparent);outline-offset:0}
+.mono{font-family:var(--font-mono);font-size:13px}
+.check{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.check input{width:16px;height:16px;accent-color:var(--accent)}
+.fb{margin:-4px 0 8px;font-size:12.5px;display:flex;gap:6px;align-items:flex-start}
+.fb.ok{color:var(--ok)}.fb.err{color:var(--err)}.fb.warn{color:var(--warn)}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.chip{border:1px solid var(--line-2);background:var(--panel);border-radius:6px;padding:2px 8px;font-family:var(--font-mono);font-size:12.5px;cursor:pointer}
+.chip:hover{border-color:var(--accent);background:var(--accent-soft)}
+.acts{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:7px}
+.acts li{border:1px solid var(--line);border-radius:8px;padding:7px;background:var(--panel);display:grid;gap:6px}
+.mini{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
+.mini.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.hint{font-size:12.5px;color:var(--ink-3);margin:0 0 10px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:13px;margin:0 0 6px}
+.kv dt{color:var(--ink-3)}.kv dd{margin:0;font-family:var(--font-mono)}
+.vars{display:flex;flex-wrap:wrap;gap:5px}
+.vars span{font-family:var(--font-mono);font-size:12px;background:var(--panel-2);border-radius:5px;padding:1px 7px}
+.keys{display:grid;gap:7px;font-size:13px;margin:0;padding:0;list-style:none}
+.keys li{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.issues{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.issue{display:grid;grid-template-columns:auto 1fr;gap:9px;width:100%;text-align:left;border:1px solid var(--line);background:var(--canvas);border-radius:8px;padding:8px 10px;cursor:pointer}
+.issue:hover{border-color:var(--accent)}
+.issue .sev{font-family:var(--font-mono);font-size:11px;border-radius:99px;padding:0 7px;height:18px;line-height:18px;align-self:start}
+.sev.error{background:var(--err-soft);color:var(--err)}.sev.warning{background:var(--warn-soft);color:var(--warn)}
+.okbox{display:flex;gap:8px;align-items:center;padding:10px;border-radius:8px;background:var(--ok-soft);color:var(--ok);font-weight:500;margin-bottom:10px}
+.ol,.ol-br{list-style:none;margin:0;padding:0}
+.ol .ol{padding-left:14px;border-left:1px dashed var(--line-2);margin-left:8px}
+.ol-br>li{margin:4px 0 4px 8px}
+.ol-label{display:block;font-size:11px;color:var(--ink-3);letter-spacing:.6px;text-transform:uppercase;margin:6px 0 2px 8px}
+.ol-btn{display:block;width:100%;text-align:left;border:1px solid transparent;background:transparent;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:13px}
+.ol-btn:hover{background:var(--panel-2)}
+.ol-btn.on{background:var(--accent-soft);border-color:var(--accent)}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden;margin-bottom:10px}
+.seg button{border:0;background:var(--canvas);padding:5px 11px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+pre.code{margin:0 0 10px;max-height:290px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--canvas);padding:10px;font:12px/1.5 var(--font-mono);white-space:pre}
+.imp{min-height:84px;font-family:var(--font-mono);font-size:12px;resize:vertical}
+.msg{font-size:12.5px;margin:6px 0}
+.msg.err{color:var(--err)}.msg.ok{color:var(--ok)}
+.status{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:6px max(12px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px));background:var(--panel);border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-2)}
+.status .grow{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.status b{color:var(--ink);font-weight:600}
+
+.langseg{margin-bottom:0}.langseg button{font:600 12px/1 var(--font-ui);color:var(--ink-2);padding:8px 10px;min-width:36px}.langseg button[aria-pressed="true"]{color:var(--accent-ink)}.langseg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+@media (max-width:1100px){.work{grid-template-columns:200px minmax(0,1fr) 312px}}
+@media (max-width:860px){
+  body{overflow:auto}
+  .app{height:auto;min-height:100%;display:block}
+  .work{display:flex;flex-direction:column}
+  .stage{order:1;height:64vh;min-height:360px}
+  .right{order:2;border-left:0;border-top:1px solid var(--line)}
+  .left{order:3;border-right:0;border-top:1px solid var(--line)}
+  .panel{overflow:visible}
+  .cues{display:none}
+  .topbar{gap:6px}
+  .brand h1{font-size:14px}
+  .tag{display:none}
+  .insbar{left:8px;right:8px;transform:none;max-width:none;justify-content:flex-start}
+  .ins .l small{display:none}
+  .btn .txt{display:none}
+}
+</style>
+
+<div id="app"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.js"></script>
+<script>
+(function () {
+'use strict';
+const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
+
+/* =====================================================================
+   0. INTERNATIONALISATION (fr / en)
+   L.lang est réactif : tout calcul Vue qui appelle T() se met à jour quand la langue change.
+   Les touches d'insertion suivent la langue (mnémoniques) : E T O A R en français, S T O A J en anglais.
+   ===================================================================== */
+const L = reactive({ lang: 'fr' });
+const KEYMAP = {
+  fr: { step: 'E', trans: 'T', or: 'O', and: 'A', jump: 'R' },
+  en: { step: 'S', trans: 'T', or: 'O', and: 'A', jump: 'J' },
+};
+const I18N = {
+ "fr": {
+  "app_title": "Éditeur GRAFCET",
+  "proto": "prototype",
+  "hist_label": "Historique",
+  "undo": "Annuler",
+  "undo_t": "Annuler (Ctrl+Z)",
+  "redo": "Rétablir",
+  "redo_t": "Rétablir (Ctrl+Y)",
+  "view_label": "Affichage",
+  "zoom_out": "Dézoomer",
+  "zoom_out_t": "Dézoomer (-)",
+  "zoom_in": "Zoomer",
+  "zoom_in_t": "Zoomer (+)",
+  "fit": "Tout voir",
+  "fit_t": "Tout voir (0)",
+  "sim": "Simulation",
+  "sim_stop": "Arrêter la simulation",
+  "theme": "Thème : {v}",
+  "theme_auto": "automatique",
+  "theme_light": "clair",
+  "theme_dark": "sombre",
+  "lang_label": "Langue",
+  "project_aria": "Projet",
+  "project_name": "Nom du projet",
+  "meta": "{s} ét. · {t} tr.",
+  "badge_err": "{n} err.",
+  "badge_warn": "{n} av.",
+  "n_errors": [
+   "{n} erreur",
+   "{n} erreurs"
+  ],
+  "n_warnings": [
+   "{n} avertissement",
+   "{n} avertissements"
+  ],
+  "n_steps": [
+   "{n} étape",
+   "{n} étapes"
+  ],
+  "n_trans": [
+   "{n} transition",
+   "{n} transitions"
+  ],
+  "n_branches": "{n} branches",
+  "add": "Nouveau",
+  "dup": "Dupliquer",
+  "del": "Supprimer",
+  "side_note": "Les positions ne sont jamais saisies : elles se recalculent depuis la structure, donc insérer au milieu ne décale rien à la main.",
+  "stage_aria": "Canevas",
+  "canvas_aria": "Canevas du GRAFCET. Flèches pour naviguer, {k} pour insérer, Suppr pour supprimer, Entrée pour les propriétés.",
+  "cue_nav": "naviguer",
+  "cue_ins": "insérer",
+  "cue_del": "supprimer",
+  "cue_props": "propriétés",
+  "kbd_del": "Suppr",
+  "kbd_enter": "Entrée",
+  "kbd_esc": "Échap",
+  "ins_aria": "Insertion après : {t}",
+  "ins_after": "Après",
+  "ins_none_bar": "Sélectionnez la convergence ou une branche",
+  "ins_none_end": "Fin de séquence : rien à ajouter ici",
+  "ins_help": "Cliquez un élément, ou appuyez sur une flèche, pour placer le curseur.",
+  "colon": " : ",
+  "sim_help": "cliquez une transition en surbrillance pour la franchir.",
+  "sim_reset": "Réinitialiser",
+  "panels_aria": "Panneaux",
+  "tab_props": "Propriétés",
+  "tab_issues": "Problèmes",
+  "tab_text": "Texte",
+  "tab_data": "Données",
+  "f_name": "Nom (commentaire)",
+  "f_num": "Numéro",
+  "f_initial": "Étape initiale",
+  "h_actions": "Actions associées",
+  "act_label_aria": "Libellé de l’action {n}",
+  "act_ph": "ex. A+",
+  "act_del_aria": "Supprimer l’action {n}",
+  "act_type_aria": "Type de l’action {n}",
+  "act_continue": "Continue",
+  "act_conditional": "Conditionnelle",
+  "act_activation": "À l’activation ↑",
+  "act_deactivation": "À la désactivation ↓",
+  "act_cond_aria": "Condition de l’action {n}",
+  "act_cond_ph": "condition",
+  "act_none": "Aucune action : l’étape sert d’attente.",
+  "act_add": "Ajouter une action",
+  "f_recept": "Réceptivité",
+  "chips_aria": "Insérer dans la réceptivité",
+  "syntax": "Syntaxe :",
+  "s_and": "ET",
+  "s_or": "OU",
+  "s_not": "NON",
+  "s_rise": "front montant",
+  "s_step": "étape active",
+  "s_delay": "temporisation",
+  "jump_title": "Renvoi",
+  "f_target": "Cible",
+  "jump_hint": "Un renvoi termine la séquence. Après une transition il pointe une étape, après une étape il pointe une transition.",
+  "div_or": "Divergence en OU",
+  "div_and": "Divergence en ET",
+  "conv_or": "Convergence en OU",
+  "conv_and": "Convergence en ET",
+  "or_hint": "Choix : une seule branche est franchie. Les réceptivités doivent être exclusives.",
+  "and_hint": "Parallélisme : toutes les branches démarrent ensemble et la convergence attend la fin de chacune.",
+  "branches_k": "Branches",
+  "branch_left": "Branche à gauche",
+  "branch_right": "Branche à droite",
+  "g_name": "Nom du GRAFCET",
+  "stat_steps": "Étapes",
+  "stat_trans": "Transitions",
+  "stat_blocks": "Divergences",
+  "stat_jumps": "Renvois",
+  "renumber": "Renuméroter",
+  "h_vars": "Variables utilisées",
+  "vars_none": "Aucune pour l’instant.",
+  "h_keyboard": "Clavier",
+  "key_move": "déplacer le curseur d’élément en élément",
+  "key_insert": "insérer ce qui est possible après le curseur",
+  "key_delete": "supprimer en recollant la séquence",
+  "key_edit": "éditer",
+  "key_back": "revenir au canevas",
+  "key_undo": "annuler, rétablir",
+  "branch_of": "Branche {i} sur {n}",
+  "branch_l": "À gauche",
+  "branch_r": "À droite",
+  "branch_del": "Supprimer la branche",
+  "del_item": "Supprimer l’élément",
+  "issues_title": "Problèmes",
+  "ok_box": "Structure valide par construction",
+  "no_issue_more": "Aucun autre problème détecté dans ce GRAFCET.",
+  "sev_error": "erreur",
+  "sev_warn": "avert.",
+  "text_title": "Vue texte",
+  "text_hint": "Équivalent textuel du schéma, navigable au clavier et au lecteur d’écran.",
+  "ol_branch": "Branche {n}",
+  "data_title": "Données",
+  "fmt_aria": "Format affiché",
+  "fmt_json": "JSON natif",
+  "fmt_graph": "Graphe dérivé",
+  "data_aria": "Données du GRAFCET",
+  "copy": "Copier",
+  "copied": "Copié.",
+  "copy_fail": "Copie refusée : sélectionnez le texte à la main.",
+  "h_import": "Importer",
+  "import_hint": "Collez le JSON d’un projet complet (remplace le projet) ou d’un seul GRAFCET (l’ajoute).",
+  "import_label": "JSON à importer",
+  "import_btn": "Importer",
+  "open_file": "Ouvrir un fichier…",
+  "imp_ok": "Import réussi.",
+  "imp_fail": "Import impossible : {m}",
+  "imp_items": "Un GRAFCET doit contenir un tableau « items ».",
+  "imp_struct": "Structure invalide dans « {g} » : {e}.",
+  "imp_ids": "Identifiants manquants ou dupliqués dans « {g} ».",
+  "imp_empty": "Le projet ne contient aucun GRAFCET.",
+  "g_imported": "GRAFCET importé",
+  "p_imported": "Projet importé",
+  "none_selected": "Aucun élément sélectionné",
+  "no_problem": "Aucun problème",
+  "a_undo": "Annulé",
+  "a_redo": "Rétabli",
+  "a_impossible": "« {k} » est impossible à cet endroit.",
+  "a_added": "{d} ajouté. Possible ensuite : {list}.",
+  "a_nothing": "rien",
+  "a_cannot_delete": "Suppression impossible ici : une séquence ne peut pas rester vide. Supprimez plutôt la branche ou la divergence.",
+  "a_deleted": "Élément supprimé, séquence recollée.",
+  "a_branch_added": "Branche ajoutée.",
+  "a_branch_deleted": "Branche supprimée.",
+  "a_renumbered": "Étapes et transitions renumérotées, références Xn mises à jour.",
+  "a_g_deleted": "GRAFCET supprimé. Ctrl+Z pour annuler.",
+  "a_fired": "Transition franchie.",
+  "a_sim_on": "Simulation démarrée.",
+  "a_sim_off": "Simulation arrêtée.",
+  "a_lang": "Langue : français",
+  "g_copy": " (copie)",
+  "chk_empty": "séquence vide",
+  "chk_start_or": "une branche OU doit commencer par une transition",
+  "chk_start_and": "une branche ET doit commencer par une étape",
+  "chk_after_block": "élément incompatible après une divergence",
+  "chk_after_jump": "élément après un renvoi",
+  "chk_alternation": "l’alternance étape/transition est rompue",
+  "chk_block_place": "divergence mal placée",
+  "chk_min_branches": "une divergence a au moins 2 branches",
+  "chk_jump_last": "un renvoi termine la séquence",
+  "chk_jump_place": "renvoi mal placé",
+  "chk_jump_and": "renvoi interdit dans une branche ET",
+  "chk_unknown": "élément inconnu",
+  "chk_block_end": "une divergence doit être suivie d’un élément",
+  "chk_or_end": "une branche OU finit par une transition",
+  "chk_and_end": "une branche ET finit par une étape",
+  "k_step": "Étape",
+  "k_trans": "Transition",
+  "k_or": "Divergence en OU",
+  "k_and": "Divergence en ET",
+  "k_jump": "Renvoi",
+  "note_or": "2 branches, puis une étape",
+  "note_and": "2 branches, puis une transition",
+  "note_step_ins": "+ étape intercalaire",
+  "note_trans_ins": "+ transition intercalaire",
+  "d_step": "Étape {n}",
+  "d_initial": " (initiale)",
+  "d_trans": "Transition ({n})",
+  "d_recept_empty": "réceptivité vide",
+  "d_jump_step": "Renvoi vers l’étape {n}",
+  "d_jump_trans": "Renvoi vers la transition ({n})",
+  "d_jump_none": "Renvoi sans cible",
+  "d_block_or": "Bloc OU",
+  "d_block_and": "Bloc ET",
+  "p_operand": "opérande attendu",
+  "p_paren": "parenthèse fermante manquante",
+  "p_char": "caractère inattendu « {c} »",
+  "p_empty": "réceptivité vide",
+  "p_pos": " (position {n})",
+  "v_noinit": "Aucune étape initiale.",
+  "v_dupnum": "Numéro d’étape {n} utilisé plusieurs fois.",
+  "v_act_label": "Étape {n} : une action n’a pas de libellé.",
+  "v_act_cond": "Étape {n} : une action conditionnelle n’a pas de condition.",
+  "v_recept_empty": "Transition ({n}) : réceptivité vide.",
+  "v_recept_err": "Transition ({n}) : {e}.",
+  "v_step_missing": "Transition ({n}) : l’étape X{m} n’existe pas.",
+  "v_jump_broken": "Un renvoi n’a plus de cible.",
+  "v_dead_end": "{x} sans suite : le GRAFCET n’est pas bouclé.",
+  "v_unreachable": "{x} inaccessible depuis l’étape initiale.",
+  "v_structure": "Structure invalide : {e}.",
+  "rf_empty": "Réceptivité vide : saisissez une condition.",
+  "rf_ok": "Syntaxe valide",
+  "rf_vars": " · variables : {v}",
+  "rf_err": "Erreur : {e}",
+  "tk_and": "ET",
+  "tk_or": "OU",
+  "tk_not": "NON",
+  "tk_rise": "Front montant",
+  "tk_fall": "Front descendant",
+  "tk_step": "État d’une étape (Xn)",
+  "tk_delay": "Temporisation"
+ },
+ "en": {
+  "app_title": "GRAFCET Editor",
+  "proto": "prototype",
+  "hist_label": "History",
+  "undo": "Undo",
+  "undo_t": "Undo (Ctrl+Z)",
+  "redo": "Redo",
+  "redo_t": "Redo (Ctrl+Y)",
+  "view_label": "View",
+  "zoom_out": "Zoom out",
+  "zoom_out_t": "Zoom out (-)",
+  "zoom_in": "Zoom in",
+  "zoom_in_t": "Zoom in (+)",
+  "fit": "Fit to view",
+  "fit_t": "Fit to view (0)",
+  "sim": "Simulation",
+  "sim_stop": "Stop simulation",
+  "theme": "Theme: {v}",
+  "theme_auto": "automatic",
+  "theme_light": "light",
+  "theme_dark": "dark",
+  "lang_label": "Language",
+  "project_aria": "Project",
+  "project_name": "Project name",
+  "meta": "{s} st. · {t} tr.",
+  "badge_err": "{n} err.",
+  "badge_warn": "{n} warn.",
+  "n_errors": [
+   "{n} error",
+   "{n} errors"
+  ],
+  "n_warnings": [
+   "{n} warning",
+   "{n} warnings"
+  ],
+  "n_steps": [
+   "{n} step",
+   "{n} steps"
+  ],
+  "n_trans": [
+   "{n} transition",
+   "{n} transitions"
+  ],
+  "n_branches": "{n} branches",
+  "add": "New",
+  "dup": "Duplicate",
+  "del": "Delete",
+  "side_note": "Positions are never entered by hand: they are recomputed from the structure, so inserting in the middle never means shifting anything manually.",
+  "stage_aria": "Canvas",
+  "canvas_aria": "GRAFCET canvas. Arrow keys to navigate, {k} to insert, Delete to remove, Enter for properties.",
+  "cue_nav": "navigate",
+  "cue_ins": "insert",
+  "cue_del": "delete",
+  "cue_props": "properties",
+  "kbd_del": "Del",
+  "kbd_enter": "Enter",
+  "kbd_esc": "Esc",
+  "ins_aria": "Insert after: {t}",
+  "ins_after": "After",
+  "ins_none_bar": "Select the convergence or a branch",
+  "ins_none_end": "End of sequence: nothing can be added here",
+  "ins_help": "Click an element, or press an arrow key, to place the cursor.",
+  "colon": ": ",
+  "sim_help": "click a highlighted transition to fire it.",
+  "sim_reset": "Reset",
+  "panels_aria": "Panels",
+  "tab_props": "Properties",
+  "tab_issues": "Issues",
+  "tab_text": "Text",
+  "tab_data": "Data",
+  "f_name": "Name (comment)",
+  "f_num": "Number",
+  "f_initial": "Initial step",
+  "h_actions": "Associated actions",
+  "act_label_aria": "Label of action {n}",
+  "act_ph": "e.g. A+",
+  "act_del_aria": "Delete action {n}",
+  "act_type_aria": "Type of action {n}",
+  "act_continue": "Continuous",
+  "act_conditional": "Conditional",
+  "act_activation": "On activation ↑",
+  "act_deactivation": "On deactivation ↓",
+  "act_cond_aria": "Condition of action {n}",
+  "act_cond_ph": "condition",
+  "act_none": "No action: the step is a waiting step.",
+  "act_add": "Add an action",
+  "f_recept": "Transition condition",
+  "chips_aria": "Insert into the condition",
+  "syntax": "Syntax:",
+  "s_and": "AND",
+  "s_or": "OR",
+  "s_not": "NOT",
+  "s_rise": "rising edge",
+  "s_step": "active step",
+  "s_delay": "time delay",
+  "jump_title": "Jump",
+  "f_target": "Target",
+  "jump_hint": "A jump ends the sequence. After a transition it points to a step; after a step it points to a transition.",
+  "div_or": "OR divergence",
+  "div_and": "AND divergence",
+  "conv_or": "OR convergence",
+  "conv_and": "AND convergence",
+  "or_hint": "Selection: only one branch is crossed. The conditions must be mutually exclusive.",
+  "and_hint": "Parallelism: all branches start together and the convergence waits for every branch to finish.",
+  "branches_k": "Branches",
+  "branch_left": "Branch on the left",
+  "branch_right": "Branch on the right",
+  "g_name": "GRAFCET name",
+  "stat_steps": "Steps",
+  "stat_trans": "Transitions",
+  "stat_blocks": "Divergences",
+  "stat_jumps": "Jumps",
+  "renumber": "Renumber",
+  "h_vars": "Variables used",
+  "vars_none": "None yet.",
+  "h_keyboard": "Keyboard",
+  "key_move": "move the cursor from element to element",
+  "key_insert": "insert what is possible after the cursor",
+  "key_delete": "delete and rejoin the sequence",
+  "key_edit": "edit",
+  "key_back": "return to the canvas",
+  "key_undo": "undo, redo",
+  "branch_of": "Branch {i} of {n}",
+  "branch_l": "Left",
+  "branch_r": "Right",
+  "branch_del": "Delete the branch",
+  "del_item": "Delete the element",
+  "issues_title": "Issues",
+  "ok_box": "Structure valid by construction",
+  "no_issue_more": "No other issue detected in this GRAFCET.",
+  "sev_error": "error",
+  "sev_warn": "warn.",
+  "text_title": "Text view",
+  "text_hint": "Text equivalent of the diagram, navigable with the keyboard and screen readers.",
+  "ol_branch": "Branch {n}",
+  "data_title": "Data",
+  "fmt_aria": "Displayed format",
+  "fmt_json": "Native JSON",
+  "fmt_graph": "Derived graph",
+  "data_aria": "GRAFCET data",
+  "copy": "Copy",
+  "copied": "Copied.",
+  "copy_fail": "Copy refused: select the text manually.",
+  "h_import": "Import",
+  "import_hint": "Paste the JSON of a complete project (replaces the project) or of a single GRAFCET (adds it).",
+  "import_label": "JSON to import",
+  "import_btn": "Import",
+  "open_file": "Open a file…",
+  "imp_ok": "Import successful.",
+  "imp_fail": "Import failed: {m}",
+  "imp_items": "A GRAFCET must contain an “items” array.",
+  "imp_struct": "Invalid structure in “{g}”: {e}.",
+  "imp_ids": "Missing or duplicated identifiers in “{g}”.",
+  "imp_empty": "The project contains no GRAFCET.",
+  "g_imported": "Imported GRAFCET",
+  "p_imported": "Imported project",
+  "none_selected": "No element selected",
+  "no_problem": "No issues",
+  "a_undo": "Undone",
+  "a_redo": "Redone",
+  "a_impossible": "“{k}” is not possible here.",
+  "a_added": "{d} added. Possible next: {list}.",
+  "a_nothing": "nothing",
+  "a_cannot_delete": "Cannot delete here: a sequence cannot be left empty. Delete the branch or the divergence instead.",
+  "a_deleted": "Element deleted, sequence rejoined.",
+  "a_branch_added": "Branch added.",
+  "a_branch_deleted": "Branch deleted.",
+  "a_renumbered": "Steps and transitions renumbered, Xn references updated.",
+  "a_g_deleted": "GRAFCET deleted. Ctrl+Z to undo.",
+  "a_fired": "Transition fired.",
+  "a_sim_on": "Simulation started.",
+  "a_sim_off": "Simulation stopped.",
+  "a_lang": "Language: English",
+  "g_copy": " (copy)",
+  "chk_empty": "empty sequence",
+  "chk_start_or": "an OR branch must start with a transition",
+  "chk_start_and": "an AND branch must start with a step",
+  "chk_after_block": "incompatible element after a divergence",
+  "chk_after_jump": "element after a jump",
+  "chk_alternation": "step/transition alternation is broken",
+  "chk_block_place": "misplaced divergence",
+  "chk_min_branches": "a divergence has at least 2 branches",
+  "chk_jump_last": "a jump ends the sequence",
+  "chk_jump_place": "misplaced jump",
+  "chk_jump_and": "a jump is not allowed inside an AND branch",
+  "chk_unknown": "unknown element",
+  "chk_block_end": "a divergence must be followed by an element",
+  "chk_or_end": "an OR branch ends with a transition",
+  "chk_and_end": "an AND branch ends with a step",
+  "k_step": "Step",
+  "k_trans": "Transition",
+  "k_or": "OR divergence",
+  "k_and": "AND divergence",
+  "k_jump": "Jump",
+  "note_or": "2 branches, then a step",
+  "note_and": "2 branches, then a transition",
+  "note_step_ins": "+ spacer step",
+  "note_trans_ins": "+ spacer transition",
+  "d_step": "Step {n}",
+  "d_initial": " (initial)",
+  "d_trans": "Transition ({n})",
+  "d_recept_empty": "empty condition",
+  "d_jump_step": "Jump to step {n}",
+  "d_jump_trans": "Jump to transition ({n})",
+  "d_jump_none": "Jump without target",
+  "d_block_or": "OR block",
+  "d_block_and": "AND block",
+  "p_operand": "operand expected",
+  "p_paren": "missing closing parenthesis",
+  "p_char": "unexpected character “{c}”",
+  "p_empty": "empty condition",
+  "p_pos": " (position {n})",
+  "v_noinit": "No initial step.",
+  "v_dupnum": "Step number {n} is used more than once.",
+  "v_act_label": "Step {n}: an action has no label.",
+  "v_act_cond": "Step {n}: a conditional action has no condition.",
+  "v_recept_empty": "Transition ({n}): empty condition.",
+  "v_recept_err": "Transition ({n}): {e}.",
+  "v_step_missing": "Transition ({n}): step X{m} does not exist.",
+  "v_jump_broken": "A jump has lost its target.",
+  "v_dead_end": "{x} has no successor: the GRAFCET is not closed.",
+  "v_unreachable": "{x} is unreachable from the initial step.",
+  "v_structure": "Invalid structure: {e}.",
+  "rf_empty": "Empty condition: enter a condition.",
+  "rf_ok": "Valid syntax",
+  "rf_vars": " · variables: {v}",
+  "rf_err": "Error: {e}",
+  "tk_and": "AND",
+  "tk_or": "OR",
+  "tk_not": "NOT",
+  "tk_rise": "Rising edge",
+  "tk_fall": "Falling edge",
+  "tk_step": "State of a step (Xn)",
+  "tk_delay": "Time delay"
+ }
+};
+function T(key, p) {
+  let v = I18N[L.lang] && I18N[L.lang][key];
+  if (v === undefined) v = I18N.fr[key];
+  if (v === undefined) return key;
+  if (Array.isArray(v)) v = (p && p.n === 1) ? v[0] : v[1];
+  return p ? v.replace(/\{(\w+)\}/g, (m, k) => (k in p ? p[k] : m)) : v;
+}
+const kindLabel = k => T('k_' + k);
+const kindKey = k => KEYMAP[L.lang][k];
+
+/* =====================================================================
+   1. NOYAU  (aucune dépendance à Vue : c'est le futur paquet grafcet-core)
+   Un GRAFCET est une séquence d'éléments : étape, transition, divergence OU,
+   divergence ET, renvoi. Les divergences contiennent des branches, qui sont
+   elles-mêmes des séquences. Le graphe plat est dérivé de cet arbre.
+   ===================================================================== */
+const TYPE = { step: 'S', trans: 'T', or: 'S', and: 'T' };
+const isBlock = it => !!it && (it.kind === 'or' || it.kind === 'and');
+
+function walkAll(items, fn, ctx = 'root', parent = null) {
+  for (const it of items) {
+    fn(it, ctx, parent);
+    if (it.branches) for (const b of it.branches) walkAll(b, fn, it.kind, it);
+  }
+}
+function findItem(items, id) { let r = null; walkAll(items, it => { if (it.id === id) r = it; }); return r; }
+function locate(seq, id, ctx = 'root', block = null, branchIdx = -1) {
+  for (let i = 0; i < seq.length; i++) {
+    const it = seq[i];
+    if (it.id === id) return { seq, idx: i, ctx, block, branchIdx, item: it };
+    if (it.branches) for (let b = 0; b < it.branches.length; b++) {
+      const r = locate(it.branches[b], id, it.kind, it, b);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
+/* Grammaire : renvoie null si la séquence est valide, sinon la raison. */
+function checkSeq(items, ctx) {
+  if (!items.length) return 'chk_empty';
+  const want = ctx === 'or' ? 'trans' : 'step';
+  if (items[0].kind !== want) return ctx === 'or' ? 'chk_start_or' : 'chk_start_and';
+  let prev = null;
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (it.kind === 'step' || it.kind === 'trans') {
+      if (prev) {
+        if (isBlock(prev)) { if (TYPE[prev.kind] !== TYPE[it.kind]) return 'chk_after_block'; }
+        else if (prev.kind === 'jump') return 'chk_after_jump';
+        else if (TYPE[prev.kind] === TYPE[it.kind]) return 'chk_alternation';
+      }
+    } else if (isBlock(it)) {
+      if (!prev || isBlock(prev) || prev.kind === 'jump' || TYPE[prev.kind] !== TYPE[it.kind]) return 'chk_block_place';
+      if (it.branches.length < 2) return 'chk_min_branches';
+      for (const b of it.branches) { const e = checkSeq(b, it.kind); if (e) return e; }
+    } else if (it.kind === 'jump') {
+      if (i !== items.length - 1) return 'chk_jump_last';
+      if (!prev || isBlock(prev)) return 'chk_jump_place';
+      if (ctx === 'and') return 'chk_jump_and';
+    } else return 'chk_unknown';
+    prev = it;
+  }
+  const last = items[items.length - 1];
+  if (isBlock(last)) return 'chk_block_end';
+  if (ctx === 'or' && !(last.kind === 'trans' || last.kind === 'jump')) return 'chk_or_end';
+  if (ctx === 'and' && last.kind !== 'step') return 'chk_and_end';
+  return null;
+}
+
+const PATTERNS = {
+  step:  [['step'], ['step', 'trans']],
+  trans: [['trans'], ['trans', 'step']],
+  or:    [['or', 'step']],
+  and:   [['and', 'trans']],
+  jump:  [['jump']],
+};
+function probeItem(kind) {
+  if (kind === 'or') return { kind, branches: [[{ kind: 'trans' }], [{ kind: 'trans' }]] };
+  if (kind === 'and') return { kind, branches: [[{ kind: 'step' }], [{ kind: 'step' }]] };
+  return { kind };
+}
+/* Quelle forme d'insertion garde la séquence valide ? (élément seul, ou avec un intercalaire) */
+function findPattern(seq, ctx, idx, kind) {
+  for (const pat of PATTERNS[kind]) {
+    const test = seq.slice(0, idx + 1).concat(pat.map(probeItem), seq.slice(idx + 1));
+    if (!checkSeq(test, ctx)) return pat;
+  }
+  return null;
+}
+function noteFor(kind, pat) {
+  if (kind === 'or') return T('note_or');
+  if (kind === 'and') return T('note_and');
+  if (pat.length > 1) return pat[1] === 'step' ? T('note_step_ins') : T('note_trans_ins');
+  return '';
+}
+function allowedInsertions(g, id) {
+  if (!id || id.endsWith(':d')) return [];
+  const loc = locate(g.items, id);
+  if (!loc || loc.item.kind === 'jump') return [];
+  const out = [];
+  for (const kind of ['step', 'trans', 'or', 'and', 'jump']) {
+    const pat = findPattern(loc.seq, loc.ctx, loc.idx, kind);
+    if (!pat) continue;
+    if (kind === 'jump') {
+      const want = loc.item.kind === 'step' ? 'trans' : 'step';
+      let any = false; walkAll(g.items, it => { if (it.kind === want) any = true; });
+      if (!any) continue;
+    }
+    out.push({ kind, key: kindKey(kind), label: kindLabel(kind), note: noteFor(kind, pat) });
+  }
+  return out;
+}
+
+const nid = P => 'n' + (P.counter++);
+const mkStep = (P, g) => ({ id: nid(P), kind: 'step', num: g.nextStep++, name: '', initial: false, actions: [] });
+const mkTrans = (P, g) => ({ id: nid(P), kind: 'trans', num: g.nextTrans++, recept: '' });
+function mkItem(P, g, kind, prev) {
+  if (kind === 'step') return mkStep(P, g);
+  if (kind === 'trans') return mkTrans(P, g);
+  if (kind === 'or') return { id: nid(P), kind, branches: [[mkTrans(P, g)], [mkTrans(P, g)]] };
+  if (kind === 'and') return { id: nid(P), kind, branches: [[mkStep(P, g)], [mkStep(P, g)]] };
+  const want = prev.kind === 'step' ? 'trans' : 'step';
+  let target = null;
+  walkAll(g.items, it => { if (!target && it.kind === want && (want === 'trans' || it.initial)) target = it.id; });
+  if (!target) walkAll(g.items, it => { if (!target && it.kind === want) target = it.id; });
+  return { id: nid(P), kind: 'jump', target };
+}
+function doInsert(P, g, id, kind) {
+  const loc = locate(g.items, id);
+  const pat = findPattern(loc.seq, loc.ctx, loc.idx, kind);
+  const made = pat.map((k, i) => mkItem(P, g, k, loc.item));
+  loc.seq.splice(loc.idx + 1, 0, ...made);
+  const first = made[0];
+  return first.branches ? first.branches[0][0].id : first.id;
+}
+function tryRemove(seq, ctx, i) {
+  for (const [s, len] of [[i, 1], [i, 2], [i - 1, 2]]) {
+    if (s < 0 || s + len > seq.length) continue;
+    if (!checkSeq(seq.slice(0, s).concat(seq.slice(s + len)), ctx)) return { s, len };
+  }
+  return null;
+}
+function renumber(g) {
+  const map = new Map(); let n = 0, tn = 1;
+  walkAll(g.items, it => {
+    if (it.kind === 'step') { map.set(it.num, n); it._n = n++; }
+    else if (it.kind === 'trans') it._t = tn++;
+  });
+  walkAll(g.items, it => {
+    if (it.kind === 'step') { it.num = it._n; delete it._n; }
+    if (it.kind === 'trans') {
+      it.num = it._t; delete it._t;
+      it.recept = it.recept.replace(/\bX(\d+)\b/g, (m, d) => map.has(+d) ? 'X' + map.get(+d) : m);
+    }
+  });
+  g.nextStep = n; g.nextTrans = tn;
+}
+
+function describe(it, g) {
+  switch (it.kind) {
+    case 'step': return T('d_step', { n: it.num }) + (it.name ? ' · ' + it.name : '') + (it.initial ? T('d_initial') : '');
+    case 'trans': return T('d_trans', { n: it.num }) + ' : ' + (it.recept ? it.recept : T('d_recept_empty'));
+    case 'jump': {
+      const t = findItem(g.items, it.target);
+      return t ? (t.kind === 'step' ? T('d_jump_step', { n: t.num }) : T('d_jump_trans', { n: t.num })) : T('d_jump_none');
+    }
+    default: return it.kind === 'or' ? T('d_block_or') : T('d_block_and');
+  }
+}
+function describeId(g, id) {
+  if (!id) return '';
+  const base = id.replace(':d', '');
+  const it = findItem(g.items, base);
+  if (!it) return '';
+  if (it.branches) {
+    const div = id.endsWith(':d');
+    return T(div ? (it.kind === 'or' ? 'div_or' : 'div_and') : (it.kind === 'or' ? 'conv_or' : 'conv_and')) + (div ? ', ' + T('n_branches', { n: it.branches.length }) : '');
+  }
+  return describe(it, g);
+}
+
+/* ----- Réceptivités : analyse syntaxique (ET « . », OU « + », NON « / », fronts ↑ ↓, Xn, temporisations) ----- */
+function parseRecept(src) {
+  const s = src; let i = 0; const refs = [], vars = new Set();
+  const fail = m => { throw { m, pos: i }; };
+  const ws = () => { while (i < s.length && /\s/.test(s[i])) i++; };
+  const peek = () => { ws(); return s[i]; };
+  function expr() { term(); while (peek() === '+') { i++; term(); } }
+  function term() { factor(); while (['.', '·', '*', '&'].includes(peek())) { i++; factor(); } }
+  function factor() {
+    ws();
+    const c = s[i];
+    if (c === '/' || c === '!' || c === '¬' || c === '↑' || c === '↓' || c === '^') { i++; return factor(); }
+    atom();
+  }
+  function atom() {
+    ws();
+    if (i >= s.length) fail(T('p_operand'));
+    const rest = s.slice(i); let m;
+    if (rest[0] === '(') { i++; expr(); ws(); if (s[i] !== ')') fail(T('p_paren')); i++; return; }
+    if ((m = rest.match(/^(?:t\d*\/X\d+\/\d+(?:[.,]\d+)?\s?(?:ms|s|min)|\d+(?:[.,]\d+)?\s?(?:ms|s|min)\/X\d+)(?![\w])/i))) {
+      i += m[0].length; refs.push(+m[0].match(/X(\d+)/i)[1]); return;
+    }
+    if ((m = rest.match(/^[01](?![\w])/))) { i += 1; return; }
+    if ((m = rest.match(/^[A-Za-zÀ-ÿ_][A-Za-z0-9À-ÿ_]*/))) {
+      i += m[0].length;
+      if (/^X\d+$/.test(m[0])) refs.push(+m[0].slice(1)); else vars.add(m[0]);
+      const c = s.slice(i).match(/^\s*(<=|>=|==|!=|=|<|>)\s*(-?\d+(?:[.,]\d+)?|[A-Za-zÀ-ÿ_][A-Za-z0-9À-ÿ_]*)/);
+      if (c) { i += c[0].length; if (/^[A-Za-z_]/.test(c[2])) vars.add(c[2]); }
+      return;
+    }
+    fail(T('p_char', { c: rest[0] }));
+  }
+  try {
+    if (!s.trim()) return { ok: false, error: T('p_empty'), refs, vars };
+    expr(); ws();
+    if (i < s.length) fail(T('p_char', { c: s[i] }));
+    return { ok: true, refs, vars };
+  } catch (e) {
+    if (e && e.m) return { ok: false, error: e.m + T('p_pos', { n: e.pos + 1 }), refs, vars };
+    throw e;
+  }
+}
+
+/* ----- Graphe plat dérivé de l'arbre ----- */
+function flatten(g) {
+  const nodes = new Map(), links = [];
+  function walk(seq, preds) {
+    let tails = preds.slice();
+    for (const it of seq) {
+      if (it.kind === 'step' || it.kind === 'trans') {
+        nodes.set(it.id, { id: it.id, kind: it.kind, num: it.num });
+        for (const p of tails) links.push({ from: p, to: it.id });
+        tails = [it.id];
+      } else if (it.branches) {
+        const nt = [];
+        for (const b of it.branches) nt.push(...walk(b, tails));
+        tails = nt;
+      } else if (it.kind === 'jump') {
+        for (const p of tails) links.push({ from: p, to: it.target, jump: true });
+        tails = [];
+      }
+    }
+    return tails;
+  }
+  walk(g.items, []);
+  return { nodes: [...nodes.values()], links };
+}
+
+function validateGrafcet(g) {
+  const issues = [];
+  const steps = [], transitions = [], jumps = [];
+  walkAll(g.items, it => { if (it.kind === 'step') steps.push(it); else if (it.kind === 'trans') transitions.push(it); else if (it.kind === 'jump') jumps.push(it); });
+  if (!steps.some(s => s.initial)) issues.push({ lvl: 'error', msg: T('v_noinit'), id: null });
+  const seen = new Map();
+  for (const s of steps) {
+    if (seen.has(s.num)) issues.push({ lvl: 'error', msg: T('v_dupnum', { n: s.num }), id: s.id });
+    seen.set(s.num, s.id);
+    for (const a of s.actions) {
+      if (!a.label.trim()) issues.push({ lvl: 'warning', msg: T('v_act_label', { n: s.num }), id: s.id });
+      if (a.kind === 'conditional' && !(a.cond || '').trim()) issues.push({ lvl: 'warning', msg: T('v_act_cond', { n: s.num }), id: s.id });
+    }
+  }
+  for (const t of transitions) {
+    if (!t.recept.trim()) { issues.push({ lvl: 'warning', msg: T('v_recept_empty', { n: t.num }), id: t.id }); continue; }
+    const r = parseRecept(t.recept);
+    if (!r.ok) issues.push({ lvl: 'error', msg: T('v_recept_err', { n: t.num, e: r.error }), id: t.id });
+    else for (const n of r.refs) if (!seen.has(n)) issues.push({ lvl: 'warning', msg: T('v_step_missing', { n: t.num, m: n }), id: t.id });
+  }
+  const ids = new Set(); walkAll(g.items, it => ids.add(it.id));
+  for (const j of jumps) if (!ids.has(j.target)) issues.push({ lvl: 'error', msg: T('v_jump_broken'), id: j.id });
+  const fg = flatten(g);
+  const nodeName = n => (n.kind === 'step' ? T('d_step', { n: n.num }) : T('d_trans', { n: n.num }));
+  const out = new Map(); for (const l of fg.links) out.set(l.from, (out.get(l.from) || 0) + 1);
+  for (const n of fg.nodes) if (!out.has(n.id)) issues.push({ lvl: 'warning', msg: T('v_dead_end', { x: nodeName(n) }), id: n.id });
+  const adj = new Map(); for (const l of fg.links) { if (!adj.has(l.from)) adj.set(l.from, []); adj.get(l.from).push(l.to); }
+  const reach = new Set(), queue = steps.filter(s => s.initial).map(s => s.id);
+  while (queue.length) { const x = queue.pop(); if (reach.has(x)) continue; reach.add(x); for (const y of adj.get(x) || []) queue.push(y); }
+  if (reach.size) for (const n of fg.nodes) if (!reach.has(n.id)) issues.push({ lvl: 'warning', msg: T('v_unreachable', { x: nodeName(n) }), id: n.id });
+  const e = checkSeq(g.items, 'root');
+  if (e) issues.push({ lvl: 'error', msg: T('v_structure', { e: T(e) }), id: null });
+  return issues;
+}
+
+/* ----- Mise en page récursive : les positions sont CALCULÉES depuis l'arbre ----- */
+const GEO = { stepW: 44, stepH: 40, transH: 40, tick: 9, actH: 22, actGap: 14, orPad: 18, andPad: 18, bar: 6, branchGap: 40, ov: 6, jumpH: 46 };
+function layoutGrafcet(g, tw) {
+  const lines = [], views = [], focus = [];
+  const idx = new Map(); walkAll(g.items, it => idx.set(it.id, it));
+  const memo = new Map();
+  const actText = a => (a.kind === 'activation' ? '↑ ' : a.kind === 'deactivation' ? '↓ ' : '') + (a.label || '?');
+  const jumpLabel = it => { const t = idx.get(it.target); return !t ? '?' : t.kind === 'step' ? String(t.num) : '(' + t.num + ')'; };
+  function actGeom(it) {
+    const acts = it.actions; if (!acts.length) return null;
+    const hasC = acts.some(a => a.kind === 'conditional');
+    const condW = hasC ? Math.max(28, ...acts.map(a => a.kind === 'conditional' ? tw(a.cond || '?') + 14 : 0)) : 0;
+    const labW = Math.max(44, ...acts.map(a => tw(actText(a)) + 16));
+    return { condW, labW, w: condW + labW };
+  }
+  function mItem(it) {
+    if (memo.has(it)) return memo.get(it);
+    let m;
+    if (it.kind === 'step') {
+      const ag = actGeom(it), nameW = it.name ? tw(it.name) + 10 : 0;
+      m = { l: GEO.stepW / 2 + nameW, r: GEO.stepW / 2 + (ag ? GEO.actGap + ag.w : 0), h: Math.max(GEO.stepH, it.actions.length * GEO.actH + 10), ag };
+    } else if (it.kind === 'trans') {
+      m = { l: GEO.tick + 8 + tw('(' + it.num + ')'), r: GEO.tick + 8 + tw(it.recept || '?'), h: GEO.transH };
+    } else if (it.kind === 'jump') {
+      const half = Math.max(14, tw(jumpLabel(it)) / 2 + 4);
+      m = { l: half, r: half, h: GEO.jumpH };
+    } else {
+      const bm = it.branches.map(mSeq);
+      const xs = [0];
+      for (let k = 1; k < bm.length; k++) xs.push(xs[k - 1] + bm[k - 1].r + GEO.branchGap + bm[k].l);
+      const last = xs.length - 1, mx = (xs[0] + xs[last]) / 2;
+      const maxH = Math.max(...bm.map(b => b.h));
+      m = {
+        l: Math.max(mx - xs[0] + bm[0].l, mx - xs[0] + GEO.ov),
+        r: Math.max(xs[last] + bm[last].r - mx, xs[last] - mx + GEO.ov),
+        h: it.kind === 'or' ? GEO.orPad + maxH + GEO.orPad : GEO.bar + GEO.andPad + maxH + GEO.andPad + GEO.bar,
+        xs, mx, maxH, bm,
+      };
+    }
+    memo.set(it, m); return m;
+  }
+  function mSeq(seq) { let l = 0, r = 0, h = 0; for (const it of seq) { const m = mItem(it); l = Math.max(l, m.l); r = Math.max(r, m.r); h += m.h; } return { l, r, h }; }
+  const L = (x1, y1, x2, y2) => lines.push({ x1, y1, x2, y2 });
+
+  function dItem(it, x, y) {
+    const m = mItem(it);
+    if (it.kind === 'step') {
+      const acts = [];
+      if (m.ag) {
+        const ax = x + GEO.stepW / 2 + GEO.actGap;
+        it.actions.forEach((a, i) => acts.push({ i, x: ax, y: y + 9 + i * GEO.actH, condW: m.ag.condW, labW: m.ag.labW, cond: a.cond || '', text: actText(a), cell: a.kind === 'conditional' }));
+        L(x + GEO.stepW / 2, y + 20, ax, y + 20);
+      }
+      if (m.h > GEO.stepH) L(x, y + GEO.stepH, x, y + m.h);
+      views.push({ kind: 'step', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, name: it.name, initial: it.initial, acts });
+      focus.push({ id: it.id, x, y: y + 20, slot: { x, y: y + GEO.stepH + 11 } });
+    } else if (it.kind === 'trans') {
+      L(x, y, x, y + m.h);
+      views.push({ kind: 'trans', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, recept: it.recept });
+      focus.push({ id: it.id, x, y: y + 20, slot: { x, y: y + 31 } });
+    } else if (it.kind === 'jump') {
+      L(x, y, x, y + 24);
+      views.push({ kind: 'jump', id: it.id, x, y, l: m.l, r: m.r, h: m.h, label: jumpLabel(it), broken: !idx.has(it.target) });
+      focus.push({ id: it.id, x, y: y + 16, slot: null });
+    } else {
+      const isOr = it.kind === 'or';
+      const { xs, mx, maxH, bm } = m;
+      const bxs = xs.map(v => x + v - mx);
+      const conv = it.branches.map(b => b[b.length - 1].kind !== 'jump');
+      const lastK = bxs.length - 1;
+      views.push({ kind: 'region', id: it.id, x1: x - m.l, x2: x + m.r, y1: y, y2: y + m.h });
+      if (isOr) {
+        const yb1 = y + GEO.orPad, yb2 = yb1 + maxH;
+        L(x, y, x, yb1);
+        views.push({ kind: 'bar', id: it.id, part: 'd', ys: [yb1], x1: bxs[0] - GEO.ov, x2: bxs[lastK] + GEO.ov });
+        focus.push({ id: it.id + ':d', x, y: yb1, slot: null });
+        it.branches.forEach((b, k) => {
+          dSeq(b, bxs[k], yb1);
+          if (conv[k] && bm[k].h < maxH) L(bxs[k], yb1 + bm[k].h, bxs[k], yb2);
+        });
+        const cx = bxs.filter((_, k) => conv[k]);
+        if (cx.length) {
+          views.push({ kind: 'bar', id: it.id, part: 'c', ys: [yb2], x1: Math.min(...cx, x) - GEO.ov, x2: Math.max(...cx, x) + GEO.ov });
+          L(x, yb2, x, yb2 + GEO.orPad);
+        }
+        focus.push({ id: it.id, x, y: yb2, slot: { x, y: yb2 + 11 } });
+      } else {
+        const yB = y + GEO.bar + GEO.andPad, yb2 = yB + maxH + GEO.andPad;
+        views.push({ kind: 'bar', id: it.id, part: 'd', ys: [y + 1, y + GEO.bar - 1], x1: bxs[0] - GEO.ov, x2: bxs[lastK] + GEO.ov });
+        focus.push({ id: it.id + ':d', x, y: y + 3, slot: null });
+        it.branches.forEach((b, k) => {
+          L(bxs[k], y + GEO.bar, bxs[k], yB);
+          dSeq(b, bxs[k], yB);
+          L(bxs[k], yB + bm[k].h, bxs[k], yb2);
+        });
+        views.push({ kind: 'bar', id: it.id, part: 'c', ys: [yb2 + 1, yb2 + GEO.bar - 1], x1: bxs[0] - GEO.ov, x2: bxs[lastK] + GEO.ov });
+        focus.push({ id: it.id, x, y: yb2 + 3, slot: { x, y: yb2 + GEO.bar + 11 } });
+      }
+    }
+  }
+  function dSeq(seq, x, y) { let yy = y; for (const it of seq) { dItem(it, x, yy); yy += mItem(it).h; } }
+  const root = mSeq(g.items);
+  dSeq(g.items, 0, 0);
+  return { lines, views, focus, bounds: { x: -root.l, y: 0, w: root.l + root.r, h: root.h } };
+}
+
+/* ----- Projet de démonstration (fr / en) ----- */
+const DEMO = {
+ "fr": {
+  "proj": "Projet démo",
+  "g1": "Station de tri (exemple)",
+  "g2": "Cycle vérin A",
+  "g3": "Brouillon",
+  "s0": "Attente",
+  "t1": "Dcy . capt_entrée",
+  "s1": "Convoyage entrée",
+  "a1": "CONV_ENT",
+  "tb": "bleu",
+  "s2": "Pousseur bleu",
+  "a2": "POUS_B+",
+  "t3": "pous_b_sorti . t1/X2/1s",
+  "tv": "/bleu . vert",
+  "s3": "Pousseur vert",
+  "a3": "POUS_V+",
+  "t5": "pous_v_sorti",
+  "s4": "Rétraction",
+  "a4": "POUS_B-",
+  "a4b": "POUS_V-",
+  "t6": "pous_b_rentré . pous_v_rentré",
+  "s5": "Sortie bleue",
+  "a5": "CONV_B",
+  "t7": "↑capt_sortie_b",
+  "s6": "Zone bleue libre",
+  "s7": "Sortie verte",
+  "a7": "CONV_V",
+  "t8": "↑capt_sortie_v",
+  "s8": "Zone verte libre",
+  "c0": "Repos",
+  "ct1": "PM . a0",
+  "c1": "Sortie",
+  "ca1": "A+",
+  "ct2": "a1",
+  "c2": "Retour",
+  "ca2": "A-",
+  "ct3": "a0"
+ },
+ "en": {
+  "proj": "Demo project",
+  "g1": "Sorting station (example)",
+  "g2": "Cylinder A cycle",
+  "g3": "Draft",
+  "s0": "Waiting",
+  "t1": "Start . in_sensor",
+  "s1": "Input conveying",
+  "a1": "CONV_IN",
+  "tb": "blue",
+  "s2": "Blue pusher",
+  "a2": "PUSH_B+",
+  "t3": "push_b_out . t1/X2/1s",
+  "tv": "/blue . green",
+  "s3": "Green pusher",
+  "a3": "PUSH_G+",
+  "t5": "push_g_out",
+  "s4": "Retraction",
+  "a4": "PUSH_B-",
+  "a4b": "PUSH_G-",
+  "t6": "push_b_in . push_g_in",
+  "s5": "Blue output",
+  "a5": "CONV_B",
+  "t7": "↑out_sensor_b",
+  "s6": "Blue zone free",
+  "s7": "Green output",
+  "a7": "CONV_G",
+  "t8": "↑out_sensor_g",
+  "s8": "Green zone free",
+  "c0": "Rest",
+  "ct1": "PB . a0",
+  "c1": "Extend",
+  "ca1": "A+",
+  "ct2": "a1",
+  "c2": "Retract",
+  "ca2": "A-",
+  "ct3": "a0"
+ }
+};
+function demoProject(lang) {
+  const d = DEMO[lang] || DEMO.fr;
+  const P = { name: d.proj, counter: 1, gcount: 1, grafcets: [] };
+  const mk = (name, first) => ({ id: 'g' + (P.gcount++), name, nextStep: first, nextTrans: 1, items: [] });
+  const S = (g, name, acts = [], initial = false) => ({ id: nid(P), kind: 'step', num: g.nextStep++, name, initial, actions: acts.map(a => typeof a === 'string' ? { kind: 'continue', label: a, cond: '' } : a) });
+  const T_ = (g, recept) => ({ id: nid(P), kind: 'trans', num: g.nextTrans++, recept });
+
+  const g1 = mk(d.g1, 0);
+  const s0 = S(g1, d.s0, [], true), t1 = T_(g1, d.t1), s1 = S(g1, d.s1, [d.a1]);
+  const or = { id: nid(P), kind: 'or', branches: [[], []] };
+  or.branches[0].push(T_(g1, d.tb), S(g1, d.s2, [d.a2]), T_(g1, d.t3));
+  or.branches[1].push(T_(g1, d.tv), S(g1, d.s3, [d.a3]), T_(g1, d.t5));
+  const s4 = S(g1, d.s4, [d.a4, { kind: 'conditional', label: d.a4b, cond: 'X4' }]);
+  const t6 = T_(g1, d.t6);
+  const and = { id: nid(P), kind: 'and', branches: [[], []] };
+  and.branches[0].push(S(g1, d.s5, [d.a5]), T_(g1, d.t7), S(g1, d.s6));
+  and.branches[1].push(S(g1, d.s7, [d.a7]), T_(g1, d.t8), S(g1, d.s8));
+  const t9 = T_(g1, 'X6 . X8');
+  g1.items = [s0, t1, s1, or, s4, t6, and, t9, { id: nid(P), kind: 'jump', target: s0.id }];
+
+  const g2 = mk(d.g2, 0);
+  const a0 = S(g2, d.c0, [], true), ta = T_(g2, d.ct1), a1 = S(g2, d.c1, [d.ca1]), tb = T_(g2, d.ct2), a2 = S(g2, d.c2, [d.ca2]), tc = T_(g2, d.ct3);
+  g2.items = [a0, ta, a1, tb, a2, tc, { id: nid(P), kind: 'jump', target: a0.id }];
+
+  const g3 = mk(d.g3, 0);
+  g3.items = [S(g3, '', [], true)];
+  P.grafcets = [g1, g2, g3];
+  return P;
+}
+function newGrafcet(P, name) {
+  const g = { id: 'g' + (P.gcount++), name, nextStep: 0, nextTrans: 1, items: [] };
+  g.items.push(mkStep(P, g)); g.items[0].initial = true;
+  return g;
+}
+
+/* =====================================================================
+   2. INTERFACE
+   ===================================================================== */
+const ICONS = {
+  undo: 'M9 14 4 9l5-5 M4 9h10.5a5.5 5.5 0 0 1 0 11H11',
+  redo: 'm15 14 5-5-5-5 M20 9H9.5a5.5 5.5 0 0 0 0 11H13',
+  zin: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M21 21l-4.3-4.3 M11 8v6 M8 11h6',
+  zout: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M21 21l-4.3-4.3 M8 11h6',
+  fit: 'M8 3H5a2 2 0 0 0-2 2v3 M21 8V5a2 2 0 0 0-2-2h-3 M3 16v3a2 2 0 0 0 2 2h3 M16 21h3a2 2 0 0 0 2-2v-3',
+  play: 'M7 4.5v15l12-7.5z',
+  stop: 'M6 6h12v12H6z',
+  plus: 'M12 5v14 M5 12h14',
+  trash: 'M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13',
+  copy: 'M9 9h11v11H9z M5 15H4V4h11v1',
+  sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4',
+  moon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+  auto: 'M12 3a9 9 0 1 0 0 18V3z M12 3a9 9 0 0 1 0 18',
+  reset: 'M3 12a9 9 0 1 0 3-6.7 M3 4v5h5',
+  check: 'm5 12 5 5 9-10',
+  warn: 'M12 3 2 20h20L12 3z M12 10v4 M12 17.5v.5',
+};
+const Ic = { props: ['n'], computed: { d() { return ICONS[this.n]; } },
+  template: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path :d="d"/></svg>' };
+
+const OutlineList = {
+  name: 'OutlineList', props: ['items', 'sel', 'g'], emits: ['pick'],
+  methods: { label(it) { return describe(it, this.g); }, T },
+  template: '<ul class="ol"><li v-for="it in items" :key="it.id">' +
+    '<template v-if="it.branches">' +
+      '<button class="ol-btn" :class="{on: sel===it.id+\':d\'}" @click="$emit(\'pick\', it.id+\':d\')">{{ T(it.kind===\'or\' ? \'div_or\' : \'div_and\') }} · {{ T(\'n_branches\', {n: it.branches.length}) }}</button>' +
+      '<ol class="ol-br"><li v-for="(b,bi) in it.branches" :key="bi"><span class="ol-label">{{ T(\'ol_branch\', {n: bi+1}) }}</span><OutlineList :items="b" :sel="sel" :g="g" @pick="$emit(\'pick\', $event)"/></li></ol>' +
+      '<button class="ol-btn" :class="{on: sel===it.id}" @click="$emit(\'pick\', it.id)">{{ T(it.kind===\'or\' ? \'conv_or\' : \'conv_and\') }}</button>' +
+    '</template>' +
+    '<button v-else class="ol-btn" :class="{on: sel===it.id}" @click="$emit(\'pick\', it.id)">{{ label(it) }}</button>' +
+  '</li></ul>',
+};
+
+const TEMPLATE = `
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="1.5" width="6" height="4"/><path d="M8 5.5v2.2M5.8 7.7h4.4M8 7.7v1.6"/><rect x="5" y="9.3" width="6" height="4"/></svg></span>
+      <h1>{{ T('app_title') }}</h1><span class="tag">{{ T('proto') }}</span>
+    </div>
+    <div class="tools" role="toolbar" :aria-label="T('hist_label')">
+      <button class="btn icon" @click="undo" :disabled="!past.length" :title="T('undo_t')"><Ic n="undo"/><span class="sr">{{ T('undo') }}</span></button>
+      <button class="btn icon" @click="redo" :disabled="!future.length" :title="T('redo_t')"><Ic n="redo"/><span class="sr">{{ T('redo') }}</span></button>
+    </div>
+    <div class="tools" role="toolbar" :aria-label="T('view_label')">
+      <button class="btn icon" @click="zoomBy(1/1.2)" :title="T('zoom_out_t')"><Ic n="zout"/><span class="sr">{{ T('zoom_out') }}</span></button>
+      <span class="zlevel" aria-live="off">{{ Math.round(view.z*100) }} %</span>
+      <button class="btn icon" @click="zoomBy(1.2)" :title="T('zoom_in_t')"><Ic n="zin"/><span class="sr">{{ T('zoom_in') }}</span></button>
+      <button class="btn icon" @click="fit(true)" :title="T('fit_t')"><Ic n="fit"/><span class="sr">{{ T('fit') }}</span></button>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn solid" :class="{on: sim.on}" :aria-pressed="sim.on" @click="toggleSim"><Ic :n="sim.on ? 'stop' : 'play'"/><span class="txt">{{ sim.on ? T('sim_stop') : T('sim') }}</span></button>
+    <div class="seg langseg" role="group" :aria-label="T('lang_label')"><button type="button" lang="fr" title="Français" :aria-pressed="lang==='fr'" @click="setLang('fr')">FR</button><button type="button" lang="en" title="English" :aria-pressed="lang==='en'" @click="setLang('en')">EN</button></div>
+    <button class="btn icon" @click="cycleTheme" :title="T('theme', {v: themeLabel})"><Ic :n="theme==='auto' ? 'auto' : theme==='dark' ? 'moon' : 'sun'"/><span class="sr">{{ T('theme', {v: themeLabel}) }}</span></button>
+  </header>
+
+  <main class="work">
+    <aside class="side left" :aria-label="T('project_aria')">
+      <div class="side-h"><label class="sr" for="pname">{{ T('project_name') }}</label><input id="pname" class="pname" type="text" :value="project.name" @input="renameProject($event.target.value)"></div>
+      <div class="side-title">GRAFCET <span>{{ project.grafcets.length }}</span></div>
+      <ul class="glist">
+        <li v-for="g in project.grafcets" :key="g.id">
+          <button class="gitem" :class="{on: g.id===activeId}" :aria-current="g.id===activeId ? 'true' : null" @click="openG(g.id)">
+            <span class="gname">{{ g.name }}</span>
+            <span class="gmeta">{{ T('meta', {s: sums[g.id].steps, t: sums[g.id].trans}) }}</span>
+            <span v-if="sums[g.id].err" class="badge err" :title="T('n_errors', {n: sums[g.id].err})">{{ T('badge_err', {n: sums[g.id].err}) }}</span>
+            <span v-else-if="sums[g.id].warn" class="badge warn" :title="T('n_warnings', {n: sums[g.id].warn})">{{ T('badge_warn', {n: sums[g.id].warn}) }}</span>
+            <span v-else class="badge ok">OK</span>
+          </button>
+        </li>
+      </ul>
+      <div class="side-actions">
+        <button class="btn solid" @click="addGrafcet"><Ic n="plus"/>{{ T('add') }}</button>
+        <button class="btn solid" @click="dupGrafcet"><Ic n="copy"/>{{ T('dup') }}</button>
+        <button class="btn solid danger" @click="delGrafcet" :disabled="project.grafcets.length<2"><Ic n="trash"/>{{ T('del') }}</button>
+      </div>
+      <p class="side-note">{{ T('side_note') }}</p>
+    </aside>
+
+    <section class="stage" :aria-label="T('stage_aria')">
+      <div class="host" ref="host" tabindex="0" role="application" id="canvas"
+           :aria-label="T('canvas_aria', {k: keyList})"
+           :style="gridStyle" @keydown="onKey" @focus="onHostFocus" @wheel.prevent="onWheel">
+        <svg class="cv" aria-hidden="true" @pointerdown="panStart" @pointermove="panMove" @pointerup="panEnd" @pointercancel="panEnd">
+          <g :transform="gTransform">
+            <rect v-if="activeRegion" class="region" :x="activeRegion.x1-8" :y="activeRegion.y1" :width="activeRegion.x2-activeRegion.x1+16" :height="activeRegion.y2-activeRegion.y1" rx="8"/>
+            <line v-for="(l,i) in layout.lines" :key="'l'+i" class="lk" :x1="l.x1" :y1="l.y1" :x2="l.x2" :y2="l.y2"/>
+            <template v-for="v in shapes" :key="v.id + (v.part||'')">
+              <g v-if="v.kind==='step'" class="el" :class="{active: simActive.has(v.id)}" @pointerdown.stop="pick(v.id)">
+                <rect class="hit" :x="v.x-v.l" :y="v.y" :width="v.l+v.r" :height="v.h"/>
+                <rect class="st-box" :x="v.x-22" :y="v.y" width="44" height="40"/>
+                <rect v-if="v.initial" class="st-in" :x="v.x-18" :y="v.y+4" width="36" height="32"/>
+                <text class="st-num" :x="v.x" :y="v.y+25" text-anchor="middle">{{ v.num }}</text>
+                <text v-if="v.name" class="st-name" :x="v.x-30" :y="v.y+24" text-anchor="end">{{ v.name }}</text>
+                <circle v-if="simActive.has(v.id)" class="tok" :cx="v.x" :cy="v.y+33" r="3.4"/>
+                <g v-for="a in v.acts" :key="a.i">
+                  <rect v-if="a.cell" class="act-box" :x="a.x" :y="a.y" :width="a.condW" height="22"/>
+                  <text v-if="a.cell" class="act-txt" :x="a.x+a.condW/2" :y="a.y+15" text-anchor="middle">{{ a.cond || '?' }}</text>
+                  <rect class="act-box" :x="a.x+a.condW" :y="a.y" :width="a.labW" height="22"/>
+                  <text class="act-txt" :x="a.x+a.condW+8" :y="a.y+15">{{ a.text }}</text>
+                </g>
+                <rect v-if="sel===v.id" class="ring" :x="v.x-27" :y="v.y-5" width="54" height="50" rx="5"/>
+              </g>
+              <g v-else-if="v.kind==='trans'" class="el" :class="{enabled: simEnabled.has(v.id)}" @pointerdown.stop="pick(v.id)">
+                <rect class="hit" :x="v.x-v.l" :y="v.y" :width="v.l+v.r" :height="v.h"/>
+                <line class="tick" :x1="v.x-9" :x2="v.x+9" :y1="v.y+20" :y2="v.y+20"/>
+                <text class="tnum" :x="v.x-17" :y="v.y+24" text-anchor="end">({{ v.num }})</text>
+                <text class="rec" :class="{empty: !v.recept}" :x="v.x+17" :y="v.y+24">{{ v.recept || '?' }}</text>
+                <rect v-if="sel===v.id" class="ring" :x="v.x-15" :y="v.y+11" width="30" height="18" rx="4"/>
+              </g>
+              <g v-else-if="v.kind==='jump'" class="el" @pointerdown.stop="pick(v.id)">
+                <rect class="hit" :x="v.x-v.l" :y="v.y" :width="v.l+v.r" :height="v.h"/>
+                <polygon class="arrow" :points="(v.x-5)+','+(v.y+22)+' '+(v.x+5)+','+(v.y+22)+' '+v.x+','+(v.y+31)"/>
+                <text class="jtxt" :class="{broken: v.broken}" :x="v.x" :y="v.y+43" text-anchor="middle">{{ v.label }}</text>
+                <rect v-if="sel===v.id" class="ring" :x="v.x-v.l" :y="v.y+14" :width="v.l+v.r" height="34" rx="5"/>
+              </g>
+              <g v-else-if="v.kind==='bar'" class="el" @pointerdown.stop="pick(v.part==='d' ? v.id+':d' : v.id)">
+                <rect class="hit" :x="v.x1-4" :y="v.ys[0]-9" :width="v.x2-v.x1+8" :height="v.ys[v.ys.length-1]-v.ys[0]+18"/>
+                <line v-for="(yy,i) in v.ys" :key="i" class="bar" :x1="v.x1" :x2="v.x2" :y1="yy" :y2="yy"/>
+                <rect v-if="sel===(v.part==='d' ? v.id+':d' : v.id)" class="ring" :x="v.x1-5" :y="v.ys[0]-8" :width="v.x2-v.x1+10" :height="v.ys[v.ys.length-1]-v.ys[0]+16" rx="5"/>
+              </g>
+            </template>
+            <g v-if="slotPos" class="slot" :transform="'translate('+slotPos.x+','+slotPos.y+')'"><circle r="8.5"/><path d="M-3.6 0H3.6M0 -3.6V3.6"/></g>
+          </g>
+        </svg>
+        <div class="cues" id="kbd-hint">
+          <span><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> {{ T('cue_nav') }}</span>
+          <span><kbd>{{ K.step }}</kbd><kbd>{{ K.trans }}</kbd><kbd>{{ K.or }}</kbd><kbd>{{ K.and }}</kbd><kbd>{{ K.jump }}</kbd> {{ T('cue_ins') }}</span>
+          <span><kbd>{{ T('kbd_del') }}</kbd> {{ T('cue_del') }}</span><span><kbd>{{ T('kbd_enter') }}</kbd> {{ T('cue_props') }}</span>
+        </div>
+      </div>
+
+      <div v-if="!sim.on && sel" class="insbar" role="toolbar" :aria-label="T('ins_aria', {t: selText})">
+        <div class="ins-ctx"><span class="dotc"></span><span>{{ T('ins_after') }} <b>{{ selShort }}</b></span></div>
+        <button v-for="o in allowed" :key="o.kind" class="ins" @click="insertKind(o.kind)">
+          <kbd>{{ o.key }}</kbd><span class="l">{{ o.label }}<small v-if="o.note">{{ o.note }}</small></span>
+        </button>
+        <span v-if="!allowed.length" class="ins-none">{{ isDivBar ? T('ins_none_bar') : T('ins_none_end') }}</span>
+        <button class="ins danger" @click="removeSel" :title="T('del')"><kbd>{{ T('kbd_del') }}</kbd><span class="l">{{ T('del') }}</span></button>
+      </div>
+      <div v-else-if="!sim.on" class="insbar"><span class="ins-none">{{ T('ins_help') }}</span></div>
+      <div v-if="sim.on" class="simbar">
+        <p><b>{{ T('sim') }}</b>{{ T('colon') }}{{ T('sim_help') }}</p>
+        <button class="btn solid" @click="simReset"><Ic n="reset"/>{{ T('sim_reset') }}</button>
+      </div>
+    </section>
+
+    <aside class="side right" :aria-label="T('panels_aria')">
+      <div class="tabs" role="tablist" :aria-label="T('panels_aria')">
+        <button v-for="t in tabs" :key="t.id" role="tab" class="tab" :id="'tab-'+t.id" :aria-selected="tab===t.id" :aria-controls="'pan-'+t.id" @click="tab=t.id">
+          {{ t.label }}<span v-if="t.id==='issues' && issues.length" class="badge" :class="issueErr ? 'err' : 'warn'" style="grid-row:auto;grid-column:auto">{{ issues.length }}</span>
+        </button>
+      </div>
+
+      <div class="panel" role="tabpanel" id="pan-props" aria-labelledby="tab-props" v-show="tab==='props'" @keydown.esc="focusHost">
+        <template v-if="selItem && selItem.kind==='step'">
+          <h2>{{ T('d_step', {n: selItem.num}) }}</h2>
+          <div class="field"><label for="f-name">{{ T('f_name') }}</label><input id="f-name" type="text" data-main-field :value="selItem.name" @input="setField('name', $event.target.value, true)"></div>
+          <div class="field"><label for="f-num">{{ T('f_num') }}</label><input id="f-num" type="number" min="0" step="1" :value="selItem.num" @input="setField('num', Math.max(0, Math.floor(+$event.target.value||0)), true)"></div>
+          <label class="check"><input type="checkbox" :checked="selItem.initial" @change="setField('initial', $event.target.checked)"> {{ T('f_initial') }}</label>
+          <h3>{{ T('h_actions') }}</h3>
+          <ul class="acts" v-if="selItem.actions.length">
+            <li v-for="(a,i) in selItem.actions" :key="i">
+              <div class="mini"><input type="text" class="mono" :aria-label="T('act_label_aria', {n: i+1})" :placeholder="T('act_ph')" :value="a.label" @input="setAction(i,'label',$event.target.value)">
+                <button class="btn icon" :aria-label="T('act_del_aria', {n: i+1})" @click="delAction(i)"><Ic n="trash"/></button></div>
+              <div class="mini two"><select :aria-label="T('act_type_aria', {n: i+1})" :value="a.kind" @change="setAction(i,'kind',$event.target.value)">
+                  <option value="continue">{{ T('act_continue') }}</option><option value="conditional">{{ T('act_conditional') }}</option><option value="activation">{{ T('act_activation') }}</option><option value="deactivation">{{ T('act_deactivation') }}</option></select>
+                <input v-if="a.kind==='conditional'" type="text" class="mono" :aria-label="T('act_cond_aria', {n: i+1})" :placeholder="T('act_cond_ph')" :value="a.cond" @input="setAction(i,'cond',$event.target.value)"></div>
+            </li>
+          </ul>
+          <p v-else class="hint">{{ T('act_none') }}</p>
+          <button class="btn solid" @click="addAction"><Ic n="plus"/>{{ T('act_add') }}</button>
+        </template>
+
+        <template v-else-if="selItem && selItem.kind==='trans'">
+          <h2>{{ T('d_trans', {n: selItem.num}) }}</h2>
+          <div class="field"><label for="f-rec">{{ T('f_recept') }}</label>
+            <input id="f-rec" type="text" class="mono" data-main-field spellcheck="false" autocomplete="off" aria-describedby="rec-fb" :value="selItem.recept" @input="setField('recept', $event.target.value, true)"></div>
+          <p id="rec-fb" class="fb" :class="recFb.cls"><Ic :n="recFb.cls==='ok' ? 'check' : 'warn'"/><span>{{ recFb.msg }}</span></p>
+          <div class="chips" role="group" :aria-label="T('chips_aria')">
+            <button v-for="t in tokens" :key="t.v" class="chip" :title="t.t" @click="addToken(t.v)">{{ t.v.trim() }}</button>
+          </div>
+          <p class="hint">{{ T('syntax') }} <code class="mono">.</code> {{ T('s_and') }}, <code class="mono">+</code> {{ T('s_or') }}, <code class="mono">/a</code> {{ T('s_not') }}, <code class="mono">↑a</code> {{ T('s_rise') }}, <code class="mono">X3</code> {{ T('s_step') }}, <code class="mono">t1/X2/3s</code> {{ T('s_delay') }}.</p>
+        </template>
+
+        <template v-else-if="selItem && selItem.kind==='jump'">
+          <h2>{{ T('jump_title') }}</h2>
+          <div class="field"><label for="f-target">{{ T('f_target') }}</label>
+            <select id="f-target" data-main-field :value="selItem.target" @change="setField('target', $event.target.value)">
+              <option v-for="t in jumpTargets" :key="t.id" :value="t.id">{{ t.label }}</option></select></div>
+          <p class="hint">{{ T('jump_hint') }}</p>
+        </template>
+
+        <template v-else-if="selItem && selItem.branches">
+          <h2>{{ T(selItem.kind==='or' ? 'div_or' : 'div_and') }}</h2>
+          <p class="hint">{{ T(selItem.kind==='or' ? 'or_hint' : 'and_hint') }}</p>
+          <dl class="kv"><dt>{{ T('branches_k') }}</dt><dd>{{ selItem.branches.length }}</dd></dl>
+          <div class="row"><button class="btn solid" @click="addBranch(-1)"><Ic n="plus"/>{{ T('branch_left') }}</button><button class="btn solid" @click="addBranch(1)"><Ic n="plus"/>{{ T('branch_right') }}</button></div>
+        </template>
+
+        <template v-else>
+          <h2>{{ activeG.name }}</h2>
+          <div class="field"><label for="g-name">{{ T('g_name') }}</label><input id="g-name" type="text" :value="activeG.name" @input="renameG($event.target.value)"></div>
+          <dl class="kv"><dt>{{ T('stat_steps') }}</dt><dd>{{ stats.steps }}</dd><dt>{{ T('stat_trans') }}</dt><dd>{{ stats.trans }}</dd><dt>{{ T('stat_blocks') }}</dt><dd>{{ stats.blocks }}</dd><dt>{{ T('stat_jumps') }}</dt><dd>{{ stats.jumps }}</dd></dl>
+          <div class="row"><button class="btn solid" @click="doRenumber"><Ic n="reset"/>{{ T('renumber') }}</button></div>
+          <h3>{{ T('h_vars') }}</h3>
+          <div class="vars" v-if="varList.length"><span v-for="v in varList" :key="v">{{ v }}</span></div>
+          <p v-else class="hint">{{ T('vars_none') }}</p>
+          <h3>{{ T('h_keyboard') }}</h3>
+          <ul class="keys">
+            <li><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> {{ T('key_move') }}</li>
+            <li><kbd>{{ K.step }}</kbd><kbd>{{ K.trans }}</kbd><kbd>{{ K.or }}</kbd><kbd>{{ K.and }}</kbd><kbd>{{ K.jump }}</kbd> {{ T('key_insert') }}</li>
+            <li><kbd>{{ T('kbd_del') }}</kbd> {{ T('key_delete') }}</li>
+            <li><kbd>{{ T('kbd_enter') }}</kbd> {{ T('key_edit') }}, <kbd>{{ T('kbd_esc') }}</kbd> {{ T('key_back') }}</li>
+            <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> {{ T('key_undo') }}</li>
+          </ul>
+        </template>
+
+        <template v-if="selItem && selLoc && selLoc.block">
+          <h3>{{ T('branch_of', {i: selLoc.branchIdx + 1, n: selLoc.block.branches.length}) }}</h3>
+          <div class="row">
+            <button class="btn solid" @click="addBranch(-1)"><Ic n="plus"/>{{ T('branch_l') }}</button>
+            <button class="btn solid" @click="addBranch(1)"><Ic n="plus"/>{{ T('branch_r') }}</button>
+            <button class="btn solid danger" @click="delBranch" :disabled="selLoc.block.branches.length<3"><Ic n="trash"/>{{ T('branch_del') }}</button>
+          </div>
+        </template>
+        <div class="row" v-if="selItem"><button class="btn solid danger" @click="removeSel"><Ic n="trash"/>{{ T('del_item') }}</button></div>
+      </div>
+
+      <div class="panel" role="tabpanel" id="pan-issues" aria-labelledby="tab-issues" v-show="tab==='issues'">
+        <h2>{{ T('issues_title') }}</h2>
+        <div class="okbox"><Ic n="check"/>{{ T('ok_box') }}</div>
+        <p v-if="!issues.length" class="hint">{{ T('no_issue_more') }}</p>
+        <ul class="issues" v-else>
+          <li v-for="(it,i) in issues" :key="i"><button class="issue" @click="goIssue(it)"><span class="sev" :class="it.lvl">{{ it.lvl==='error' ? T('sev_error') : T('sev_warn') }}</span><span>{{ it.msg }}</span></button></li>
+        </ul>
+      </div>
+
+      <div class="panel" role="tabpanel" id="pan-text" aria-labelledby="tab-text" v-show="tab==='text'">
+        <h2>{{ T('text_title') }}</h2>
+        <p class="hint">{{ T('text_hint') }}</p>
+        <OutlineList :items="activeG.items" :sel="sel" :g="activeG" @pick="pickFromText"/>
+      </div>
+
+      <div class="panel" role="tabpanel" id="pan-data" aria-labelledby="tab-data" v-show="tab==='data'">
+        <h2>{{ T('data_title') }}</h2>
+        <div class="seg" role="group" :aria-label="T('fmt_aria')">
+          <button :aria-pressed="dataView==='json'" @click="dataView='json'">{{ T('fmt_json') }}</button>
+          <button :aria-pressed="dataView==='graph'" @click="dataView='graph'">{{ T('fmt_graph') }}</button>
+        </div>
+        <pre class="code" tabindex="0" :aria-label="T('data_aria')">{{ dataText }}</pre>
+        <div class="row"><button class="btn solid" @click="copyData"><Ic n="copy"/>{{ T('copy') }}</button><span class="msg" :class="copyMsg.cls" role="status">{{ copyMsg.text }}</span></div>
+        <h3>{{ T('h_import') }}</h3>
+        <p class="hint">{{ T('import_hint') }}</p>
+        <label class="sr" for="imp">{{ T('import_label') }}</label>
+        <textarea id="imp" class="imp" spellcheck="false" v-model="importText" placeholder='{ "name": "…", "grafcets": [ … ] }'></textarea>
+        <div class="row"><button class="btn solid" @click="applyImport" :disabled="!importText.trim()">{{ T('import_btn') }}</button>
+          <label class="btn solid" for="imp-file" style="cursor:pointer">{{ T('open_file') }}</label><input id="imp-file" class="sr" type="file" accept=".json,application/json" @change="onFile"></div>
+        <p class="msg" :class="importMsg.cls" role="status">{{ importMsg.text }}</p>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="status">
+    <span class="grow"><b>{{ selText || T('none_selected') }}</b></span>
+    <span>{{ T('n_steps', {n: stats.steps}) }} · {{ T('n_trans', {n: stats.trans}) }}</span>
+    <span v-if="issueErr" style="color:var(--err)">{{ T('n_errors', {n: issueErr}) }}</span>
+    <span v-else-if="issues.length" style="color:var(--warn)">{{ T('n_warnings', {n: issues.length}) }}</span>
+    <span v-else style="color:var(--ok)">{{ T('no_problem') }}</span>
+  </footer>
+  <div class="sr" role="status" aria-live="polite">{{ liveMsg }}</div>
+</div>`;
+
+const LS_KEY = 'grafcet-proto-v1';
+const loadSaved = () => {
+  try {
+    const o = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+    if (o && o.project && Array.isArray(o.project.grafcets) && o.project.grafcets.length && o.project.grafcets.every(g => Array.isArray(g.items) && !checkSeq(g.items, 'root'))) return o;
+  } catch (e) {}
+  return null;
+};
+
+/* Un projet resté identique à l'exemple d'une langue est ré-généré dans l'autre : rien n'est perdu, tout est traduit. */
+function syncDemo(p, lang) {
+  try {
+    const cur = JSON.stringify(p);
+    for (const other of Object.keys(DEMO)) if (other !== lang && cur === JSON.stringify(demoProject(other))) return demoProject(lang);
+  } catch (e) {}
+  return p;
+}
+function initLang() {
+  let l = null;
+  try { l = localStorage.getItem(LS_KEY + '-lang'); } catch (e) {}
+  if (!I18N[l]) l = /^fr/i.test(navigator.language || 'fr') ? 'fr' : 'en';
+  L.lang = l; document.documentElement.lang = l;
+}
+
+const App = {
+  components: { Ic, OutlineList },
+  template: TEMPLATE,
+  setup() {
+    initLang();
+    const saved = loadSaved();
+    const project = ref(syncDemo(saved ? saved.project : demoProject(L.lang), L.lang));
+    const activeId = ref(saved && project.value.grafcets.some(g => g.id === saved.activeId) ? saved.activeId : project.value.grafcets[0].id);
+    const sel = ref(null);
+    const tab = ref('props');
+    const past = ref([]), future = ref([]);
+    const coal = { key: null, t: 0 };
+    const liveMsg = ref(''); let flip = false;
+    const announce = m => { flip = !flip; liveMsg.value = m + (flip ? '' : '​'); };
+    const tabs = computed(() => [{ id: 'props', label: T('tab_props') }, { id: 'issues', label: T('tab_issues') }, { id: 'text', label: T('tab_text') }, { id: 'data', label: T('tab_data') }]);
+
+    const activeG = computed(() => project.value.grafcets.find(g => g.id === activeId.value) || project.value.grafcets[0]);
+    const fontTick = ref(0); const twCache = new Map();
+    let ctx2d = null; try { ctx2d = document.createElement('canvas').getContext('2d'); } catch (e) {}
+    const tw = s => {
+      if (twCache.has(s)) return twCache.get(s);
+      let w; if (ctx2d) { ctx2d.font = '400 12.5px ' + getComputedStyle(document.documentElement).getPropertyValue('--font-mono'); w = ctx2d.measureText(s).width; } else w = s.length * 7.5;
+      twCache.set(s, w); return w;
+    };
+    const layout = computed(() => { fontTick.value; return layoutGrafcet(activeG.value, tw); });
+    const shapes = computed(() => layout.value.views.filter(v => v.kind !== 'region'));
+    const issues = computed(() => validateGrafcet(activeG.value));
+    const issueErr = computed(() => issues.value.filter(i => i.lvl === 'error').length);
+    const flat = computed(() => flatten(activeG.value));
+    const sums = computed(() => {
+      const o = {};
+      for (const g of project.value.grafcets) {
+        let steps = 0, trans = 0; walkAll(g.items, it => { if (it.kind === 'step') steps++; else if (it.kind === 'trans') trans++; });
+        const iss = validateGrafcet(g);
+        o[g.id] = { steps, trans, err: iss.filter(i => i.lvl === 'error').length, warn: iss.filter(i => i.lvl === 'warning').length };
+      }
+      return o;
+    });
+    const stats = computed(() => {
+      const s = { steps: 0, trans: 0, blocks: 0, jumps: 0 };
+      walkAll(activeG.value.items, it => { if (it.kind === 'step') s.steps++; else if (it.kind === 'trans') s.trans++; else if (it.kind === 'jump') s.jumps++; else s.blocks++; });
+      return s;
+    });
+    const varList = computed(() => {
+      const set = new Set();
+      walkAll(activeG.value.items, it => {
+        if (it.kind === 'trans' && it.recept) { const r = parseRecept(it.recept); r.vars.forEach(v => set.add(v)); }
+        if (it.kind === 'step') it.actions.forEach(a => { if (a.label) set.add(a.label); });
+      });
+      return [...set].sort((a, b) => a.localeCompare(b));
+    });
+
+    /* sélection */
+    const selBase = computed(() => sel.value ? sel.value.replace(':d', '') : null);
+    const selLoc = computed(() => selBase.value ? locate(activeG.value.items, selBase.value) : null);
+    const selItem = computed(() => selLoc.value ? selLoc.value.item : null);
+    const isDivBar = computed(() => !!sel.value && sel.value.endsWith(':d'));
+    const selText = computed(() => describeId(activeG.value, sel.value));
+    const selShort = computed(() => { const t = selText.value; return t.length > 46 ? t.slice(0, 45) + '…' : t; });
+    const allowed = computed(() => sim.on ? [] : allowedInsertions(activeG.value, sel.value));
+    const slotPos = computed(() => {
+      if (sim.on || !sel.value || !allowed.value.length) return null;
+      const f = layout.value.focus.find(f => f.id === sel.value);
+      return f ? f.slot : null;
+    });
+    const activeRegion = computed(() => (!sim.on && selItem.value && selItem.value.branches) ? layout.value.views.find(v => v.kind === 'region' && v.id === selBase.value) : null);
+    const jumpTargets = computed(() => {
+      const it = selItem.value; if (!it || it.kind !== 'jump' || !selLoc.value) return [];
+      const prev = selLoc.value.seq[selLoc.value.idx - 1];
+      const want = prev && prev.kind === 'step' ? 'trans' : 'step';
+      const out = []; walkAll(activeG.value.items, x => { if (x.kind === want) out.push({ id: x.id, label: want === 'step' ? T('d_step', { n: x.num }) + (x.name ? ' · ' + x.name : '') : T('d_trans', { n: x.num }) + (x.recept ? ' : ' + x.recept : '') }); });
+      return out;
+    });
+    const recFb = computed(() => {
+      const it = selItem.value; if (!it || it.kind !== 'trans') return { cls: 'ok', msg: '' };
+      if (!it.recept.trim()) return { cls: 'warn', msg: T('rf_empty') };
+      const r = parseRecept(it.recept);
+      return r.ok ? { cls: 'ok', msg: T('rf_ok') + (r.vars.size ? T('rf_vars', { v: [...r.vars].join(', ') }) : '') } : { cls: 'err', msg: T('rf_err', { e: r.error }) };
+    });
+    const tokens = computed(() => [{ v: ' . ', t: T('tk_and') }, { v: ' + ', t: T('tk_or') }, { v: '/', t: T('tk_not') }, { v: '↑', t: T('tk_rise') }, { v: '↓', t: T('tk_fall') }, { v: 'X', t: T('tk_step') }, { v: 't1/X0/2s', t: T('tk_delay') }]);
+
+    /* historique */
+    let persistTimer = null;
+    function persist() {
+      clearTimeout(persistTimer);
+      persistTimer = setTimeout(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ project: project.value, activeId: activeId.value })); } catch (e) {} }, 400);
+    }
+    function mutate(fn, opts = {}) {
+      const before = JSON.stringify(project.value);
+      const draft = JSON.parse(before);
+      const g = draft.grafcets.find(x => x.id === activeId.value);
+      const res = fn(g, draft);
+      if (JSON.stringify(draft) === before) return res;
+      const now = performance.now();
+      if (!(opts.key && coal.key === opts.key && now - coal.t < 900)) { past.value.push({ p: before, sel: sel.value, a: activeId.value }); if (past.value.length > 200) past.value.shift(); }
+      coal.key = opts.key || null; coal.t = now;
+      future.value = [];
+      project.value = draft; persist();
+      return res;
+    }
+    function restore(entry) {
+      project.value = JSON.parse(entry.p);
+      activeId.value = project.value.grafcets.some(g => g.id === entry.a) ? entry.a : project.value.grafcets[0].id;
+      sel.value = entry.sel && findItem(activeG.value.items, entry.sel.replace(':d', '')) ? entry.sel : null;
+      coal.key = null; persist();
+    }
+    function undo() { if (!past.value.length) return; const e = past.value.pop(); future.value.push({ p: JSON.stringify(project.value), sel: sel.value, a: activeId.value }); restore(e); announce(T('a_undo')); }
+    function redo() { if (!future.value.length) return; const e = future.value.pop(); past.value.push({ p: JSON.stringify(project.value), sel: sel.value, a: activeId.value }); restore(e); announce(T('a_redo')); }
+
+    /* édition */
+    function insertKind(kind) {
+      if (!sel.value || sim.on) return;
+      if (!allowed.value.some(o => o.kind === kind)) { announce(T('a_impossible', { k: kindLabel(kind) })); return; }
+      const base = selBase.value; let newId;
+      mutate((g, P) => { newId = doInsert(P, g, base, kind); });
+      sel.value = newId; nextTick(() => reveal(newId));
+      nextTick(() => announce(T('a_added', { d: describeId(activeG.value, newId), list: allowed.value.map(o => o.label).join(', ') || T('a_nothing') })));
+    }
+    function removeSel() {
+      if (!sel.value || sim.on) return;
+      const base = selBase.value; let nextSel = null, ok = true;
+      mutate(g => {
+        const loc = locate(g.items, base); if (!loc) return;
+        const r = tryRemove(loc.seq, loc.ctx, loc.idx);
+        if (!r) { ok = false; return; }
+        const prevItem = loc.seq[r.s - 1];
+        loc.seq.splice(r.s, r.len);
+        const cand = prevItem || loc.seq[r.s];
+        nextSel = cand ? (cand.branches && !prevItem ? cand.id + ':d' : cand.id) : (loc.block ? loc.block.id : null);
+      });
+      if (!ok) { announce(T('a_cannot_delete')); return; }
+      sel.value = nextSel; nextTick(() => nextSel && reveal(nextSel)); announce(T('a_deleted'));
+    }
+    function setField(field, value, coalesce) {
+      const id = selBase.value; if (!id) return;
+      mutate(g => { const it = findItem(g.items, id); if (it) it[field] = value; }, coalesce ? { key: 'f:' + id + field } : {});
+    }
+    function setAction(i, field, value) { const id = selBase.value; mutate(g => { const it = findItem(g.items, id); if (it && it.actions[i]) it.actions[i][field] = value; }, { key: 'a:' + id + i + field }); }
+    function addAction() { const id = selBase.value; mutate(g => { const it = findItem(g.items, id); it.actions.push({ kind: 'continue', label: '', cond: '' }); }); nextTick(() => { const els = document.querySelectorAll('.acts li input[type=text]'); const last = [...els].filter(e => e.placeholder === T('act_ph')).pop(); last && last.focus(); }); }
+    function delAction(i) { const id = selBase.value; mutate(g => { findItem(g.items, id).actions.splice(i, 1); }); }
+    function addToken(t) { const id = selBase.value; mutate(g => { const it = findItem(g.items, id); it.recept = it.recept + t; }); nextTick(() => { const el = document.getElementById('f-rec'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }); }
+    function addBranch(side) {
+      const base = selBase.value; let nid2 = null;
+      mutate((g, P) => {
+        const loc = locate(g.items, base); let block, bi;
+        if (isBlock(loc.item)) { block = loc.item; bi = side < 0 ? 0 : block.branches.length - 1; } else { block = loc.block; bi = loc.branchIdx; }
+        const nb = [block.kind === 'or' ? mkTrans(P, g) : mkStep(P, g)];
+        block.branches.splice(side < 0 ? bi : bi + 1, 0, nb); nid2 = nb[0].id;
+      });
+      sel.value = nid2; nextTick(() => reveal(nid2)); announce(T('a_branch_added'));
+    }
+    function delBranch() {
+      const base = selBase.value; let nextSel = null;
+      mutate(g => {
+        const loc = locate(g.items, base); if (!loc || !loc.block || loc.block.branches.length < 3) return;
+        loc.block.branches.splice(loc.branchIdx, 1);
+        const nb = loc.block.branches[Math.min(loc.branchIdx, loc.block.branches.length - 1)]; nextSel = nb[0].id;
+      });
+      if (nextSel) { sel.value = nextSel; announce(T('a_branch_deleted')); }
+    }
+    function doRenumber() { mutate(g => renumber(g)); announce(T('a_renumbered')); }
+    function renameG(v) { mutate(g => { g.name = v; }, { key: 'rg' }); }
+    function renameProject(v) { mutate((g, P) => { P.name = v; }, { key: 'rp' }); }
+    function addGrafcet() { let id; mutate((g, P) => { const ng = newGrafcet(P, 'GRAFCET ' + (P.grafcets.length + 1)); P.grafcets.push(ng); id = ng.id; }); openG(id); }
+    function dupGrafcet() { let id; mutate((g, P) => { const c = JSON.parse(JSON.stringify(g)); c.id = 'g' + (P.gcount++); c.name = g.name + T('g_copy'); P.grafcets.push(c); id = c.id; }); openG(id); }
+    function delGrafcet() {
+      if (project.value.grafcets.length < 2) return; let nextId;
+      mutate((g, P) => { const i = P.grafcets.findIndex(x => x.id === g.id); P.grafcets.splice(i, 1); nextId = P.grafcets[Math.max(0, i - 1)].id; });
+      openG(nextId); announce(T('a_g_deleted'));
+    }
+
+    /* vue : pan / zoom */
+    const host = ref(null);
+    const view = reactive({ x: 60, y: 30, z: 1 });
+    const gTransform = computed(() => 'translate(' + view.x + ',' + view.y + ') scale(' + view.z + ')');
+    const gridStyle = computed(() => ({ '--z': Math.max(view.z, .25), '--px': view.x + 'px', '--py': view.y + 'px' }));
+    function fit(all) {
+      const el = host.value; if (!el) return;
+      const b = layout.value.bounds, cw = el.clientWidth, ch = el.clientHeight, pad = 44;
+      let z = (cw - pad * 2) / Math.max(b.w, 1);
+      if (all) z = Math.min(z, (ch - pad * 2 - 80) / Math.max(b.h, 1)); else z = Math.max(.6, z);
+      z = Math.min(1.15, Math.max(.12, z));
+      view.z = z; view.x = cw / 2 - (b.x + b.w / 2) * z;
+      view.y = b.h * z + pad * 2 + 80 < ch ? Math.max(68, (ch - 80 - b.h * z) / 2) : 68;
+    }
+    function zoomAt(px, py, f) { const nz = Math.min(2.5, Math.max(.12, view.z * f)); view.x = px - (px - view.x) * (nz / view.z); view.y = py - (py - view.y) * (nz / view.z); view.z = nz; }
+    function zoomBy(f) { const el = host.value; if (el) zoomAt(el.clientWidth / 2, el.clientHeight / 2, f); }
+    function onWheel(e) {
+      if (e.ctrlKey || e.metaKey) { const r = host.value.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * .01)); }
+      else { view.x -= e.deltaX; view.y -= e.deltaY; }
+    }
+    let pan = null;
+    function panStart(e) { if (e.pointerType === 'mouse' && e.button !== 0) return; pan = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; e.currentTarget.setPointerCapture && e.currentTarget.setPointerCapture(e.pointerId); }
+    function panMove(e) { if (pan) { view.x = pan.vx + e.clientX - pan.x; view.y = pan.vy + e.clientY - pan.y; } }
+    function panEnd() { pan = null; }
+    function reveal(id) {
+      const f = layout.value.focus.find(f => f.id === id), el = host.value; if (!f || !el) return;
+      const py = f.y * view.z + view.y, px = f.x * view.z + view.x;
+      const mT = 70, mB = 120, mS = 90; let dx = 0, dy = 0;
+      if (py < mT) dy = mT - py; else if (py > el.clientHeight - mB) dy = el.clientHeight - mB - py;
+      if (px < mS) dx = mS - px; else if (px > el.clientWidth - mS) dx = el.clientWidth - mS - px;
+      view.x += dx; view.y += dy;
+    }
+
+    /* sélection, clavier */
+    function pick(id) { if (sim.on) { if (simEnabled.value.has(id)) simFire(id); return; } sel.value = id; }
+    function pickFromText(id) { sel.value = id; nextTick(() => reveal(id)); }
+    function focusHost() { host.value && host.value.focus(); }
+    function onHostFocus() { if (!sel.value && !sim.on) { const f = layout.value.focus[0]; if (f) sel.value = f.id; } }
+    function navigate(dir) {
+      const F = layout.value.focus; const cur = F.find(f => f.id === sel.value);
+      if (!cur) { if (F.length) sel.value = F[dir === 'up' ? F.length - 1 : 0].id; return; }
+      let best = null, bs = Infinity;
+      for (const f of F) {
+        if (f.id === cur.id) continue;
+        const dx = f.x - cur.x, dy = f.y - cur.y; let s;
+        if (dir === 'down') { if (dy <= 4) continue; s = dy + Math.abs(dx); }
+        else if (dir === 'up') { if (dy >= -4) continue; s = -dy + Math.abs(dx); }
+        else if (dir === 'right') { if (dx <= 8) continue; s = dx + Math.abs(dy) * 3; }
+        else { if (dx >= -8) continue; s = -dx + Math.abs(dy) * 3; }
+        if (s < bs) { bs = s; best = f; }
+      }
+      if (best) { sel.value = best.id; reveal(best.id); }
+    }
+    function focusMainField() { tab.value = 'props'; nextTick(() => { const el = document.querySelector('#pan-props [data-main-field]'); if (el) el.focus(); }); }
+    function onKey(e) {
+      if (e.target !== host.value) return;
+      const k = e.key, lk = k.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && lk === 'z') { e.preventDefault(); undo(); return; }
+      if ((e.ctrlKey || e.metaKey) && (lk === 'y' || (e.shiftKey && lk === 'z'))) { e.preventDefault(); redo(); return; }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (k.startsWith('Arrow')) { e.preventDefault(); navigate(k.slice(5).toLowerCase()); return; }
+      if (sim.on) { if (k === 'Escape') toggleSim(); else if ((k === 'Enter' || k === ' ') && sel.value) { e.preventDefault(); pick(sel.value); } return; }
+      const map = {}; for (const kk of ['step', 'trans', 'or', 'and', 'jump']) map[K.value[kk].toLowerCase()] = kk;
+      if (map[lk]) { e.preventDefault(); insertKind(map[lk]); return; }
+      if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); removeSel(); return; }
+      if (k === 'Enter') { e.preventDefault(); focusMainField(); return; }
+      if (k === 'Escape') { sel.value = null; return; }
+      if (k === '+' || k === '=') zoomBy(1.2); else if (k === '-') zoomBy(1 / 1.2); else if (k === '0') fit(true);
+      else if (k === 'Home') { const F = layout.value.focus; if (F.length) { sel.value = F[0].id; reveal(F[0].id); } }
+      else if (k === 'End') { const F = layout.value.focus; if (F.length) { sel.value = F[F.length - 1].id; reveal(F[F.length - 1].id); } }
+    }
+    watch(sel, v => { if (v) announce(describeId(activeG.value, v)); });
+    watch(() => [tab.value], () => {});
+    function goIssue(it) { if (it.id) { sel.value = it.id; nextTick(() => { reveal(it.id); focusHost(); }); } }
+
+    function openG(id) {
+      activeId.value = id; sel.value = null; sim.on = false; sim.active = [];
+      nextTick(() => { fit(false); const F = layout.value.focus; sel.value = F.length ? F[0].id : null; persist(); });
+    }
+
+    /* simulation (jeu de jetons, sans évaluation des réceptivités) */
+    const sim = reactive({ on: false, active: [] });
+    const simActive = computed(() => sim.on ? new Set(sim.active) : new Set());
+    const simEnabled = computed(() => {
+      if (!sim.on) return new Set();
+      const act = new Set(sim.active), preds = new Map();
+      for (const l of flat.value.links) { if (!preds.has(l.to)) preds.set(l.to, []); preds.get(l.to).push(l.from); }
+      const en = new Set();
+      for (const n of flat.value.nodes) if (n.kind === 'trans') { const p = preds.get(n.id) || []; if (p.length && p.every(x => act.has(x))) en.add(n.id); }
+      return en;
+    });
+    function simReset() { const a = []; walkAll(activeG.value.items, it => { if (it.kind === 'step' && it.initial) a.push(it.id); }); sim.active = a; }
+    function simFire(tid) {
+      const act = new Set(sim.active);
+      for (const l of flat.value.links) { if (l.to === tid) act.delete(l.from); }
+      for (const l of flat.value.links) { if (l.from === tid) act.add(l.to); }
+      sim.active = [...act]; announce(T('a_fired'));
+    }
+    function toggleSim() { sim.on = !sim.on; if (sim.on) { simReset(); announce(T('a_sim_on')); } else announce(T('a_sim_off')); }
+
+    /* données */
+    const dataView = ref('json');
+    const dataText = computed(() => JSON.stringify(dataView.value === 'json' ? activeG.value : flat.value, null, 1));
+    const copyMsg = reactive({ text: '', cls: '' }); const importMsg = reactive({ text: '', cls: '' }); const importText = ref('');
+    function copyData() {
+      const t = dataText.value;
+      const done = ok => { copyMsg.text = ok ? T('copied') : T('copy_fail'); copyMsg.cls = ok ? 'ok' : 'err'; };
+      try { navigator.clipboard.writeText(t).then(() => done(true), () => done(false)); } catch (e) { done(false); }
+    }
+    function applyImport() {
+      try {
+        const o = JSON.parse(importText.value); let next, nextActive = null;
+        const maxId = items => { let m = 0; walkAll(items, it => { const r = /^n(\d+)$/.exec(it.id || ''); if (r) m = Math.max(m, +r[1]); }); return m; };
+        const check = g => {
+          if (!g || !Array.isArray(g.items)) throw new Error(T('imp_items'));
+          const e = checkSeq(g.items, 'root'); if (e) throw new Error(T('imp_struct', { g: g.name || '?', e: T(e) }));
+          const ids = new Set(); walkAll(g.items, it => { if (!it.id || ids.has(it.id)) throw new Error(T('imp_ids', { g: g.name || '?' })); ids.add(it.id); });
+          g.name = g.name || T('g_imported'); g.nextStep = g.nextStep ?? 0; g.nextTrans = g.nextTrans ?? 1;
+          walkAll(g.items, it => { if (it.kind === 'step') { it.actions = it.actions || []; it.name = it.name || ''; it.initial = !!it.initial; } if (it.kind === 'trans') it.recept = it.recept || ''; });
+          g.nextStep = Math.max(g.nextStep, 1 + Math.max(-1, ...(() => { const a = []; walkAll(g.items, it => { if (it.kind === 'step') a.push(it.num); }); return a; })()));
+          g.nextTrans = Math.max(g.nextTrans, 1 + Math.max(0, ...(() => { const a = []; walkAll(g.items, it => { if (it.kind === 'trans') a.push(it.num); }); return a; })()));
+        };
+        if (Array.isArray(o.grafcets)) {
+          if (!o.grafcets.length) throw new Error(T('imp_empty'));
+          o.grafcets.forEach((g, i) => { g.id = g.id || 'g' + (i + 1); check(g); });
+          o.name = o.name || T('p_imported'); o.gcount = o.grafcets.length + 1 + 100;
+          o.counter = 1 + Math.max(0, ...o.grafcets.map(g => maxId(g.items)));
+          next = o; nextActive = o.grafcets[0].id;
+        } else {
+          check(o); next = JSON.parse(JSON.stringify(project.value));
+          o.id = 'g' + (next.gcount++); next.counter = Math.max(next.counter, 1 + maxId(o.items)); next.grafcets.push(o); nextActive = o.id;
+        }
+        past.value.push({ p: JSON.stringify(project.value), sel: sel.value, a: activeId.value }); future.value = [];
+        project.value = next; persist(); openG(nextActive);
+        importMsg.text = T('imp_ok'); importMsg.cls = 'ok'; importText.value = '';
+      } catch (e) { importMsg.text = T('imp_fail', { m: e.message || e }); importMsg.cls = 'err'; }
+    }
+    function onFile(e) {
+      const f = e.target.files && e.target.files[0]; if (!f) return;
+      const r = new FileReader(); r.onload = () => { importText.value = String(r.result); applyImport(); }; r.readAsText(f); e.target.value = '';
+    }
+
+    /* thème */
+    const theme = ref('auto');
+    const themeLabel = computed(() => T('theme_' + theme.value));
+    function applyTheme() { const r = document.documentElement; if (theme.value === 'auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', theme.value); fontTick.value++; }
+    function cycleTheme() { theme.value = theme.value === 'auto' ? 'light' : theme.value === 'light' ? 'dark' : 'auto'; applyTheme(); try { localStorage.setItem(LS_KEY + '-theme', theme.value); } catch (e) {} }
+
+    /* langue */
+    const lang = computed(() => L.lang);
+    const K = computed(() => KEYMAP[L.lang]);
+    const keyList = computed(() => ['step', 'trans', 'or', 'and', 'jump'].map(k => K.value[k]).join(', '));
+    function setLang(nl) {
+      if (nl === L.lang || !I18N[nl]) return;
+      L.lang = nl;
+      document.documentElement.lang = nl;
+      try { localStorage.setItem(LS_KEY + '-lang', nl); } catch (e) {}
+      const swapped = syncDemo(project.value, nl);
+      if (swapped !== project.value) { project.value = swapped; past.value = []; future.value = []; coal.key = null; persist(); }
+      announce(T('a_lang'));
+    }
+
+    onMounted(() => {
+      try { const t = localStorage.getItem(LS_KEY + '-theme'); if (t) { theme.value = t; applyTheme(); } } catch (e) {}
+      nextTick(() => {
+        fit(false);
+        const s1 = (() => { let r = null; walkAll(activeG.value.items, it => { if (!r && it.kind === 'step' && it.num === 1) r = it; }); return r; })();
+        const F = layout.value.focus; sel.value = s1 ? s1.id : (F[0] && F[0].id);
+        if (sel.value) nextTick(() => reveal(sel.value));
+      });
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { twCache.clear(); fontTick.value++; });
+    });
+
+    return { project, activeId, activeG, sel, tab, tabs, past, future, liveMsg, layout, shapes, issues, issueErr, sums, stats, varList, selLoc, selItem, selText, selShort, isDivBar, allowed,
+      slotPos, activeRegion, jumpTargets, recFb, tokens, host, view, gTransform, gridStyle, sim, simActive, simEnabled, dataView, dataText, copyMsg, importMsg, importText,
+      T, K, keyList, lang, setLang, theme, themeLabel, undo, redo, insertKind, removeSel, setField, setAction, addAction, delAction, addToken, addBranch, delBranch, doRenumber, renameG, renameProject,
+      addGrafcet, dupGrafcet, delGrafcet, fit, zoomBy, onWheel, panStart, panMove, panEnd, pick, pickFromText, focusHost, onHostFocus, onKey, goIssue, openG,
+      simReset, toggleSim, copyData, applyImport, onFile, cycleTheme };
+  },
+};
+
+createApp(App).mount('#app');
+})();
+</script>
