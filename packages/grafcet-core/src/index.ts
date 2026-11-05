@@ -7,6 +7,7 @@ export {
   unwrapBlock, canUnwrapBlock, moveBranch, type RemoveResult, type Wrapped,
 } from './commands';
 export { parseRecept, type ReceptResult } from './recept';
+export { referencesTo } from './references';
 export { flatten, stepsOf, type FlatGraph, type FlatNode, type FlatLink } from './flatten';
 export { validateGrafcet, type Issue, type IssueLevel, type ValidateOptions } from './validate';
 export { describe, describeId, type Description } from './describe';

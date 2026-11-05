@@ -5,6 +5,7 @@ import {
   locate, moveBranch as moveBranchCmd, parseRecept, removeBranch, removeItem, renumber, unwrapBlock, walkAll,
   wrapInBlock, type BlockKind, type InsertWhere, type ItemKind,
 } from '@grafcet/core';
+import { referencesTo } from '@grafcet/core';
 import { exportArchive, exportFolder, importArchive, importFolder, looksLikeZip, type FolderFile, exportNative, exportSfcEditXml, FORMAT_ID, importJson, importNative, importSfcEditXml, looksLikeSfcEditXml, exportPlcopenXml, importPlcopenXml, looksLikePlcopenXml, ImportError, type ReportEntry } from '@grafcet/io';
 import { enabledTransitions, fire, initialMarking } from '@grafcet/simulation';
 import { describeText, renderMessage } from '../format';
@@ -58,6 +59,22 @@ export const useUiStore = defineStore('ui', () => {
     }
     return out;
   });
+  /** Éléments (par GRAFCET) qui citent l'étape sélectionnée dans une réceptivité ou une condition d'action (« X13 »). */
+  const referencedIn = computed(() => {
+    const out = new Map<string, string[]>();
+    if (linkedNum.value == null) return out;
+    for (const g of projectRef.value.grafcets) {
+      const ids = referencesTo(g, linkedNum.value, project.knownSteps);
+      if (ids.length) out.set(g.id, ids);
+    }
+    return out;
+  });
+  /** Dans le GRAFCET ouvert : identifiants des éléments qui citent l'étape. */
+  const citingActive = computed(() => new Set(referencedIn.value.get(project.activeId) ?? []));
+  /** Dans les autres GRAFCET : où l'étape est citée (premier élément à rejoindre, nombre de citations). */
+  const citedIn = computed(() =>
+    projectRef.value.grafcets.filter((g) => g.id !== project.activeId && referencedIn.value.has(g.id))
+      .map((g) => ({ gid: g.id, name: g.name, itemId: referencedIn.value.get(g.id)![0]!, count: referencedIn.value.get(g.id)!.length })));
   /** Identifiant à mettre en valeur dans le canevas : seulement s'il existe dans plusieurs GRAFCET. */
   const sharedNum = computed(() => (linkedIn.value.length ? linkedNum.value : null));
   const selText = computed(() => describeText(describeId(activeG.value, sel.value)));
@@ -487,7 +504,7 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   return {
-    sel, tab, tabs, linkedNum, linkedIn, sharedNum, theme, themeLabel, dataView, sim, liveMsg, announce, insertWhere, whereNow, whereFixed,
+    sel, tab, tabs, linkedNum, linkedIn, sharedNum, citingActive, citedIn, theme, themeLabel, dataView, sim, liveMsg, announce, insertWhere, whereNow, whereFixed,
     selBase, selLoc, selItem, isDivBar, selText, selShort, allowed, slotPos, activeRegion, jumpTargets, recFb, tokens,
     wrap, canWrap, unwrap, canUnwrap, moveBranch, canMoveBranch,
     insertKind, removeSel, setField, setAction, addAction, delAction, addToken, addBranch, delBranch, doRenumber,
