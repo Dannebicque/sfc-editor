@@ -9,7 +9,6 @@
 - [ ] Utilisable au clavier, nom accessible, pas de couleur seule
 - [ ] Chaînes visibles ajoutées en **fr et en**
 - [ ] Aucune dépendance ajoutée, ou sa licence est indiquée ci-dessous
-- [ ] Je peux soumettre cette contribution sous licence MPL-2.0
 
 ## Notes
 
