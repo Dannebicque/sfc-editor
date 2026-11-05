@@ -21,9 +21,9 @@ export interface LegalConfig {
 export const LEGAL: LegalConfig = {
   product: 'SFC Editor',
   publisher: 'David Annebicque',
-  contact: '',
+  contact: 'david.annebicque@gmail.com / david.annebicque@univ-reims.fr',
   publisherAddress: '',
-  hostName: '',
+  hostName: 'PulseHeberg',
   hostAddress: '',
   hostUrl: '',
   repo: 'https://github.com/Dannebicque/sfc-editor',
