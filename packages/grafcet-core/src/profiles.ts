@@ -62,7 +62,7 @@ export function profileIssues(g: Grafcet, profile: ValidationProfile): Issue[] {
       for (const a of it.actions) {
         const label = a.label.trim();
         if (label && !IEC_IDENT.test(label)) issues.push({ level: 'warning', key: 'v_sfc_ident', params: { n: it.num, v: label }, id: it.id });
-        if (profile === 'plcopen' && a.kind === 'conditional') issues.push({ level: 'warning', key: 'v_plc_cond_action', params: { n: it.num }, id: it.id });
+        if (profile === 'plcopen' && (a.kind === 'conditional' || a.kind === 'event')) issues.push({ level: 'warning', key: 'v_plc_cond_action', params: { n: it.num }, id: it.id });
       }
     }
   });

@@ -70,9 +70,9 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
           <div class="mini two">
             <select :aria-label="T('act_type_aria', { n: i + 1 })" :value="a.kind" @change="ui.setAction(i, 'kind', val($event))">
               <option value="continue">{{ T('act_continue') }}</option><option value="conditional">{{ T('act_conditional') }}</option>
-              <option value="activation">{{ T('act_activation') }}</option><option value="deactivation">{{ T('act_deactivation') }}</option>
+              <option value="activation">{{ T('act_activation') }}</option><option value="deactivation">{{ T('act_deactivation') }}</option><option value="event">{{ T('act_event') }}</option>
             </select>
-            <input v-if="a.kind === 'conditional'" type="text" class="mono" :aria-label="T('act_cond_aria', { n: i + 1 })" :placeholder="T('act_cond_ph')" :value="a.cond" @input="ui.setAction(i, 'cond', val($event))" />
+            <input v-if="a.kind === 'conditional' || a.kind === 'event'" type="text" class="mono" :aria-label="T(a.kind === 'event' ? 'act_event_aria' : 'act_cond_aria', { n: i + 1 })" :placeholder="T(a.kind === 'event' ? 'act_event_ph' : 'act_cond_ph')" :value="a.cond" @input="ui.setAction(i, 'cond', val($event))" />
           </div>
         </li>
       </ul>

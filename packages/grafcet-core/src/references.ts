@@ -12,7 +12,7 @@ export function referencesTo(g: Grafcet, num: string, known: ReadonlySet<string>
   const cites = (src: string) => !!src.trim() && parseRecept(src, known).refs.includes(num);
   walkAll(g.items, (it) => {
     if (it.kind === 'trans' && cites(it.recept)) out.push(it.id);
-    else if (it.kind === 'step' && it.actions.some((a) => a.kind === 'conditional' && cites(a.cond))) out.push(it.id);
+    else if (it.kind === 'step' && it.actions.some((a) => (a.kind === 'conditional' || a.kind === 'event') && cites(a.cond))) out.push(it.id);
   });
   return out;
 }

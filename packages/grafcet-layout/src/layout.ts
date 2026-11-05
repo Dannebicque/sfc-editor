@@ -78,8 +78,9 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
   const actGeom: ActGeomFn = (it) => {
     const acts = it.actions;
     if (!acts.length) return null;
-    const hasC = acts.some((a) => a.kind === 'conditional');
-    const condW = hasC ? Math.max(28, ...acts.map((a) => (a.kind === 'conditional' ? tw(a.cond || '?') + 14 : 0))) : 0;
+    const hasCond = (k: string) => k === 'conditional' || k === 'event';
+    const hasC = acts.some((a) => hasCond(a.kind));
+    const condW = hasC ? Math.max(28, ...acts.map((a) => (hasCond(a.kind) ? tw(a.cond || '?') + 14 : 0))) : 0;
     const labW = Math.max(44, ...acts.map((a) => tw(actText(a)) + 16));
     return { condW, labW, w: condW + labW };
   };
@@ -132,7 +133,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
       const acts: ActionView[] = [];
       if (m.ag) {
         const ax = x + sw(it) / 2 + GEO.actGap;
-        it.actions.forEach((a, i) => acts.push({ i, x: ax, y: y + 9 + i * GEO.actH, condW: m.ag!.condW, labW: m.ag!.labW, cond: a.cond || '', text: actText(a), cell: a.kind === 'conditional' }));
+        it.actions.forEach((a, i) => acts.push({ i, x: ax, y: y + 9 + i * GEO.actH, condW: m.ag!.condW, labW: m.ag!.labW, cond: a.cond || '', text: actText(a), cell: a.kind === 'conditional' || a.kind === 'event' }));
         L(x + sw(it) / 2, y + 20, ax, y + 20);
       }
       if (m.h > GEO.stepH) L(x, y + GEO.stepH, x, y + m.h);

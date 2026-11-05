@@ -261,3 +261,23 @@ suite('macro-étapes', () => {
     expect(validateGrafcet(g, { project: P }).map((i) => i.key)).toContain('v_macro_cycle');
   });
 });
+
+suite('actions sur événement', () => {
+  const mk = (kind: 'event' | 'continue', cond: string, label: string) => {
+    const P = demoProject();
+    const g = P.grafcets[0]!;
+    const s = g.items.find((i) => i.kind === 'step')! as { actions: unknown[] };
+    s.actions = [{ kind, label, cond }];
+    return { P, g };
+  };
+  it('avertit si l’événement n’a pas de front', () => {
+    const { g } = mk('event', 'a', 'B:=1');
+    expect(validateGrafcet(g).map((i) => i.key)).toContain('v_event_no_edge');
+  });
+  it('accepte un front et signale une affectation continue', () => {
+    const ok = mk('event', '↑a', 'B:=1');
+    expect(validateGrafcet(ok.g).map((i) => i.key)).not.toContain('v_event_no_edge');
+    const bad = mk('continue', '', 'B:=1');
+    expect(validateGrafcet(bad.g).map((i) => i.key)).toContain('v_assign_continuous');
+  });
+});

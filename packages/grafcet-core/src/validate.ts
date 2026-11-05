@@ -64,7 +64,10 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
     seen.set(s.num, s.id);
     for (const a of s.actions) {
       if (!a.label.trim()) issues.push({ level: 'warning', key: 'v_act_label', params: { n: s.num }, id: s.id });
-      if (a.kind === 'conditional' && !(a.cond || '').trim()) issues.push({ level: 'warning', key: 'v_act_cond', params: { n: s.num }, id: s.id });
+      const withCond = a.kind === 'conditional' || a.kind === 'event';
+      if (withCond && !(a.cond || '').trim()) issues.push({ level: 'warning', key: 'v_act_cond', params: { n: s.num }, id: s.id });
+      if (a.kind === 'event' && (a.cond || '').trim() && !/[↑↓^]/.test(a.cond)) issues.push({ level: 'warning', key: 'v_event_no_edge', params: { n: s.num }, id: s.id });
+      if ((a.kind === 'continue' || a.kind === 'conditional') && /:=|←/.test(a.label)) issues.push({ level: 'warning', key: 'v_assign_continuous', params: { n: s.num }, id: s.id });
     }
   }
   const known = new Set<string>([...external, ...steps.map((x) => x.num)]);

@@ -6,7 +6,8 @@
  * elles-mêmes des séquences. Les identifiants sont des chaînes opaques stables.
  * Voir docs/adr/0001-modele-graphe.md pour l'évolution vers un graphe canonique.
  */
-export type ActionKind = 'continue' | 'conditional' | 'activation' | 'deactivation';
+/** Types d'action : continue, conditionnelle (niveau), sur activation, sur désactivation, ou sur événement (`cond` = l'événement, ex. « ↑a »). */
+export type ActionKind = 'continue' | 'conditional' | 'activation' | 'deactivation' | 'event';
 
 export interface Action {
   kind: ActionKind;

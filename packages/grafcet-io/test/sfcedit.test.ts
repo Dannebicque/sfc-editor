@@ -43,3 +43,14 @@ describe('SFCEdit XML', () => {
     expect(nums).toEqual([...nums].sort((a, b) => a - b));
   });
 });
+
+describe('action sur événement', () => {
+  it('survit à un aller-retour SFCEdit', () => {
+    const project = importSfcEditXml(xml, { projectName: "p" }).model;
+    const s = project.grafcets[0]!.items.find((i) => i.kind === 'step')! as { actions: { kind: string; label: string; cond: string }[] };
+    s.actions = [{ kind: 'event', label: 'B:=1', cond: '↑a' }];
+    const back = importSfcEditXml(exportSfcEditXml(project).output, { projectName: "p" }).model;
+    const t = back.grafcets[0]!.items.find((i) => i.kind === 'step')! as { actions: { kind: string; cond: string }[] };
+    expect(t.actions[0]).toMatchObject({ kind: 'event', cond: '↑a' });
+  });
+});

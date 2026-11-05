@@ -3,7 +3,7 @@ import type { Item, Project } from '@grafcet/core';
 
 /** Schémas Zod du format natif. L'ordre des clés ici fixe l'ordre de sérialisation (déterministe). */
 const ActionSchema = z.object({
-  kind: z.enum(['continue', 'conditional', 'activation', 'deactivation']),
+  kind: z.enum(['continue', 'conditional', 'activation', 'deactivation', 'event']),
   label: z.string(),
   cond: z.string(),
 });

@@ -158,7 +158,7 @@ function importAction(a: XNode, gname: string, report: ReportEntry[]): Action {
   const cond = condNode ? convertCondition(condNode, report) : '';
   let kind: Action['kind'] = 'continue';
   const ext = a.attrs['x-kind'];
-  if (ext === 'activation' || ext === 'deactivation' || ext === 'conditional') kind = ext;
+  if (ext === 'activation' || ext === 'deactivation' || ext === 'conditional' || ext === 'event') kind = ext;
   else if (type === 'conditional' || condNode) kind = 'conditional';
   else if (type !== 'normal') report.push(warn('rep_action_type', { g: gname, type }));
   return { kind, label, cond };
@@ -247,9 +247,10 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
     if (!it.actions.length) return `\t\t\t<step ${attrs} />`;
     const acts = it.actions.map((a) => {
       if (a.kind !== 'continue') actionKinds = true;
-      const type = a.kind === 'conditional' ? 'conditional' : 'normal';
-      const ext = a.kind === 'activation' || a.kind === 'deactivation' ? ` x-kind="${a.kind}"` : '';
-      const cond = a.kind === 'conditional' ? `<condition>${toSfcCondition(a.cond, notes)}</condition>` : '';
+      const hasCond = a.kind === 'conditional' || a.kind === 'event';
+      const type = hasCond ? 'conditional' : 'normal';
+      const ext = a.kind === 'activation' || a.kind === 'deactivation' || a.kind === 'event' ? ` x-kind="${a.kind}"` : '';
+      const cond = hasCond ? `<condition>${toSfcCondition(a.cond, notes)}</condition>` : '';
       return `\t\t\t\t<action type="${type}"${ext}>${cond}<text>${esc(a.label)}</text></action>`;
     });
     return `\t\t\t<step ${attrs}>\n${acts.join('\n')}\n\t\t\t</step>`;

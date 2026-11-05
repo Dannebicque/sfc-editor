@@ -99,8 +99,8 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
       const label = a.label.trim() || '_';
       if (!IDENT.test(label)) report.push(warn('rep_p_ident', { g: g.name, n: label }));
       else outputs.add(label);
-      if (a.kind === 'conditional') {
-        report.push(warn('rep_p_cond_action', { g: g.name }));
+      if (a.kind === 'conditional' || a.kind === 'event') {
+        report.push(warn(a.kind === 'event' ? 'rep_p_event_action' : 'rep_p_cond_action', { g: g.name }));
         return `<action localId="${id}" qualifier="N">${rel}<inline>${st(`${label} := ${toST(a.cond || 'TRUE', known, notes)};`)}</inline></action>`;
       }
       const q = a.kind === 'activation' ? 'P1' : a.kind === 'deactivation' ? 'P0' : 'N';

@@ -350,5 +350,11 @@
   "v_expansion_exit": "Une expansion doit avoir exactement une étape de sortie (S) ; ce GRAFCET en a {n}.",
   "gmeta_expansion": "expansion de {n}",
   "rep_x_macro": "« {g} » : SFCEdit ne connaît pas les macro-étapes ; elles sont exportées comme des étapes ordinaires (l’expansion reste un GRAFCET séparé).",
-  "rep_p_macro": "« {g} » : les macro-étapes sont exportées comme des étapes ordinaires (l’expansion reste un POU séparé)."
+  "rep_p_macro": "« {g} » : les macro-étapes sont exportées comme des étapes ordinaires (l’expansion reste un POU séparé).",
+  "act_event": "Sur événement",
+  "act_event_aria": "Événement déclencheur de l’action {n}",
+  "act_event_ph": "événement, ex. ↑a",
+  "v_event_no_edge": "Étape {n} : l’événement d’une action sur événement devrait contenir un front (↑ ou ↓).",
+  "v_assign_continuous": "Étape {n} : une affectation (:=) est une action mémorisée ; utilisez « sur activation », « sur désactivation » ou « sur événement ».",
+  "rep_p_event_action": "« {g} » : les actions sur événement sont exportées comme affectation ST (le front est perdu)."
 }

@@ -350,5 +350,11 @@
   "v_expansion_exit": "An expansion must have exactly one exit step (S); this GRAFCET has {n}.",
   "gmeta_expansion": "expansion of {n}",
   "rep_x_macro": "“{g}”: SFCEdit has no macro-steps; they are exported as ordinary steps (the expansion stays a separate GRAFCET).",
-  "rep_p_macro": "“{g}”: macro-steps are exported as ordinary steps (the expansion stays a separate POU)."
+  "rep_p_macro": "“{g}”: macro-steps are exported as ordinary steps (the expansion stays a separate POU).",
+  "act_event": "On event",
+  "act_event_aria": "Triggering event of action {n}",
+  "act_event_ph": "event, e.g. ↑a",
+  "v_event_no_edge": "Step {n}: the event of an on-event action should contain an edge (↑ or ↓).",
+  "v_assign_continuous": "Step {n}: an assignment (:=) is a stored action; use “on activation”, “on deactivation” or “on event”.",
+  "rep_p_event_action": "“{g}”: on-event actions are exported as an ST assignment (the edge is lost)."
 }
