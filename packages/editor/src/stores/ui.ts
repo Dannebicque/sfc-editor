@@ -1,8 +1,9 @@
 import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { defineStore, storeToRefs } from 'pinia';
 import {
-  addBranch as addBranchCmd, allowedInsertions, describeId, findItem, insertAfter, isBlock, locate, parseRecept,
-  removeBranch, removeItem, renumber, walkAll, type ItemKind,
+  addBranch as addBranchCmd, allowedInsertions, canUnwrapBlock, canWrapInBlock, describeId, findItem, insertAt, isBlock,
+  locate, moveBranch as moveBranchCmd, parseRecept, removeBranch, removeItem, renumber, unwrapBlock, walkAll,
+  wrapInBlock, type BlockKind, type InsertWhere, type ItemKind,
 } from '@grafcet/core';
 import { exportNative, FORMAT_ID, importJson, importNative, ImportError } from '@grafcet/io';
 import { enabledTransitions, fire, initialMarking } from '@grafcet/simulation';
@@ -24,6 +25,8 @@ export const useUiStore = defineStore('ui', () => {
   const tab = ref<TabId>('props');
   const theme = ref<Theme>('auto');
   const dataView = ref<'json' | 'graph' | 'native'>('json');
+  /** Côté d'insertion choisi pour les éléments simples (les blocs imposent le leur : barre = avant, convergence = après). */
+  const insertWhere = ref<InsertWhere>('after');
   const sim = reactive({ on: false, active: [] as string[] });
 
   /* ----- annonces pour lecteurs d'écran ----- */
@@ -39,13 +42,20 @@ export const useUiStore = defineStore('ui', () => {
   const selText = computed(() => describeText(describeId(activeG.value, sel.value)));
   const selShort = computed(() => { const t = selText.value; return t.length > 46 ? t.slice(0, 45) + '…' : t; });
 
+  /** Côté réellement utilisé : la barre de divergence impose « avant », la convergence « après ». */
+  const effectiveWhere = (requested: InsertWhere): InsertWhere =>
+    isDivBar.value ? 'before' : selItem.value && isBlock(selItem.value) ? 'after' : requested;
+  const whereNow = computed(() => effectiveWhere(insertWhere.value));
+  const whereFixed = computed(() => isDivBar.value || (!!selItem.value && isBlock(selItem.value)));
+
   const allowed = computed(() =>
-    sim.on ? [] : allowedInsertions(activeG.value, sel.value).map((o) => ({
+    sim.on ? [] : allowedInsertions(activeG.value, sel.value, whereNow.value).map((o) => ({
       kind: o.kind, key: KEYMAP[lang.value][o.kind], label: kindLabel(o.kind), note: o.noteKey ? T(o.noteKey) : '',
     })));
   const slotPos = computed(() => {
     if (sim.on || !sel.value || !allowed.value.length) return null;
-    return viewStore.layout.focus.find((f) => f.id === sel.value)?.slot ?? null;
+    const f = viewStore.layout.focus.find((x) => x.id === sel.value);
+    return (whereNow.value === 'before' ? f?.slotBefore : f?.slot) ?? null;
   });
   const activeRegion = computed(() => {
     if (sim.on || !selItem.value || !isBlock(selItem.value)) return null;
@@ -85,11 +95,13 @@ export const useUiStore = defineStore('ui', () => {
   watch(sel, (v) => { if (v) announce(describeText(describeId(activeG.value, v))); });
 
   /* ----- édition (commandes utilisateur) ----- */
-  function insertKind(kind: ItemKind): void {
+  /** Insère un élément ; `invert` insère du côté opposé au mode courant (raccourci Maj + lettre). */
+  function insertKind(kind: ItemKind, invert = false): void {
     if (!sel.value || sim.on) return;
-    if (!allowed.value.some((o) => o.kind === kind)) { announce(T('a_impossible', { k: kindLabel(kind) })); return; }
-    const base = selBase.value!;
-    const newId = project.mutate((g, P) => insertAfter(P, g, base, kind));
+    const where = effectiveWhere(invert ? (insertWhere.value === 'after' ? 'before' : 'after') : insertWhere.value);
+    if (!allowedInsertions(activeG.value, sel.value, where).some((o) => o.kind === kind)) { announce(T('a_impossible', { k: kindLabel(kind) })); return; }
+    const target = sel.value;
+    const newId = project.mutate((g, P) => insertAt(P, g, target, kind, where));
     sel.value = newId;
     nextTick(() => viewStore.reveal(newId));
     nextTick(() => announce(T('a_added', { d: describeText(describeId(activeG.value, newId)), list: allowed.value.map((o) => o.label).join(', ') || T('a_nothing') })));
@@ -148,6 +160,37 @@ export const useUiStore = defineStore('ui', () => {
     const next = project.mutate((g) => removeBranch(g, base));
     if (next) { sel.value = next; announce(T('a_branch_deleted')); }
   }
+  /* ----- structure : encadrer, dissoudre, déplacer ----- */
+  const canWrap = (kind: BlockKind) => !sim.on && !!selBase.value && canWrapInBlock(activeG.value, selBase.value, kind);
+  function wrap(kind: BlockKind): void {
+    const base = selBase.value;
+    if (!base || sim.on) return;
+    const r = project.mutate((g, P) => wrapInBlock(P, g, base, kind));
+    if (!r) { announce(T('a_wrap_impossible')); return; }
+    sel.value = r.firstId;
+    nextTick(() => viewStore.reveal(r.firstId));
+    announce(T('a_wrapped'));
+  }
+  const canUnwrap = (keep: number) => !sim.on && !!selBase.value && canUnwrapBlock(activeG.value, selBase.value, keep);
+  function unwrap(keep: number): void {
+    const base = selBase.value;
+    if (!base || sim.on) return;
+    const first = project.mutate((g) => unwrapBlock(g, base, keep));
+    if (!first) { announce(T('a_unwrap_impossible')); return; }
+    sel.value = first;
+    nextTick(() => viewStore.reveal(first));
+    announce(T('a_unwrapped', { n: keep + 1 }));
+  }
+  function moveBranch(dir: -1 | 1): void {
+    const base = selBase.value;
+    if (!base) return;
+    if (project.mutate((g) => moveBranchCmd(g, base, dir))) { nextTick(() => sel.value && viewStore.reveal(sel.value)); announce(T('a_branch_moved')); }
+  }
+  const canMoveBranch = (dir: -1 | 1) => {
+    const loc = selLoc.value;
+    return !!loc && !!loc.block && loc.branchIdx + dir >= 0 && loc.branchIdx + dir < loc.block.branches.length;
+  };
+
   function doRenumber(): void { project.mutate((g) => renumber(g)); announce(T('a_renumbered')); }
 
   /* ----- GRAFCET du projet ----- */
@@ -200,7 +243,7 @@ export const useUiStore = defineStore('ui', () => {
     }
     const map: Record<string, ItemKind> = {};
     for (const kk of ['step', 'trans', 'or', 'and', 'jump'] as ItemKind[]) map[KEYMAP[lang.value][kk].toLowerCase()] = kk;
-    if (map[lk]) { e.preventDefault(); insertKind(map[lk]!); return; }
+    if (map[lk]) { e.preventDefault(); insertKind(map[lk]!, e.shiftKey); return; }
     if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); removeSel(); return; }
     if (k === 'Enter') { e.preventDefault(); focusMainField(); return; }
     if (k === 'Escape') { sel.value = null; return; }
@@ -307,8 +350,9 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   return {
-    sel, tab, tabs, theme, themeLabel, dataView, sim, liveMsg, announce,
+    sel, tab, tabs, theme, themeLabel, dataView, sim, liveMsg, announce, insertWhere, whereNow, whereFixed,
     selBase, selLoc, selItem, isDivBar, selText, selShort, allowed, slotPos, activeRegion, jumpTargets, recFb, tokens,
+    wrap, canWrap, unwrap, canUnwrap, moveBranch, canMoveBranch,
     insertKind, removeSel, setField, setAction, addAction, delAction, addToken, addBranch, delBranch, doRenumber,
     openG, addGrafcet, dupGrafcet, delGrafcet,
     pick, pickFromText, focusHost, onHostFocus, goIssue, onKey,

@@ -31,14 +31,20 @@ function probeItem(kind: ItemKind): Item {
   return { id: '?', kind: 'trans', num: 0, recept: '' };
 }
 
-/** Quelle forme d'insertion garde la séquence valide ? (élément seul, ou avec un intercalaire) */
-export function findPattern(seq: Item[], ctx: SeqContext, idx: number, kind: ItemKind): ItemKind[] | null {
+/** Position d'insertion : avant ou après l'élément sélectionné. */
+export type InsertWhere = 'before' | 'after';
+
+/** Quelle forme d'insertion, à l'indice `at` de la séquence, garde celle-ci valide ? (élément seul, ou avec un intercalaire) */
+export function findPatternAt(seq: Item[], ctx: SeqContext, at: number, kind: ItemKind): ItemKind[] | null {
   for (const pat of PATTERNS[kind]) {
-    const test = seq.slice(0, idx + 1).concat(pat.map(probeItem), seq.slice(idx + 1));
+    const test = seq.slice(0, at).concat(pat.map(probeItem), seq.slice(at));
     if (!checkSeq(test, ctx)) return pat;
   }
   return null;
 }
+
+/** Insertion juste après l'indice `idx` (compatibilité). */
+export const findPattern = (seq: Item[], ctx: SeqContext, idx: number, kind: ItemKind) => findPatternAt(seq, ctx, idx + 1, kind);
 
 export interface Insertion {
   kind: ItemKind;
@@ -56,19 +62,36 @@ function noteKeyFor(kind: ItemKind, pat: ItemKind[]): string | null {
 export const INSERT_KINDS: ItemKind[] = ['step', 'trans', 'or', 'and', 'jump'];
 
 /**
- * Insertions valides après l'élément sélectionné.
- * `id` peut porter le suffixe « :d » (barre de divergence) : aucune insertion n'est alors proposée.
+ * Site d'insertion pour une sélection : séquence, indice d'insertion et élément précédent.
+ * Les blocs ont deux points d'ancrage : la barre de divergence (id terminé par « :d », insertion AVANT le bloc)
+ * et la convergence (id nu, insertion APRÈS le bloc). Pour les autres éléments, `where` choisit.
  */
-export function allowedInsertions(g: Grafcet, id: string | null): Insertion[] {
-  if (!id || id.endsWith(':d')) return [];
-  const loc = locate(g.items, id);
-  if (!loc || loc.item.kind === 'jump') return [];
+export function insertionSite(g: Grafcet, id: string | null, where: InsertWhere) {
+  if (!id) return null;
+  const bar = id.endsWith(':d');
+  const loc = locate(g.items, bar ? id.slice(0, -2) : id);
+  if (!loc || loc.item.kind === 'jump') return null;
+  if (isBlock(loc.item)) {
+    if (bar && where === 'after') return null;
+    if (!bar && where === 'before') return null;
+    return { loc, at: bar ? loc.idx : loc.idx + 1 };
+  }
+  if (bar) return null;
+  return { loc, at: where === 'before' ? loc.idx : loc.idx + 1 };
+}
+
+/** Insertions valides avant ou après l'élément sélectionné. */
+export function allowedInsertions(g: Grafcet, id: string | null, where: InsertWhere = 'after'): Insertion[] {
+  const site = insertionSite(g, id, where);
+  if (!site) return [];
+  const { loc, at } = site;
   const out: Insertion[] = [];
   for (const kind of INSERT_KINDS) {
-    const pat = findPattern(loc.seq, loc.ctx, loc.idx, kind);
+    const pat = findPatternAt(loc.seq, loc.ctx, at, kind);
     if (!pat) continue;
     if (kind === 'jump') {
-      const want = loc.item.kind === 'step' ? 'trans' : 'step';
+      const prev = loc.seq[at - 1];
+      const want = prev && prev.kind === 'step' ? 'trans' : 'step';
       let any = false;
       walkAll(g.items, (it) => { if (it.kind === want) any = true; });
       if (!any) continue;
@@ -78,12 +101,12 @@ export function allowedInsertions(g: Grafcet, id: string | null): Insertion[] {
   return out;
 }
 
-function mkItem(P: Project, g: Grafcet, kind: ItemKind, prev: Item): Item {
+function mkItem(P: Project, g: Grafcet, kind: ItemKind, prev: Item | undefined): Item {
   if (kind === 'step') return mkStep(P, g);
   if (kind === 'trans') return mkTrans(P, g);
   if (kind === 'or') return { id: nextId(P), kind, branches: [[mkTrans(P, g)], [mkTrans(P, g)]] };
   if (kind === 'and') return { id: nextId(P), kind, branches: [[mkStep(P, g)], [mkStep(P, g)]] };
-  const want = prev.kind === 'step' ? 'trans' : 'step';
+  const want = prev && prev.kind === 'step' ? 'trans' : 'step';
   let target: string | null = null;
   walkAll(g.items, (it) => { if (!target && it.kind === want && (want === 'trans' || (it.kind === 'step' && it.initial))) target = it.id; });
   if (!target) walkAll(g.items, (it) => { if (!target && it.kind === want) target = it.id; });
@@ -91,16 +114,20 @@ function mkItem(P: Project, g: Grafcet, kind: ItemKind, prev: Item): Item {
 }
 
 /**
- * Insère un élément après `id` et renvoie l'id à sélectionner ensuite.
+ * Insère un élément avant ou après `id` et renvoie l'id à sélectionner ensuite.
  * L'appelant doit avoir vérifié que l'insertion est permise (voir allowedInsertions).
  */
-export function insertAfter(P: Project, g: Grafcet, id: string, kind: ItemKind): string {
-  const loc = locate(g.items, id);
-  if (!loc) throw new Error('élément introuvable : ' + id);
-  const pat = findPattern(loc.seq, loc.ctx, loc.idx, kind);
+export function insertAt(P: Project, g: Grafcet, id: string, kind: ItemKind, where: InsertWhere = 'after'): string {
+  const site = insertionSite(g, id, where);
+  if (!site) throw new Error('élément introuvable ou non insérable : ' + id);
+  const { loc, at } = site;
+  const pat = findPatternAt(loc.seq, loc.ctx, at, kind);
   if (!pat) throw new Error('insertion impossible : ' + kind);
-  const made = pat.map((k) => mkItem(P, g, k, loc.item));
-  loc.seq.splice(loc.idx + 1, 0, ...made);
+  const made = pat.map((k) => mkItem(P, g, k, loc.seq[at - 1]));
+  loc.seq.splice(at, 0, ...made);
   const first = made[0]!;
   return isBlock(first) ? first.branches[0]![0]!.id : first.id;
 }
+
+/** Insertion après `id` (compatibilité). */
+export const insertAfter = (P: Project, g: Grafcet, id: string, kind: ItemKind) => insertAt(P, g, id, kind, 'after');

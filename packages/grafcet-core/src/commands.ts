@@ -1,9 +1,9 @@
 import { checkSeq } from './grammar';
-import { mkStep, mkTrans } from './insertion';
+import { mkStep, mkTrans, nextId } from './insertion';
+import type { BlockKind, Item } from './types';
 import { findItem, locate, walkAll } from './tree';
 import type { Grafcet, Project } from './types';
 import { isBlock } from './types';
-import { nextId } from './insertion';
 
 /** Plus petite suppression qui garde la séquence valide : l'élément, l'élément + le suivant, ou le précédent + l'élément. */
 function tryRemove(seq: Grafcet['items'], ctx: Parameters<typeof checkSeq>[1], i: number) {
@@ -104,3 +104,81 @@ export function stats(g: Grafcet) {
 }
 
 export { findItem };
+
+export interface Wrapped { blockId: string; /** Premier élément de la branche créée (à sélectionner ensuite). */ firstId: string }
+
+const probeFirst = (kind: BlockKind): Item =>
+  kind === 'or' ? { id: '?', kind: 'trans', num: 0, recept: '' } : { id: '?', kind: 'step', num: 0, name: '', initial: false, actions: [] };
+
+/** Plages candidates autour de l'indice i, de la plus petite à la plus large. */
+const runsAround = (i: number): [number, number][] => [[i, i], [i - 1, i + 1], [i - 1, i], [i, i + 1]];
+
+/**
+ * Encadre l'élément `id` (et, si la grammaire l'exige, ses voisins) dans une nouvelle divergence `kind`
+ * dont la seconde branche est une alternative (transition) ou un parallèle (étape) vide à compléter.
+ * Cas typiques : une transition devient « deux transitions alternatives » ; une étape entourée de ses transitions
+ * peut être contournée (saut d'étapes) ; une étape peut être doublée en parallèle.
+ * Choisit la plus petite plage qui laisse la séquence valide ; renvoie null si aucune ne convient.
+ */
+export function wrapInBlock(P: Project, g: Grafcet, id: string, kind: BlockKind): Wrapped | null {
+  const loc = locate(g.items, id);
+  if (!loc || loc.item.kind === 'jump' || isBlock(loc.item)) return null;
+  const { seq, ctx, idx } = loc;
+  for (const [s, e] of runsAround(idx)) {
+    if (s < 0 || e >= seq.length) continue;
+    const run = seq.slice(s, e + 1);
+    const probe: Item = { id: '?', kind, branches: [run, [probeFirst(kind)]] };
+    if (checkSeq(seq.slice(0, s).concat(probe, seq.slice(e + 1)), ctx)) continue;
+    const first = kind === 'or' ? mkTrans(P, g) : mkStep(P, g);
+    const block: Item = { id: nextId(P), kind, branches: [run, [first]] };
+    seq.splice(s, e - s + 1, block);
+    return { blockId: block.id, firstId: first.id };
+  }
+  return null;
+}
+
+/** Vrai si `wrapInBlock` serait possible (sans rien modifier ni consommer d'identifiant). */
+export function canWrapInBlock(g: Grafcet, id: string, kind: BlockKind): boolean {
+  const loc = locate(g.items, id);
+  if (!loc || loc.item.kind === 'jump' || isBlock(loc.item)) return false;
+  const { seq, ctx, idx } = loc;
+  return runsAround(idx).some(([s, e]) => {
+    if (s < 0 || e >= seq.length) return false;
+    const probe: Item = { id: '?', kind, branches: [seq.slice(s, e + 1), [probeFirst(kind)]] };
+    return !checkSeq(seq.slice(0, s).concat(probe, seq.slice(e + 1)), ctx);
+  });
+}
+
+/**
+ * Dissout la divergence `blockId` en ne gardant que la branche `keep` (ses éléments prennent la place du bloc).
+ * Renvoie l'id du premier élément conservé, ou null si le résultat violerait la grammaire (rien n'est modifié).
+ * Les renvois qui visaient une branche supprimée deviennent invalides et seront signalés par la validation.
+ */
+export function unwrapBlock(g: Grafcet, blockId: string, keep: number): string | null {
+  const loc = locate(g.items, blockId);
+  if (!loc || !isBlock(loc.item)) return null;
+  const branch = loc.item.branches[keep];
+  if (!branch) return null;
+  const next = loc.seq.slice(0, loc.idx).concat(branch, loc.seq.slice(loc.idx + 1));
+  if (checkSeq(next, loc.ctx)) return null;
+  loc.seq.splice(loc.idx, 1, ...branch);
+  return branch[0]!.id;
+}
+
+/** Vrai si `unwrapBlock` serait possible pour cette branche. */
+export function canUnwrapBlock(g: Grafcet, blockId: string, keep: number): boolean {
+  const loc = locate(g.items, blockId);
+  if (!loc || !isBlock(loc.item)) return false;
+  const branch = loc.item.branches[keep];
+  return !!branch && !checkSeq(loc.seq.slice(0, loc.idx).concat(branch, loc.seq.slice(loc.idx + 1)), loc.ctx);
+}
+
+/** Déplace d'un cran (dir = -1 vers la gauche, +1 vers la droite) la branche qui contient `id`. */
+export function moveBranch(g: Grafcet, id: string, dir: -1 | 1): boolean {
+  const loc = locate(g.items, id);
+  if (!loc || !loc.block) return false;
+  const bs = loc.block.branches, a = loc.branchIdx, b = a + dir;
+  if (b < 0 || b >= bs.length) return false;
+  [bs[a], bs[b]] = [bs[b]!, bs[a]!];
+  return true;
+}

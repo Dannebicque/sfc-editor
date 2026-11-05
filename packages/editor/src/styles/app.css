@@ -187,6 +187,7 @@ kbd{font-family:var(--font-mono);font-size:11px;font-weight:500;border:1px solid
 .seg{display:inline-flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden;margin-bottom:10px}
 .seg button{border:0;background:var(--canvas);padding:5px 11px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.wheresel{margin-bottom:0}.wheresel button{padding:3px 9px;font-size:12px;font-weight:600}.wheresel button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 pre.code{margin:0 0 10px;max-height:290px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--canvas);padding:10px;font:12px/1.5 var(--font-mono);white-space:pre}
 .imp{min-height:84px;font-family:var(--font-mono);font-size:12px;resize:vertical}
 .msg{font-size:12.5px;margin:6px 0}

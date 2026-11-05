@@ -4,12 +4,20 @@ import { T } from '../i18n';
 import { useUiStore } from '../stores/ui';
 
 const ui = useUiStore();
-const { sim, sel, allowed, isDivBar, selShort, selText } = storeToRefs(ui);
+const { sim, sel, allowed, isDivBar, selShort, selText, insertWhere, whereNow, whereFixed } = storeToRefs(ui);
 </script>
 
 <template>
   <div v-if="!sim.on && sel" class="insbar" role="toolbar" :aria-label="T('ins_aria', { t: selText })">
-    <div class="ins-ctx"><span class="dotc"></span><span>{{ T('ins_after') }} <b>{{ selShort }}</b></span></div>
+    <div class="ins-ctx">
+      <span class="dotc"></span>
+      <div v-if="!whereFixed" class="seg wheresel" role="group" :aria-label="T('ins_mode_aria')">
+        <button type="button" :aria-pressed="insertWhere === 'before'" @click="insertWhere = 'before'; ui.focusHost()">{{ T('ins_before') }}</button>
+        <button type="button" :aria-pressed="insertWhere === 'after'" @click="insertWhere = 'after'; ui.focusHost()">{{ T('ins_after') }}</button>
+      </div>
+      <span v-else>{{ T(whereNow === 'before' ? 'ins_before' : 'ins_after') }}</span>
+      <b>{{ selShort }}</b>
+    </div>
     <button v-for="o in allowed" :key="o.kind" class="ins" @click="ui.insertKind(o.kind)">
       <kbd>{{ o.key }}</kbd><span class="l">{{ o.label }}<small v-if="o.note">{{ o.note }}</small></span>
     </button>

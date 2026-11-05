@@ -78,3 +78,50 @@ describe('commandes utilisateur', () => {
     expect(project.project.name).toBe('Demo project');
   });
 });
+
+describe('édition 1b (store)', () => {
+  it('Maj + lettre insère de l’autre côté', () => {
+    const project = useProjectStore();
+    const ui = useUiStore();
+    project.activeId = project.project.grafcets[1]!.id;
+    const g = () => project.activeG;
+    const s1 = g().items[2]!;
+    ui.sel = s1.id;
+    const idxOf = () => g().items.findIndex((i) => i.id === s1.id);
+    const idx = idxOf();
+    ui.insertKind('step', true); // avant
+    expect(idxOf()).toBe(idx + 2); // étape + transition intercalaire insérées avant s1
+    expect(checkSeq(g().items, 'root')).toBeNull();
+  });
+  it('la barre de divergence impose « avant », la convergence « après »', () => {
+    const project = useProjectStore();
+    const ui = useUiStore();
+    const or = project.activeG.items.find((i) => i.kind === 'or')!;
+    ui.sel = or.id + ':d';
+    expect(ui.whereNow).toBe('before');
+    expect(ui.whereFixed).toBe(true);
+    expect(ui.allowed.length).toBeGreaterThan(0);
+    ui.sel = or.id;
+    expect(ui.whereNow).toBe('after');
+  });
+  it('encadre, dissout et déplace avec annulation possible', () => {
+    const project = useProjectStore();
+    const ui = useUiStore();
+    project.activeId = project.project.grafcets[1]!.id;
+    ui.sel = project.activeG.items[2]!.id;
+    expect(ui.canWrap('or')).toBe(true);
+    ui.wrap('or');
+    const b = project.activeG.items.find((i) => i.kind === 'or');
+    expect(b).toBeTruthy();
+    expect(checkSeq(project.activeG.items, 'root')).toBeNull();
+    expect(ui.canMoveBranch(1)).toBe(false); // la nouvelle branche est la dernière
+    expect(ui.canMoveBranch(-1)).toBe(true);
+    ui.moveBranch(-1);
+    ui.sel = b!.id;
+    expect(ui.canUnwrap(0)).toBe(true);
+    ui.unwrap(0);
+    expect(project.activeG.items.some((i) => i.kind === 'or')).toBe(false);
+    project.undo();
+    expect(project.activeG.items.some((i) => i.kind === 'or')).toBe(true);
+  });
+});

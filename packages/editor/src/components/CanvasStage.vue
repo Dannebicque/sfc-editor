@@ -67,6 +67,7 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump'] as const)
       <div id="kbd-hint" class="cues">
         <span><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> {{ T('cue_nav') }}</span>
         <span><kbd>{{ K.step }}</kbd><kbd>{{ K.trans }}</kbd><kbd>{{ K.or }}</kbd><kbd>{{ K.and }}</kbd><kbd>{{ K.jump }}</kbd> {{ T('cue_ins') }}</span>
+        <span><kbd>{{ T('kbd_shift') }}</kbd>+<kbd>…</kbd> {{ T('cue_shift') }}</span>
         <span><kbd>{{ T('kbd_del') }}</kbd> {{ T('cue_del') }}</span><span><kbd>{{ T('kbd_enter') }}</kbd> {{ T('cue_props') }}</span>
       </div>
     </div>

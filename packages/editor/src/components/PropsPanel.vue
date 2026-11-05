@@ -89,12 +89,33 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
       </ul>
     </template>
 
+    <template v-if="selItem && (selItem.kind === 'step' || selItem.kind === 'trans')">
+      <h3>{{ T('h_structure') }}</h3>
+      <div class="row">
+        <button class="btn solid" :disabled="!ui.canWrap('or')" @click="ui.wrap('or')"><Icon n="plus" />{{ T('wrap_or') }}</button>
+        <button class="btn solid" :disabled="!ui.canWrap('and')" @click="ui.wrap('and')"><Icon n="plus" />{{ T('wrap_and') }}</button>
+      </div>
+      <p class="hint">{{ T('wrap_hint') }}</p>
+    </template>
+
+    <template v-if="selItem && (selItem.kind === 'or' || selItem.kind === 'and')">
+      <h3>{{ T('unwrap_title') }}</h3>
+      <div class="row">
+        <button v-for="(_, i) in selItem.branches" :key="i" class="btn solid" :disabled="!ui.canUnwrap(i)" @click="ui.unwrap(i)">{{ T('unwrap_keep', { n: i + 1 }) }}</button>
+      </div>
+      <p class="hint">{{ T('unwrap_hint') }}</p>
+    </template>
+
     <template v-if="selItem && selLoc && selLoc.block">
       <h3>{{ T('branch_of', { i: selLoc.branchIdx + 1, n: selLoc.block.branches.length }) }}</h3>
       <div class="row">
         <button class="btn solid" @click="ui.addBranch(-1)"><Icon n="plus" />{{ T('branch_l') }}</button>
         <button class="btn solid" @click="ui.addBranch(1)"><Icon n="plus" />{{ T('branch_r') }}</button>
         <button class="btn solid danger" :disabled="selLoc.block.branches.length < 3" @click="ui.delBranch()"><Icon n="trash" />{{ T('branch_del') }}</button>
+      </div>
+      <div class="row">
+        <button class="btn solid" :disabled="!ui.canMoveBranch(-1)" @click="ui.moveBranch(-1)">← {{ T('branch_move_l') }}</button>
+        <button class="btn solid" :disabled="!ui.canMoveBranch(1)" @click="ui.moveBranch(1)">{{ T('branch_move_r') }} →</button>
       </div>
     </template>
     <div v-if="selItem" class="row"><button class="btn solid danger" @click="ui.removeSel()"><Icon n="trash" />{{ T('del_item') }}</button></div>
