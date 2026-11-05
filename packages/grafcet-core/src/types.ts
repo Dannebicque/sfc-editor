@@ -41,8 +41,6 @@ export interface Transition {
   recept: string;
   /** Actions exécutées au franchissement de la transition (type « sur événement » ; `cond` : condition facultative). */
   actions?: Action[];
-  /** Synchronisation : identifiants d'étapes (du même GRAFCET) que la transition attend en plus de son étape amont (convergence ET libre). */
-  sync?: string[];
 }
 
 export interface Jump {
@@ -72,10 +70,7 @@ export interface Grafcet {
   comment?: string;
   nextStep: number;
   nextTrans: number;
-  /** Séquence principale. */
   items: Item[];
-  /** Séquences supplémentaires (indépendantes de la principale, reliées par renvois et synchronisations). */
-  more?: Item[][];
 }
 
 export interface Project {

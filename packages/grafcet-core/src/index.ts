@@ -1,14 +1,13 @@
 export * from './types';
-export { checkSeq, checkGrafcet } from './grammar';
-export { walkAll, findItem, locate, sequencesOf, walkGrafcet, findInGrafcet, locateIn, type Location } from './tree';
+export { checkSeq } from './grammar';
+export { walkAll, findItem, locate, type Location } from './tree';
 export { allowedInsertions, insertAfter, insertAt, insertionSite, findPattern, findPatternAt, nextId, mkStep, mkTrans, INSERT_KINDS, type Insertion, type InsertWhere } from './insertion';
 export {
   removeItem, addBranch, removeBranch, renumber, newGrafcet, duplicateGrafcet, stats, wrapInBlock, canWrapInBlock,
-  unwrapBlock, canUnwrapBlock, moveBranch, addSequence, removeSequence, extraSequenceOf, sequenceIndexOf, moveSequence, type RemoveResult, type Wrapped,
+  unwrapBlock, canUnwrapBlock, moveBranch, type RemoveResult, type Wrapped,
 } from './commands';
 export { parseRecept, type ReceptResult } from './recept';
 export { endsApart } from './grammar';
-export { arrivalsTo, arrivalSources, addArrival } from './convergence';
 export { referencesTo, syncLinks, type SyncLink } from './references';
 export { flatten, stepsOf, type FlatGraph, type FlatNode, type FlatLink } from './flatten';
 export { isMacro, macrosOf, setMacro, createExpansion, expansionReaches } from './macro';

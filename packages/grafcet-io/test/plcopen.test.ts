@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { walkAll, type Item, type Project } from '@grafcet/core';
+import type { Item, Project } from '@grafcet/core';
 import { exportPlcopenXml, importPlcopenXml, importSfcEditXml, looksLikePlcopenXml } from '../src';
 import { demoProject } from '../../grafcet-core/test/helpers';
 
@@ -61,42 +61,5 @@ describe('PLCopen XML (TC6 v2.01)', () => {
       const r = spawnSync('xmllint', ['--noout', '--schema', xsd!, f], { encoding: 'utf8' });
       expect(r.stderr).toContain('validates');
     }
-  });
-});
-
-describe('synchronisation', () => {
-  it('relie la transition à toutes les étapes attendues', async () => {
-    const { exportPlcopenXml } = await import('../src');
-    const P = (await import('../../grafcet-core/test/helpers')).demoProject();
-    const g = P.grafcets[0]!;
-    const steps = g.items.filter((i) => i.kind === 'step') as { id: string }[];
-    const t = g.items.find((i) => i.kind === 'trans' && i.id !== undefined)! as { sync?: string[] };
-    t.sync = [steps[steps.length - 1]!.id];
-    const xml = exportPlcopenXml(P).output as string;
-    const m = /<transition localId="\d+">.*?<connectionPointIn>(.*?)<\/connectionPointIn>/.exec(xml);
-    expect((m![1]!.match(/<connection /g) ?? []).length).toBe(2);
-  });
-});
-
-describe('séquences supplémentaires et synchronisation', () => {
-  it('aller-retour PLCopen : mêmes liaisons', async () => {
-    const { exportPlcopenXml, importPlcopenXml } = await import('../src');
-    const { flatten } = await import('@grafcet/core');
-    const S = (id: string, n: string, initial = false): Item => ({ id, kind: 'step', num: n, name: '', initial, actions: [] });
-    const T = (id: string, n: number, r: string, sync?: string[]): Item => ({ id, kind: 'trans', num: n, recept: r, ...(sync ? { sync } : {}) } as Item);
-    const P: Project = { name: 'p', counter: 100, gcount: 2, grafcets: [{
-      id: 'g1', name: 'G', nextStep: 1, nextTrans: 10,
-      items: [S('a', '1_2', true), T('t1', 1, 'x'), S('b', '2A'), T('t2', 2, 'y', ['s30']), S('c', '3'), T('t3', 3, 'z')],
-      more: [[S('s30', '30', true)]],
-    }] };
-    const label = (g: Project['grafcets'][number]) => {
-      const m = new Map<string, string>();
-      const f = (items: Item[]) => walkAll(items, (i) => { if (i.kind === 'step') m.set(i.id, 's' + i.num); else if (i.kind === 'trans') m.set(i.id, 't(' + i.recept + ')'); });
-      f(g.items); (g.more ?? []).forEach(f);
-      return flatten(g).links.map((l) => m.get(l.from) + '>' + m.get(l.to)).sort();
-    };
-    const out = exportPlcopenXml(P).output;
-    const back = importPlcopenXml(out).model.grafcets[0]!;
-    expect(label(back)).toEqual(label(P.grafcets[0]!));
   });
 });

@@ -1,9 +1,10 @@
 import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { defineStore, storeToRefs } from 'pinia';
 import {
-  addArrival as addArrivalCmd, addSequence as addSequenceCmd, removeSequence, moveSequence, sequenceIndexOf, addBranch as addBranchCmd, allowedInsertions, canUnwrapBlock, canWrapInBlock, describeId, findItem, insertAt, isBlock,
+  addBranch as addBranchCmd, allowedInsertions, canUnwrapBlock, canWrapInBlock, describeId, findItem, insertAt, isBlock,
   locate, moveBranch as moveBranchCmd, parseRecept, removeBranch, removeItem, renumber, unwrapBlock, walkAll,
-  wrapInBlock, type BlockKind, type InsertWhere, type ItemKind, walkGrafcet, findInGrafcet, locateIn } from '@grafcet/core';
+  wrapInBlock, type BlockKind, type InsertWhere, type ItemKind,
+} from '@grafcet/core';
 import { createExpansion, macrosOf, referencesTo, setMacro } from '@grafcet/core';
 import { exportArchive, exportFolder, importArchive, importFolder, looksLikeZip, type FolderFile, exportNative, exportSfcEditXml, FORMAT_ID, importJson, importNative, importSfcEditXml, looksLikeSfcEditXml, exportPlcopenXml, importPlcopenXml, looksLikePlcopenXml, ImportError, type ReportEntry } from '@grafcet/io';
 import { buildSimulation, enabledTransitions, fire, macroActive } from '@grafcet/simulation';
@@ -37,7 +38,7 @@ export const useUiStore = defineStore('ui', () => {
 
   /* ----- sélection ----- */
   const selBase = computed(() => (sel.value ? sel.value.replace(':d', '') : null));
-  const selLoc = computed(() => (selBase.value ? locateIn(activeG.value, selBase.value) : null));
+  const selLoc = computed(() => (selBase.value ? locate(activeG.value.items, selBase.value) : null));
   const selItem = computed(() => selLoc.value?.item ?? null);
   const isDivBar = computed(() => !!sel.value && sel.value.endsWith(':d'));
   /**
@@ -53,7 +54,7 @@ export const useUiStore = defineStore('ui', () => {
     for (const g of projectRef.value.grafcets) {
       if (g.id === project.activeId) continue;
       let hit: string | null = null;
-      walkGrafcet(g, (it) => { if (!hit && it.kind === 'step' && it.num === linkedNum.value) hit = it.id; });
+      walkAll(g.items, (it) => { if (!hit && it.kind === 'step' && it.num === linkedNum.value) hit = it.id; });
       if (hit) out.push({ gid: g.id, name: g.name, itemId: hit });
     }
     return out;
@@ -105,7 +106,7 @@ export const useUiStore = defineStore('ui', () => {
     const prev = loc.seq[loc.idx - 1];
     const want = prev && prev.kind === 'step' ? 'trans' : 'step';
     const out: { id: string; label: string }[] = [];
-    walkGrafcet(activeG.value, (x) => {
+    walkAll(activeG.value.items, (x) => {
       if (x.kind === 'step' && want === 'step') out.push({ id: x.id, label: T('d_step', { n: x.num }) + (x.name ? ' · ' + x.name : '') });
       if (x.kind === 'trans' && want === 'trans') out.push({ id: x.id, label: T('d_trans', { n: x.num }) + (x.recept ? ' : ' + x.recept : '') });
     });
@@ -156,15 +157,15 @@ export const useUiStore = defineStore('ui', () => {
   function setField(field: string, value: unknown, coalesce = false): void {
     const id = selBase.value;
     if (!id) return;
-    project.mutate((g) => { const it = findInGrafcet(g, id); if (it) (it as unknown as Record<string, unknown>)[field] = value; }, coalesce ? { key: 'f:' + id + field } : {});
+    project.mutate((g) => { const it = findItem(g.items, id); if (it) (it as unknown as Record<string, unknown>)[field] = value; }, coalesce ? { key: 'f:' + id + field } : {});
   }
   function setAction(i: number, field: 'label' | 'kind' | 'cond', value: string): void {
     const id = selBase.value;
-    project.mutate((g) => { const it = findInGrafcet(g, id!); const l = it && (it.kind === 'step' || it.kind === 'trans') ? it.actions : undefined; if (l && l[i]) (l[i] as unknown as Record<string, string>)[field] = value; }, { key: 'a:' + id + i + field });
+    project.mutate((g) => { const it = findItem(g.items, id!); const l = it && (it.kind === 'step' || it.kind === 'trans') ? it.actions : undefined; if (l && l[i]) (l[i] as unknown as Record<string, string>)[field] = value; }, { key: 'a:' + id + i + field });
   }
   function addAction(): void {
     const id = selBase.value;
-    project.mutate((g) => { const it = findInGrafcet(g, id!); if (it && it.kind === 'step') it.actions.push({ kind: 'continue', label: '', cond: '' }); else if (it && it.kind === 'trans') (it.actions ??= []).push({ kind: 'event', label: '', cond: '' }); });
+    project.mutate((g) => { const it = findItem(g.items, id!); if (it && it.kind === 'step') it.actions.push({ kind: 'continue', label: '', cond: '' }); else if (it && it.kind === 'trans') (it.actions ??= []).push({ kind: 'event', label: '', cond: '' }); });
     nextTick(() => {
       const els = [...document.querySelectorAll<HTMLInputElement>('.acts li input[type=text]')];
       els.filter((e) => e.placeholder === T('act_ph')).pop()?.focus();
@@ -172,52 +173,11 @@ export const useUiStore = defineStore('ui', () => {
   }
   function delAction(i: number): void {
     const id = selBase.value;
-    project.mutate((g) => { const it = findInGrafcet(g, id!); if (it && (it.kind === 'step' || it.kind === 'trans')) { it.actions?.splice(i, 1); if (it.kind === 'trans' && !it.actions?.length) delete it.actions; } });
-  }
-  /** Synchronisation : la transition sélectionnée attend aussi l'étape `stepId`. */
-  function addSync(stepId: string): void {
-    const id = selBase.value;
-    if (!stepId) return;
-    project.mutate((g) => { const it = findInGrafcet(g, id!); if (it && it.kind === 'trans' && !(it.sync ?? []).includes(stepId)) (it.sync ??= []).push(stepId); });
-  }
-  function delSync(stepId: string): void {
-    const id = selBase.value;
-    project.mutate((g) => { const it = findInGrafcet(g, id!); if (it && it.kind === 'trans' && it.sync) { it.sync = it.sync.filter((s) => s !== stepId); if (!it.sync.length) delete it.sync; } });
-  }
-  /** Séquences : ajout d'une séquence indépendante, suppression et déplacement de celle qui contient la sélection. */
-  function addSeq(): void {
-    const id = project.mutate((g, P) => addSequenceCmd(P, g));
-    sel.value = id;
-    nextTick(() => viewStore.reveal(id));
-    announce(T('a_seq_added'));
-  }
-  const seqIdx = computed(() => (selBase.value ? sequenceIndexOf(activeG.value, selBase.value) : -1));
-  const seqCount = computed(() => 1 + (activeG.value.more?.length ?? 0));
-  function delSeq(): void {
-    const id = selBase.value;
-    if (!id) return;
-    const next = project.mutate((g) => removeSequence(g, id));
-    if (next) { sel.value = next; announce(T('a_seq_deleted')); }
-  }
-  function moveSeq(dir: -1 | 1): void {
-    const id = selBase.value;
-    if (!id) return;
-    if (project.mutate((g) => moveSequence(g, id, dir))) { nextTick(() => viewStore.reveal(id)); announce(T('a_seq_moved')); }
-  }
-  /** Convergence OU : fait arriver un renvoi sur l'élément sélectionné depuis la fin de séquence `sourceId`. */
-  function addArrivalFrom(sourceId: string): void {
-    const target = selBase.value;
-    if (!target || !sourceId) return;
-    const id = project.mutate((g, P) => addArrivalCmd(P, g, target, sourceId));
-    if (id) announce(T('a_arrival_added'));
-  }
-  function removeArrival(jumpId: string): void {
-    const r = project.mutate((g) => removeItem(g, jumpId));
-    if (r.ok) announce(T('a_arrival_removed'));
+    project.mutate((g) => { const it = findItem(g.items, id!); if (it && (it.kind === 'step' || it.kind === 'trans')) { it.actions?.splice(i, 1); if (it.kind === 'trans' && !it.actions?.length) delete it.actions; } });
   }
   function addToken(t: string): void {
     const id = selBase.value;
-    project.mutate((g) => { const it = findInGrafcet(g, id!); if (it && it.kind === 'trans') it.recept = it.recept + t; });
+    project.mutate((g) => { const it = findItem(g.items, id!); if (it && it.kind === 'trans') it.recept = it.recept + t; });
     nextTick(() => {
       const el = document.getElementById('f-rec') as HTMLInputElement | null;
       if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
@@ -279,13 +239,13 @@ export const useUiStore = defineStore('ui', () => {
   }
   function setExpansion(gid: string | null): void {
     const id = selBase.value;
-    if (id) project.mutate((g) => { const it = findInGrafcet(g, id); if (it && it.kind === 'step' && it.expansion !== undefined) it.expansion = gid; });
+    if (id) project.mutate((g) => { const it = findItem(g.items, id); if (it && it.kind === 'step' && it.expansion !== undefined) it.expansion = gid; });
   }
   function makeExpansion(): void {
     const id = selBase.value;
     if (!id) return;
     const gid = project.mutate((g, P) => {
-      const it = findInGrafcet(g, id);
+      const it = findItem(g.items, id);
       return it && it.kind === 'step' ? createExpansion(P, g, id, T('expansion_name', { n: it.num }))?.id ?? null : null;
     });
     if (gid) { announce(T('a_expansion_created')); openG(gid); }
@@ -294,14 +254,14 @@ export const useUiStore = defineStore('ui', () => {
     const id = selBase.value;
     if (!id) return;
     project.mutate((g) => {
-      const it = findInGrafcet(g, id);
+      const it = findItem(g.items, id);
       if (!it || it.kind !== 'step') return;
       if (role === 'entry' || role === 'exit') it.role = role; else delete it.role;
     });
   }
   /** Ouvre l'expansion de la macro-étape sélectionnée (ou de celle dont l'id est donné). */
   function openExpansion(id?: string): void {
-    const it = findInGrafcet(activeG.value, id ?? selBase.value ?? '');
+    const it = findItem(activeG.value.items, id ?? selBase.value ?? '');
     if (it && it.kind === 'step' && typeof it.expansion === 'string') openG(it.expansion);
   }
   /** Macro-étapes (dans tout le projet) dont ce GRAFCET est l'expansion. */
@@ -319,7 +279,7 @@ export const useUiStore = defineStore('ui', () => {
       let want = selectId ?? null;
       if (!want && linkedNum.value != null) {
         const g = projectRef.value.grafcets.find((x) => x.id === id);
-        if (g) walkGrafcet(g, (it) => { if (!want && it.kind === 'step' && it.num === linkedNum.value) want = it.id; });
+        if (g) walkAll(g.items, (it) => { if (!want && it.kind === 'step' && it.num === linkedNum.value) want = it.id; });
       }
       sel.value = want ?? viewStore.layout.focus[0]?.id ?? null;
       if (want) { const w = want; nextTick(() => viewStore.reveal(w)); }
@@ -580,7 +540,7 @@ export const useUiStore = defineStore('ui', () => {
     nextTick(() => {
       viewStore.fit(false);
       let s1: string | null = null;
-      walkGrafcet(activeG.value, (it) => { if (!s1 && it.kind === 'step' && it.num === '1') s1 = it.id; });
+      walkAll(activeG.value.items, (it) => { if (!s1 && it.kind === 'step' && it.num === '1') s1 = it.id; });
       sel.value = s1 ?? viewStore.layout.focus[0]?.id ?? null;
       if (sel.value) { const id = sel.value; nextTick(() => viewStore.reveal(id)); }
     });
@@ -593,7 +553,7 @@ export const useUiStore = defineStore('ui', () => {
     sel, tab, tabs, linkedNum, linkedIn, sharedNum, citingActive, citedIn, theme, themeLabel, dataView, sim, liveMsg, announce, insertWhere, whereNow, whereFixed,
     selBase, selLoc, selItem, isDivBar, selText, selShort, allowed, slotPos, activeRegion, jumpTargets, recFb, tokens,
     wrap, canWrap, unwrap, canUnwrap, moveBranch, canMoveBranch,
-    insertKind, removeSel, setField, setAction, addAction, delAction, addSync, delSync, addArrivalFrom, removeArrival, addSeq, delSeq, moveSeq, seqIdx, seqCount, addToken, addBranch, delBranch, doRenumber,
+    insertKind, removeSel, setField, setAction, addAction, delAction, addToken, addBranch, delBranch, doRenumber,
     openG, addGrafcet, dupGrafcet, delGrafcet,
     pick, pickFromText, focusHost, onHostFocus, goIssue, onKey,
     simActive, simEnabled, simReset, simFire, toggleSim, toggleMacro, setExpansion, makeExpansion, setRole, openExpansion, parentsOfActive,

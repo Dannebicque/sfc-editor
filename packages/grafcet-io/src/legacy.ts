@@ -1,4 +1,4 @@
-import { checkGrafcet, checkSeq, walkAll, type Grafcet, type Item, type Project, walkGrafcet } from '@grafcet/core';
+import { checkSeq, walkAll, type Grafcet, type Item, type Project } from '@grafcet/core';
 import { ImportError, type ImportResult } from './contract';
 
 /** Résultat d'un import « JSON libre » : le projet à utiliser et le GRAFCET à ouvrir. */
@@ -13,20 +13,20 @@ const maxItemId = (items: Item[]) => {
 /** Valide et complète un GRAFCET issu d'un JSON saisi à la main ou du prototype (champs absents → valeurs par défaut). */
 function normalizeGrafcet(g: Grafcet): void {
   if (!g || !Array.isArray(g.items)) throw new ImportError({ key: 'imp_items' });
-  const e = checkGrafcet(g);
+  const e = checkSeq(g.items, 'root');
   if (e) throw new ImportError({ key: 'imp_struct', params: { g: g.name || '?', e: { key: e } } });
   const ids = new Set<string>();
-  walkGrafcet(g, (it) => {
+  walkAll(g.items, (it) => {
     if (!it.id || ids.has(it.id)) throw new ImportError({ key: 'imp_ids', params: { g: g.name || '?' } });
     ids.add(it.id);
   });
   g.name = g.name || '';
-  walkGrafcet(g, (it) => {
+  walkAll(g.items, (it) => {
     if (it.kind === 'step') { it.num = String((it as { num: unknown }).num ?? ''); it.actions = it.actions || []; it.name = it.name || ''; it.initial = !!it.initial; }
     if (it.kind === 'trans') it.recept = it.recept || '';
   });
   let maxStep = -1, maxTrans = 0;
-  walkGrafcet(g, (it) => {
+  walkAll(g.items, (it) => {
     if (it.kind === 'step' && /^\d+$/.test(it.num)) maxStep = Math.max(maxStep, +it.num);
     if (it.kind === 'trans') maxTrans = Math.max(maxTrans, it.num);
   });

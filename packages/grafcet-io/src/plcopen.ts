@@ -1,4 +1,4 @@
-import { checkGrafcet, flatten, sequencesOf, walkAll, type Action, type Block, type Grafcet, type Item, type Message, type Project, walkGrafcet } from '@grafcet/core';
+import { checkSeq, walkAll, type Action, type Block, type Grafcet, type Item, type Message, type Project } from '@grafcet/core';
 import { ImportError, type ExportResult, type ImportResult, type ReportEntry } from './contract';
 import { elements, esc, local, parseXml, textOf, type XNode } from './xml';
 
@@ -87,7 +87,7 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
   const notes: Notes = { edge: false, timer: false, vars: new Map() };
   const outputs = new Set<string>();
   const idx = new Map<string, Item>();
-  walkGrafcet(g, (it) => idx.set(it.id, it));
+  walkAll(g.items, (it) => idx.set(it.id, it));
   if (g.items[0]?.kind === 'trans') report.push(warn('rep_p_source', { g: g.name }));
   if (g.items.at(-1)?.kind === 'trans') report.push(warn('rep_p_sink', { g: g.name }));
   const pos = (x: number, y: number) => `<position x="${Math.round(x)}" y="${Math.round(y)}"/>`;
@@ -112,16 +112,13 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
     nodes.push(`<actionBlock localId="${id}">${pos(x + COL / 2, y)}${cpin([{ id: stepId, fp: 'action' }])}${acts.join('')}</actionBlock>`);
   }
 
-  // Étapes attendues par une synchronisation : leur identifiant local est réservé d'avance (référence possible vers l'avant).
-  const reserved = new Map<string, number>();
-  walkGrafcet(g, (it) => { if (it.kind === 'trans') for (const s of it.sync ?? []) if (!reserved.has(s)) reserved.set(s, next++); });
   const widthOf = (items: Item[]): number => Math.max(1, ...items.map((it) => (it.kind === 'or' || it.kind === 'and' ? it.branches.reduce((n, b) => n + widthOf(b), 0) : 1)));
 
   function walk(items: Item[], preds: Pred[], cx: number, y: number): { preds: Pred[]; y: number } {
     for (const it of items) {
       if (it.kind === 'step') {
         if (it.expansion !== undefined) report.push(warn('rep_p_macro', { g: g.name }));
-        const id = reserved.get(it.id) ?? next++;
+        const id = next++;
         nodes.push(`<step localId="${id}" name="${esc(stepName(it.num))}"${it.initial ? ' initialStep="true"' : ''}>${pos(cx, y)}${cpin(preds)}<connectionPointOut formalParameter="sfc"/>${it.actions.length ? '<connectionPointOutAction formalParameter="action"/>' : ''}</step>`);
         if (it.actions.length) actionBlock(it, id, cx, y);
         preds = [{ id, fp: 'sfc' }]; y += ROW;
@@ -131,7 +128,7 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
         let cond = '';
         if (it.recept.trim()) cond = `<condition><inline name="">${st(toST(it.recept, known, notes))}</inline></condition>`;
         else report.push(warn('rep_p_empty_cond', { g: g.name, n: it.num }));
-        nodes.push(`<transition localId="${id}">${pos(cx, y)}${cpin([...preds, ...(it.sync ?? []).filter((s) => reserved.has(s)).map((s) => ({ id: reserved.get(s)!, fp: 'sfc' }))])}<connectionPointOut/>${cond}</transition>`);
+        nodes.push(`<transition localId="${id}">${pos(cx, y)}${cpin(preds)}<connectionPointOut/>${cond}</transition>`);
         preds = [{ id }]; y += ROW;
       } else if (it.kind === 'jump') {
         const t = it.target ? idx.get(it.target) : undefined;
@@ -169,8 +166,7 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
     return { preds: [{ id: convId }], y: ymax + ROW };
   }
 
-  let cx0 = 0;
-  for (const s of sequencesOf(g)) { walk(s, [], cx0, 0); cx0 += (widthOf(s) + 1) * COL; }
+  walk(g.items, [], 0, 0);
   if (notes.edge) report.push(warn('rep_p_edge', { g: g.name }));
   if (notes.timer) report.push(info('rep_p_timer', { g: g.name }));
 
@@ -196,7 +192,7 @@ export interface PlcopenExportOptions {
 export function exportPlcopenXml(project: Project, opts: PlcopenExportOptions = {}): ExportResult<string> {
   const report: ReportEntry[] = [];
   const known = new Set<string>();
-  for (const g of project.grafcets) walkGrafcet(g, (it) => { if (it.kind === 'step') known.add(it.num); });
+  for (const g of project.grafcets) walkAll(g.items, (it) => { if (it.kind === 'step') known.add(it.num); });
   const used = new Set<string>();
   const pous = project.grafcets.map((g, i) => {
     let name = g.name.replace(/[^A-Za-z0-9_]+/g, '_').replace(/^_+|_+$/g, '') || `Grafcet${i + 1}`;
@@ -291,7 +287,6 @@ function importPou(P: Project, pou: XNode, report: ReportEntry[], index: number)
   }
 
   const visited = new Set<string>();
-  const pendingSync: { t: Extract<Item, { kind: 'trans' }>; refs: string[] }[] = [];
   /** Construit la suite d'éléments depuis `start` ; s'arrête à une convergence (renvoyée) ou en fin de graphe. */
   function chain(start: string | undefined): { items: Item[]; stop: string | null } {
     const items: Item[] = [];
@@ -323,9 +318,6 @@ function importPou(P: Project, pou: XNode, report: ReportEntry[], index: number)
         }
         const t: Extract<Item, { kind: 'trans' }> = { id: nid(), kind: 'trans', num: 0, recept };
         items.push(t); itemOf.set(cur, t);
-        // Plusieurs étapes en amont (convergence ET libre) : synchronisation, résolue après la construction.
-        const stepIns = n.ins.map((c) => c.ref).filter((r) => nodes.get(r)?.tag === 'step');
-        if (stepIns.length > 1) pendingSync.push({ t, refs: stepIns });
       } else if (n.tag === 'jumpStep') {
         const j: Extract<Item, { kind: 'jump' }> = { id: nid(), kind: 'jump', target: null };
         jumpsToFix.push({ jump: j, name: n.el.attrs.targetName ?? '' });
@@ -356,32 +348,15 @@ function importPou(P: Project, pou: XNode, report: ReportEntry[], index: number)
   if (!start) return null;
   if (!roots.length) report.push(warn('rep_p_no_initial', { g: g.name }));
   g.items = chain(start).items;
-  // Séquences indépendantes : chaque étape sans amont (ou initiale) non encore atteinte ouvre une séquence supplémentaire.
-  const more: Item[][] = [];
-  for (const id of order) {
-    const nd = nodes.get(id)!;
-    if (visited.has(id) || nd.tag !== 'step' || (nd.ins.length && nd.el.attrs.initialStep !== 'true')) continue;
-    const r = chain(id);
-    if (r.items.length) more.push(r.items);
-  }
-  if (more.length) g.more = more;
-  for (const { t, refs } of pendingSync) {
-    const ids = refs.map((r) => itemOf.get(r)).filter((x): x is Item => !!x && x.kind === 'step').map((x) => x.id);
-    if (ids.length) t.sync = ids;
-  }
-  const linked = new Set(flatten(g).links.filter((l) => !l.sync).map((l) => l.from + '>' + l.to));
-  walkGrafcet(g, (it) => {
-    if (it.kind === 'trans' && it.sync) { it.sync = it.sync.filter((s) => !linked.has(s + '>' + it.id)); if (!it.sync.length) delete it.sync; }
-  });
   for (const id of order) if (!visited.has(id) && !['selectionConvergence', 'simultaneousConvergence'].includes(nodes.get(id)!.tag)) { report.push(warn('rep_p_orphan', { g: g.name })); break; }
   for (const { jump, name } of jumpsToFix) {
     const t = stepByName.get(name);
     if (t) jump.target = t; else report.push(err('rep_jump_target', { g: g.name }));
   }
   let tn = 1, maxStep = -1;
-  walkGrafcet(g, (it) => { if (it.kind === 'trans') it.num = tn++; else if (it.kind === 'step' && /^\d+$/.test(it.num)) maxStep = Math.max(maxStep, +it.num); });
+  walkAll(g.items, (it) => { if (it.kind === 'trans') it.num = tn++; else if (it.kind === 'step' && /^\d+$/.test(it.num)) maxStep = Math.max(maxStep, +it.num); });
   g.nextTrans = tn; g.nextStep = maxStep + 1;
-  const e = g.items.length ? checkGrafcet(g) : null;
+  const e = g.items.length ? checkSeq(g.items, 'root') : null;
   if (e) report.push(err('rep_structure', { g: g.name, e: { key: e } }));
   return g;
 }
