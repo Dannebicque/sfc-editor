@@ -278,5 +278,14 @@
   "shared_badge": "has {n}",
   "shared_title": "This GRAFCET also contains step {n}",
   "h_shared": "Also in",
-  "shared_go": "Go to “{g}”"
+  "shared_go": "Go to “{g}”",
+  "download_zip": "ZIP archive",
+  "save_folder": "Save to a folder",
+  "open_folder": "Open a folder…",
+  "folder_saved": "Project saved to the folder.",
+  "imp_folder_missing": "Missing file in the folder: {f}.",
+  "imp_zip_not_zip": "This file is not a valid ZIP archive.",
+  "imp_zip_method": "Compressed archive not supported (only GRAFCET Studio archives are).",
+  "imp_zip_crc": "Corrupted archive (invalid checksum).",
+  "imp_zip_path": "Archive rejected: file path not allowed."
 }

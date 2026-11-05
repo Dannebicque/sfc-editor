@@ -1,0 +1,12 @@
+{
+  "name": "GRAFCET Studio",
+  "short_name": "GRAFCET",
+  "description": "Éditeur et validateur GRAFCET (IEC 60848), local et hors ligne.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0a6f82",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

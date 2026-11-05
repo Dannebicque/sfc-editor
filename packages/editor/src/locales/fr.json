@@ -278,5 +278,14 @@
   "shared_badge": "contient {n}",
   "shared_title": "Ce GRAFCET contient aussi l’étape {n}",
   "h_shared": "Présente aussi dans",
-  "shared_go": "Aller à « {g} »"
+  "shared_go": "Aller à « {g} »",
+  "download_zip": "Archive ZIP",
+  "save_folder": "Enregistrer dans un dossier",
+  "open_folder": "Ouvrir un dossier…",
+  "folder_saved": "Projet enregistré dans le dossier.",
+  "imp_folder_missing": "Fichier manquant dans le dossier : {f}.",
+  "imp_zip_not_zip": "Ce fichier n’est pas une archive ZIP valide.",
+  "imp_zip_method": "Archive compressée non prise en charge (seules les archives GRAFCET Studio le sont).",
+  "imp_zip_crc": "Archive corrompue (somme de contrôle invalide).",
+  "imp_zip_path": "Archive refusée : chemin de fichier non autorisé."
 }

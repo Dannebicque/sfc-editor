@@ -5,7 +5,7 @@ import {
   locate, moveBranch as moveBranchCmd, parseRecept, removeBranch, removeItem, renumber, unwrapBlock, walkAll,
   wrapInBlock, type BlockKind, type InsertWhere, type ItemKind,
 } from '@grafcet/core';
-import { exportNative, exportSfcEditXml, FORMAT_ID, importJson, importNative, importSfcEditXml, looksLikeSfcEditXml, ImportError, type ReportEntry } from '@grafcet/io';
+import { exportArchive, exportFolder, importArchive, importFolder, looksLikeZip, type FolderFile, exportNative, exportSfcEditXml, FORMAT_ID, importJson, importNative, importSfcEditXml, looksLikeSfcEditXml, ImportError, type ReportEntry } from '@grafcet/io';
 import { enabledTransitions, fire, initialMarking } from '@grafcet/simulation';
 import { describeText, renderMessage } from '../format';
 import { isLegalDocId, type LegalDocId } from '../legal';
@@ -355,13 +355,70 @@ export const useUiStore = defineStore('ui', () => {
       importMsg.text = T('imp_fail', { m }); importMsg.cls = 'err';
     }
   }
+  const saveAs = (blob: Blob, name: string) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  const baseName = () => (projectRef.value.name || 'projet').replace(/[^\w\-.]+/g, '_');
+  /** Remplace le projet par un modèle déjà validé et affiche le résultat. */
+  function commitImport(model: ReturnType<typeof importArchive>['model'], entries: ReportEntry[] = []): void {
+    importReport.value = toLines(entries);
+    project.replaceProject(model);
+    openG(model.grafcets[0]!.id);
+    importMsg.text = T('imp_ok'); importMsg.cls = 'ok'; importText.value = '';
+  }
+  function failImport(e: unknown): void {
+    const m = e instanceof ImportError ? renderMessage(e.info) : String((e as Error).message ?? e);
+    importMsg.text = T('imp_fail', { m }); importMsg.cls = 'err';
+  }
+  /** Télécharge le projet en archive ZIP déterministe (un fichier par GRAFCET). */
+  function downloadArchive(): void {
+    saveAs(new Blob([exportArchive(projectRef.value).output as BlobPart], { type: 'application/zip' }), baseName() + '.grafcet.zip');
+  }
+  /** Dossier : seulement avec l'API File System Access (Chromium). */
+  const canFolder = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
+  type Dir = { getFileHandle(n: string, o?: { create: boolean }): Promise<{ createWritable(): Promise<{ write(d: string): Promise<void>; close(): Promise<void> }>; getFile(): Promise<File> }>; getDirectoryHandle(n: string, o?: { create: boolean }): Promise<Dir>; values(): AsyncIterable<{ kind: string; name: string }> };
+  const pickDir = (mode: 'read' | 'readwrite') => (window as unknown as { showDirectoryPicker(o: { mode: string }): Promise<Dir> }).showDirectoryPicker({ mode });
+  async function saveFolder(): Promise<void> {
+    try {
+      const root = await pickDir('readwrite');
+      for (const f of exportFolder(projectRef.value).output) {
+        const parts = f.path.split('/'); const file = parts.pop()!;
+        let dir = root;
+        for (const p of parts) dir = await dir.getDirectoryHandle(p, { create: true });
+        const w = await (await dir.getFileHandle(file, { create: true })).createWritable();
+        await w.write(f.text); await w.close();
+      }
+      importMsg.text = T('folder_saved'); importMsg.cls = 'ok';
+    } catch (e) { if ((e as Error).name !== 'AbortError') failImport(e); }
+  }
+  async function openFolder(): Promise<void> {
+    try {
+      const root = await pickDir('read');
+      const files: FolderFile[] = [];
+      const head = await (await root.getFileHandle('project.json')).getFile();
+      files.push({ path: 'project.json', text: await head.text() });
+      const gdir = await root.getDirectoryHandle('grafcets');
+      for await (const ent of gdir.values()) if (ent.kind === 'file' && ent.name.endsWith('.json')) files.push({ path: 'grafcets/' + ent.name, text: await (await (await gdir.getFileHandle(ent.name)).getFile()).text() });
+      const r = importFolder(files);
+      commitImport(r.model, r.report.entries);
+    } catch (e) { if ((e as Error).name !== 'AbortError') failImport(e); }
+  }
   function onFile(e: Event): void {
     const input = e.target as HTMLInputElement;
     const f = input.files?.[0];
     if (!f) return;
     const r = new FileReader();
-    r.onload = () => { importText.value = String(r.result); applyImport(f.name); };
-    r.readAsText(f);
+    r.onload = () => {
+      const bytes = new Uint8Array(r.result as ArrayBuffer);
+      if (looksLikeZip(bytes)) {
+        try { const x = importArchive(bytes); commitImport(x.model, x.report.entries); } catch (err) { failImport(err); }
+      } else { importText.value = new TextDecoder('utf-8').decode(bytes); applyImport(f.name); }
+    };
+    r.readAsArrayBuffer(f);
     input.value = '';
   }
 
@@ -425,7 +482,7 @@ export const useUiStore = defineStore('ui', () => {
     openG, addGrafcet, dupGrafcet, delGrafcet,
     pick, pickFromText, focusHost, onHostFocus, goIssue, onKey,
     simActive, simEnabled, simReset, simFire, toggleSim,
-    dataText, importReport, exportReport, downloadSfcEdit, copyMsg, importMsg, importText, copyData, downloadNative, applyImport, onFile,
+    dataText, importReport, exportReport, downloadSfcEdit, downloadArchive, canFolder, saveFolder, openFolder, copyMsg, importMsg, importText, copyData, downloadNative, applyImport, onFile,
     legalDoc, openLegal, closeLegal, syncLegalFromHash,
     cycleTheme, setLang, init,
   };

@@ -37,9 +37,9 @@ Les paquets internes sont consommés **directement en TypeScript** (pas d'étape
 
 - **1a (fait)** noyau + mise en page + format natif JSON + éditeur web, tests de propriétés.
 - **1b (fait)** insertion avant/après (Maj + lettre pour le côté opposé), encadrer un élément dans une divergence OU/ET, dissoudre une divergence en gardant une branche, déplacer une branche.
-- **1c** PWA hors ligne, shell Electron minimal, dossier `.grafcet` et archive ZIP déterministe.
+- **1c (en grande partie fait)** PWA hors ligne, format dossier (un fichier par GRAFCET, adapté à Git) et archive ZIP déterministe. Reste : shell Electron minimal.
 - **2** macro-étapes, GRAFCETs partiels, forçages, validation IEC 60848 complète.
-- **3** import SFCEdit (XML) et export PLCopen — en attente d'échantillons réels dans `fixtures/`.
+- **3** import/export SFCEdit (XML) **fait** ; export PLCopen — en attente d'échantillons réels dans `fixtures/`.
 - **4+** serveur (comptes, partage), puis co-édition temps réel si le besoin est avéré.
 
 Décisions d'architecture : [docs/adr](docs/adr).
