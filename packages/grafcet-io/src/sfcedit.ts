@@ -237,12 +237,13 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
   const jumps: { from: number; target: string | null }[] = [];
   const placement = new Map<string, { seq: number; idx: number }>();
   const notes = { edge: false, timer: false };
-  let actionKinds = false;
+  let actionKinds = false, macroFlag = false;
   const newSeq = (): OutSeq => { const s = { id: seqs.length + 1, nodes: [] as string[] }; seqs.push(s); return s; };
 
   function stepXml(it: Extract<Item, { kind: 'step' }>): string {
     const attrs = `type="${it.initial ? 'initial' : 'normal'}" name="${/^\d+$/.test(it.num) ? 'X' + it.num : esc(it.num)}"` + (it.name ? ` x-label="${esc(it.name)}"` : '');
     if (it.name) flags.labels = true;
+    if (it.expansion !== undefined) macroFlag = true;
     if (!it.actions.length) return `\t\t\t<step ${attrs} />`;
     const acts = it.actions.map((a) => {
       if (a.kind !== 'continue') actionKinds = true;
@@ -292,6 +293,7 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
   if (notes.edge) report.push(warn('rep_x_edge', { g: g.name }));
   if (notes.timer) report.push(warn('rep_x_timer', { g: g.name }));
   if (actionKinds) report.push(warn('rep_x_actions', { g: g.name }));
+  if (macroFlag) report.push(warn('rep_x_macro', { g: g.name }));
 
   const head = `\t<grafcet type="normal" owner="" name="${esc(g.name)}" comment="${esc(g.comment ?? '')}">`;
   const body = seqs.map((s) => `\t\t<sequence id="${s.id}">\n${s.nodes.join('\n')}\n\t\t</sequence>`);

@@ -115,6 +115,7 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
   function walk(items: Item[], preds: Pred[], cx: number, y: number): { preds: Pred[]; y: number } {
     for (const it of items) {
       if (it.kind === 'step') {
+        if (it.expansion !== undefined) report.push(warn('rep_p_macro', { g: g.name }));
         const id = next++;
         nodes.push(`<step localId="${id}" name="${esc(stepName(it.num))}"${it.initial ? ' initialStep="true"' : ''}>${pos(cx, y)}${cpin(preds)}<connectionPointOut formalParameter="sfc"/>${it.actions.length ? '<connectionPointOutAction formalParameter="action"/>' : ''}</step>`);
         if (it.actions.length) actionBlock(it, id, cx, y);

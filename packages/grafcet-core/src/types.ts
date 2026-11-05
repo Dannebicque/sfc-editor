@@ -23,6 +23,13 @@ export interface Step {
   name: string;
   initial: boolean;
   actions: Action[];
+  /**
+   * Macro-étape : identifiant du GRAFCET qui en est l'expansion (`null` tant qu'aucune expansion n'est choisie).
+   * Absent pour une étape ordinaire.
+   */
+  expansion?: string | null;
+  /** Rôle dans une expansion : étape d'entrée (E) ou de sortie (S). */
+  role?: 'entry' | 'exit';
 }
 
 export interface Transition {

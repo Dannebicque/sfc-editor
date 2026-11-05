@@ -9,7 +9,7 @@ export interface Line { x1: number; y1: number; x2: number; y2: number }
 export interface ActionView { i: number; x: number; y: number; condW: number; labW: number; cond: string; text: string; cell: boolean }
 interface BoxBase { id: string; x: number; y: number; l: number; r: number; h: number }
 /** `arrivals` : numéros des étapes d'où part un renvoi vers cet élément (affichés au-dessus, avec une flèche entrante). */
-export interface StepView extends BoxBase { kind: 'step'; num: string; w: number; name: string; initial: boolean; acts: ActionView[]; arrivals: string[]; ay: number }
+export interface StepView extends BoxBase { kind: 'step'; num: string; w: number; macro: boolean; role: 'entry' | 'exit' | null; name: string; initial: boolean; acts: ActionView[]; arrivals: string[]; ay: number }
 export interface TransView extends BoxBase { kind: 'trans'; num: number; recept: string; arrivals: string[]; ay: number }
 export interface JumpView extends BoxBase { kind: 'jump'; label: string; broken: boolean }
 export interface BarView { kind: 'bar'; id: string; part: 'd' | 'c'; ys: number[]; x1: number; x2: number }
@@ -136,7 +136,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
         L(x + sw(it) / 2, y + 20, ax, y + 20);
       }
       if (m.h > GEO.stepH) L(x, y + GEO.stepH, x, y + m.h);
-      views.push({ kind: 'step', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, w: sw(it), name: it.name, initial: it.initial, acts, arrivals: arrivals(it.id), ay });
+      views.push({ kind: 'step', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, w: sw(it), macro: it.expansion !== undefined, role: it.role ?? null, name: it.name, initial: it.initial, acts, arrivals: arrivals(it.id), ay });
       focus.push({ id: it.id, x, y: y + 20, slot: { x, y: y + GEO.stepH + 11 }, slotBefore: { x, y: y - 11 } });
     } else if (it.kind === 'trans') {
       L(x, y, x, y + m.h);

@@ -259,3 +259,5 @@ mark.todo{background:var(--warn-soft);color:var(--warn);padding:0 4px;border-rad
 .cv .cites .rec{fill:var(--accent);font-weight:600;text-decoration:underline}
 .cv .cites .tick{stroke:var(--accent);stroke-width:3}
 .cv .cites .act-box{stroke:var(--accent);stroke-width:2}
+
+.cv .macro line{stroke:var(--shape);stroke-width:1.6}

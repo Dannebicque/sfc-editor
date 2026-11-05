@@ -180,6 +180,8 @@ describe('profil de vérification', () => {
     expect(localStorage.getItem('grafcet-studio-v1-profile')).toBe('sfc');
     setActivePinia(createPinia());
     expect(useProjectStore().profile).toBe('sfc');
+  });
+});
 
 describe('étape citée dans des réceptivités', () => {
   it('surligne les transitions qui citent l’étape sélectionnée, ici et dans les autres GRAFCET', async () => {
@@ -205,5 +207,23 @@ describe('étape citée dans des réceptivités', () => {
     ui.sel = s2.id;
     await new Promise((r) => setTimeout(r, 0));
     expect(ui.citedIn.map((c) => c.gid)).toEqual([g2!.id]);
+  });
+});
+
+describe('macro-étapes', () => {
+  it('transforme une étape en macro-étape, crée puis ouvre son expansion, avec annulation', () => {
+    const ui = useUiStore();
+    const project = useProjectStore();
+    const g = project.activeG;
+    const step = g.items.find((i) => i.kind === 'step' && !i.initial) ?? g.items[0]!;
+    ui.sel = step.id;
+    const n = project.project.grafcets.length;
+    ui.toggleMacro(true);
+    ui.makeExpansion();
+    expect(project.project.grafcets).toHaveLength(n + 1);
+    expect(project.activeG.name).toMatch(/Expansion|expansion/i);
+    expect(project.issues.map((i) => i.key)).not.toContain('v_expansion_entry');
+    project.undo();
+    expect(project.project.grafcets).toHaveLength(n);
   });
 });

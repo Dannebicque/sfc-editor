@@ -9,6 +9,7 @@ export {
 export { parseRecept, type ReceptResult } from './recept';
 export { referencesTo } from './references';
 export { flatten, stepsOf, type FlatGraph, type FlatNode, type FlatLink } from './flatten';
+export { isMacro, macrosOf, setMacro, createExpansion, expansionReaches } from './macro';
 export { PROFILES, DEFAULT_PROFILE, isProfile, provablyExclusive, type ValidationProfile } from './profiles';
 export { validateGrafcet, type Issue, type IssueLevel, type ValidateOptions } from './validate';
 export { describe, describeId, type Description } from './describe';

@@ -2,7 +2,7 @@ import { describe as suite, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
   addBranch, allowedInsertions, checkSeq, describeId, flatten, insertAfter, newGrafcet, parseRecept,
-  provablyExclusive, referencesTo, removeBranch, removeItem, renumber, stats, validateGrafcet, walkAll, duplicateGrafcet, INSERT_KINDS,
+  createExpansion, provablyExclusive, referencesTo, setMacro, removeBranch, removeItem, renumber, stats, validateGrafcet, walkAll, duplicateGrafcet, INSERT_KINDS,
   type Grafcet, type Project,
 } from '../src';
 import { demoProject } from './helpers';
@@ -225,5 +225,39 @@ suite('références à une étape', () => {
     trans.recept = 'a.X3+/b';
     expect(referencesTo(g, '3', known)).toContain(trans.id);
     expect(referencesTo(g, '4', known)).not.toContain(trans.id);
+  });
+});
+
+suite('macro-étapes', () => {
+  const mk = () => {
+    const P = demoProject();
+    const g = P.grafcets[0]!;
+    const step = g.items.find((i) => i.kind === 'step' && !i.initial)!;
+    return { P, g, step };
+  };
+  it('une macro sans expansion est une erreur ; l’expansion créée est valide', () => {
+    const { P, g, step } = mk();
+    expect(setMacro(g, step.id, true)).toBe(true);
+    expect(validateGrafcet(g, { project: P }).map((i) => i.key)).toContain('v_macro_no_expansion');
+    const x = createExpansion(P, g, step.id, 'Expansion')!;
+    expect(x.items.map((i) => i.kind)).toEqual(['step', 'trans', 'step']);
+    expect(validateGrafcet(g, { project: P }).map((i) => i.key)).not.toContain('v_macro_no_expansion');
+    const k = validateGrafcet(x, { project: P }).map((i) => i.key);
+    expect(k).not.toContain('v_noinit');
+    expect(k).not.toContain('v_dead_end');
+    expect(k).not.toContain('v_unreachable');
+    expect(k).not.toContain('v_expansion_entry');
+  });
+  it('détecte une expansion sans sortie et une macro qui se contient elle-même', () => {
+    const { P, g, step } = mk();
+    setMacro(g, step.id, true);
+    const x = createExpansion(P, g, step.id, 'Expansion')!;
+    (x.items[2] as { role?: string }).role = undefined;
+    expect(validateGrafcet(x, { project: P }).map((i) => i.key)).toContain('v_expansion_exit');
+    // l'expansion contient une macro qui renvoie au GRAFCET de départ
+    (x.items[2] as { role?: string }).role = 'exit';
+    const inner = x.items[2] as { expansion?: string | null };
+    inner.expansion = g.id;
+    expect(validateGrafcet(g, { project: P }).map((i) => i.key)).toContain('v_macro_cycle');
   });
 });
