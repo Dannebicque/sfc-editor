@@ -22,12 +22,12 @@ function normalizeGrafcet(g: Grafcet): void {
   });
   g.name = g.name || '';
   walkAll(g.items, (it) => {
-    if (it.kind === 'step') { it.actions = it.actions || []; it.name = it.name || ''; it.initial = !!it.initial; }
+    if (it.kind === 'step') { it.num = String((it as { num: unknown }).num ?? ''); it.actions = it.actions || []; it.name = it.name || ''; it.initial = !!it.initial; }
     if (it.kind === 'trans') it.recept = it.recept || '';
   });
   let maxStep = -1, maxTrans = 0;
   walkAll(g.items, (it) => {
-    if (it.kind === 'step') maxStep = Math.max(maxStep, it.num);
+    if (it.kind === 'step' && /^\d+$/.test(it.num)) maxStep = Math.max(maxStep, +it.num);
     if (it.kind === 'trans') maxTrans = Math.max(maxTrans, it.num);
   });
   g.nextStep = Math.max(g.nextStep ?? 0, maxStep + 1);

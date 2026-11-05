@@ -20,11 +20,11 @@ export interface ValidateOptions {
    * Numéros d'étapes connus dans le reste du projet. Une réceptivité peut tester l'état d'une étape d'un autre GRAFCET
    * (par exemple X15 dans un autre GRAFCET du projet) : ces références ne sont pas signalées comme manquantes.
    */
-  knownSteps?: Iterable<number>;
+  knownSteps?: Iterable<string>;
 }
 
 export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[] {
-  const external = new Set<number>(opts.knownSteps ?? []);
+  const external = new Set<string>(opts.knownSteps ?? []);
   const issues: Issue[] = [];
   const steps: Extract<Grafcet['items'][number], { kind: 'step' }>[] = [];
   const transitions: Extract<Grafcet['items'][number], { kind: 'trans' }>[] = [];
@@ -35,8 +35,9 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
     else if (it.kind === 'jump') jumps.push(it);
   });
   if (!steps.some((s) => s.initial)) issues.push({ level: 'error', key: 'v_noinit', id: null });
-  const seen = new Map<number, string>();
+  const seen = new Map<string, string>();
   for (const s of steps) {
+    if (!/^[\p{L}\p{N}_]+$/u.test(s.num)) issues.push({ level: 'error', key: 'v_num_bad', params: { n: s.num }, id: s.id });
     if (seen.has(s.num)) issues.push({ level: 'error', key: 'v_dupnum', params: { n: s.num }, id: s.id });
     seen.set(s.num, s.id);
     for (const a of s.actions) {
@@ -44,9 +45,10 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
       if (a.kind === 'conditional' && !(a.cond || '').trim()) issues.push({ level: 'warning', key: 'v_act_cond', params: { n: s.num }, id: s.id });
     }
   }
+  const known = new Set<string>([...external, ...steps.map((x) => x.num)]);
   for (const t of transitions) {
     if (!t.recept.trim()) { issues.push({ level: 'warning', key: 'v_recept_empty', params: { n: t.num }, id: t.id }); continue; }
-    const r = parseRecept(t.recept);
+    const r = parseRecept(t.recept, known);
     if (!r.ok) issues.push({ level: 'error', key: 'v_recept_err', params: { n: t.num, e: r.error! }, id: t.id });
     else for (const n of r.refs) if (!seen.has(n) && !external.has(n)) issues.push({ level: 'warning', key: 'v_step_missing', params: { n: t.num, m: n }, id: t.id });
   }
@@ -54,7 +56,7 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
   walkAll(g.items, (it) => ids.add(it.id));
   for (const j of jumps) if (!j.target || !ids.has(j.target)) issues.push({ level: 'error', key: 'v_jump_broken', id: j.id });
   const fg = flatten(g);
-  const nodeName = (n: { kind: string; num: number }): Message => ({ key: n.kind === 'step' ? 'd_step' : 'd_trans', params: { n: n.num } });
+  const nodeName = (n: { kind: string; num: string | number }): Message => ({ key: n.kind === 'step' ? 'd_step' : 'd_trans', params: { n: n.num } });
   const out = new Map<string, number>();
   for (const l of fg.links) out.set(l.from, (out.get(l.from) || 0) + 1);
   for (const n of fg.nodes) if (!out.has(n.id)) issues.push({ level: 'warning', key: 'v_dead_end', params: { x: nodeName(n) }, id: n.id });

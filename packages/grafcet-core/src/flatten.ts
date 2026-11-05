@@ -1,7 +1,7 @@
 import { walkAll } from './tree';
 import type { Grafcet, Item } from './types';
 
-export interface FlatNode { id: string; kind: 'step' | 'trans'; num: number }
+export interface FlatNode { id: string; kind: 'step' | 'trans'; num: string | number }
 export interface FlatLink { from: string; to: string; jump?: true }
 export interface FlatGraph { nodes: FlatNode[]; links: FlatLink[] }
 

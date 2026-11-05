@@ -58,14 +58,15 @@ function importGrafcet(P: Project, gx: XNode, report: ReportEntry[], index: numb
     const seq: SeqData = { id: sx.attrs.id ?? String(seqs.size + 1), items: [] };
     for (const c of elements(sx)) {
       if (c.tag === 'step') {
-        const m = /^X?(\d+)$/i.exec((c.attrs.name ?? '').trim());
+        const rawName = (c.attrs.name ?? '').trim();
+        const m = /^X(\d+)$/i.exec(rawName);
         const type = c.attrs.type ?? 'normal';
         if (type !== 'normal' && type !== 'initial') report.push(warn('rep_step_type', { g: g.name, type, name: c.attrs.name ?? '?' }));
         const step: Extract<Item, { kind: 'step' }> = {
-          id: nid(), kind: 'step', num: m ? +m[1]! : -1, name: c.attrs['x-label'] ?? '', initial: type === 'initial',
+          id: nid(), kind: 'step', num: m ? m[1]! : rawName || '', name: c.attrs['x-label'] ?? '', initial: type === 'initial',
           actions: elements(c, 'action').map((a) => importAction(a, g.name, report)),
         };
-        if (!m) { pendingNumbers.push(step); report.push(warn('rep_step_name', { g: g.name, name: c.attrs.name ?? '' })); }
+        if (!rawName) { pendingNumbers.push(step); report.push(warn('rep_step_name', { g: g.name, name: '' })); }
         seq.items.push(step);
       } else if (c.tag === 'transition') {
         const cond = elements(c, 'condition')[0];
@@ -140,8 +141,8 @@ function importGrafcet(P: Project, gx: XNode, report: ReportEntry[], index: numb
   } else if (seqs.size) report.push(err('rep_cycle', { g: g.name }));
 
   let tn = 1, maxStep = -1;
-  walkAll(g.items, (it) => { if (it.kind === 'trans') it.num = tn++; else if (it.kind === 'step') maxStep = Math.max(maxStep, it.num); });
-  for (const s of pendingNumbers) s.num = ++maxStep;
+  walkAll(g.items, (it) => { if (it.kind === 'trans') it.num = tn++; else if (it.kind === 'step' && /^\d+$/.test(it.num)) maxStep = Math.max(maxStep, +it.num); });
+  for (const s of pendingNumbers) s.num = String(++maxStep);
   g.nextTrans = tn;
   g.nextStep = maxStep + 1;
   const e = g.items.length ? checkSeq(g.items, 'root') : 'chk_empty';
@@ -240,7 +241,7 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
   const newSeq = (): OutSeq => { const s = { id: seqs.length + 1, nodes: [] as string[] }; seqs.push(s); return s; };
 
   function stepXml(it: Extract<Item, { kind: 'step' }>): string {
-    const attrs = `type="${it.initial ? 'initial' : 'normal'}" name="X${it.num}"` + (it.name ? ` x-label="${esc(it.name)}"` : '');
+    const attrs = `type="${it.initial ? 'initial' : 'normal'}" name="${/^\d+$/.test(it.num) ? 'X' + it.num : esc(it.num)}"` + (it.name ? ` x-label="${esc(it.name)}"` : '');
     if (it.name) flags.labels = true;
     if (!it.actions.length) return `\t\t\t<step ${attrs} />`;
     const acts = it.actions.map((a) => {

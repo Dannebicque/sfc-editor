@@ -5,7 +5,7 @@ import {
   locate, moveBranch as moveBranchCmd, parseRecept, removeBranch, removeItem, renumber, unwrapBlock, walkAll,
   wrapInBlock, type BlockKind, type InsertWhere, type ItemKind,
 } from '@grafcet/core';
-import { exportNative, exportSfcEditXml, FORMAT_ID, importJson, importNative, importSfcEditXml, looksLikeSfcEditXml, ImportError, type ReportEntry } from '@grafcet/io';
+import { exportArchive, exportFolder, importArchive, importFolder, looksLikeZip, type FolderFile, exportNative, exportSfcEditXml, FORMAT_ID, importJson, importNative, importSfcEditXml, looksLikeSfcEditXml, ImportError, type ReportEntry } from '@grafcet/io';
 import { enabledTransitions, fire, initialMarking } from '@grafcet/simulation';
 import { describeText, renderMessage } from '../format';
 import { isLegalDocId, type LegalDocId } from '../legal';
@@ -40,6 +40,26 @@ export const useUiStore = defineStore('ui', () => {
   const selLoc = computed(() => (selBase.value ? locate(activeG.value.items, selBase.value) : null));
   const selItem = computed(() => selLoc.value?.item ?? null);
   const isDivBar = computed(() => !!sel.value && sel.value.endsWith(':d'));
+  /**
+   * Identifiant de la dernière étape sélectionnée. Il survit au changement de GRAFCET pour que l'étape de même identifiant
+   * soit retrouvée (et mise en valeur) dans les autres GRAFCET du projet.
+   */
+  const linkedNum = ref<string | null>(null);
+  watch(selItem, (it) => { if (it && it.kind === 'step') linkedNum.value = it.num; });
+  /** Autres GRAFCET du projet qui contiennent une étape de même identifiant : [{ gid, name, itemId }]. */
+  const linkedIn = computed(() => {
+    const out: { gid: string; name: string; itemId: string }[] = [];
+    if (linkedNum.value == null) return out;
+    for (const g of projectRef.value.grafcets) {
+      if (g.id === project.activeId) continue;
+      let hit: string | null = null;
+      walkAll(g.items, (it) => { if (!hit && it.kind === 'step' && it.num === linkedNum.value) hit = it.id; });
+      if (hit) out.push({ gid: g.id, name: g.name, itemId: hit });
+    }
+    return out;
+  });
+  /** Identifiant à mettre en valeur dans le canevas : seulement s'il existe dans plusieurs GRAFCET. */
+  const sharedNum = computed(() => (linkedIn.value.length ? linkedNum.value : null));
   const selText = computed(() => describeText(describeId(activeG.value, sel.value)));
   const selShort = computed(() => { const t = selText.value; return t.length > 46 ? t.slice(0, 45) + '…' : t; });
 
@@ -195,14 +215,20 @@ export const useUiStore = defineStore('ui', () => {
   function doRenumber(): void { project.mutate((g) => renumber(g)); announce(T('a_renumbered')); }
 
   /* ----- GRAFCET du projet ----- */
-  function openG(id: string): void {
+  function openG(id: string, selectId?: string): void {
     project.activeId = id;
     sel.value = null;
     sim.on = false;
     sim.active = [];
     nextTick(() => {
       viewStore.fit(false);
-      sel.value = viewStore.layout.focus[0]?.id ?? null;
+      let want = selectId ?? null;
+      if (!want && linkedNum.value != null) {
+        const g = projectRef.value.grafcets.find((x) => x.id === id);
+        if (g) walkAll(g.items, (it) => { if (!want && it.kind === 'step' && it.num === linkedNum.value) want = it.id; });
+      }
+      sel.value = want ?? viewStore.layout.focus[0]?.id ?? null;
+      if (want) { const w = want; nextTick(() => viewStore.reveal(w)); }
       project.persist();
     });
   }
@@ -329,13 +355,70 @@ export const useUiStore = defineStore('ui', () => {
       importMsg.text = T('imp_fail', { m }); importMsg.cls = 'err';
     }
   }
+  const saveAs = (blob: Blob, name: string) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  const baseName = () => (projectRef.value.name || 'projet').replace(/[^\w\-.]+/g, '_');
+  /** Remplace le projet par un modèle déjà validé et affiche le résultat. */
+  function commitImport(model: ReturnType<typeof importArchive>['model'], entries: ReportEntry[] = []): void {
+    importReport.value = toLines(entries);
+    project.replaceProject(model);
+    openG(model.grafcets[0]!.id);
+    importMsg.text = T('imp_ok'); importMsg.cls = 'ok'; importText.value = '';
+  }
+  function failImport(e: unknown): void {
+    const m = e instanceof ImportError ? renderMessage(e.info) : String((e as Error).message ?? e);
+    importMsg.text = T('imp_fail', { m }); importMsg.cls = 'err';
+  }
+  /** Télécharge le projet en archive ZIP déterministe (un fichier par GRAFCET). */
+  function downloadArchive(): void {
+    saveAs(new Blob([exportArchive(projectRef.value).output as BlobPart], { type: 'application/zip' }), baseName() + '.grafcet.zip');
+  }
+  /** Dossier : seulement avec l'API File System Access (Chromium). */
+  const canFolder = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
+  type Dir = { getFileHandle(n: string, o?: { create: boolean }): Promise<{ createWritable(): Promise<{ write(d: string): Promise<void>; close(): Promise<void> }>; getFile(): Promise<File> }>; getDirectoryHandle(n: string, o?: { create: boolean }): Promise<Dir>; values(): AsyncIterable<{ kind: string; name: string }> };
+  const pickDir = (mode: 'read' | 'readwrite') => (window as unknown as { showDirectoryPicker(o: { mode: string }): Promise<Dir> }).showDirectoryPicker({ mode });
+  async function saveFolder(): Promise<void> {
+    try {
+      const root = await pickDir('readwrite');
+      for (const f of exportFolder(projectRef.value).output) {
+        const parts = f.path.split('/'); const file = parts.pop()!;
+        let dir = root;
+        for (const p of parts) dir = await dir.getDirectoryHandle(p, { create: true });
+        const w = await (await dir.getFileHandle(file, { create: true })).createWritable();
+        await w.write(f.text); await w.close();
+      }
+      importMsg.text = T('folder_saved'); importMsg.cls = 'ok';
+    } catch (e) { if ((e as Error).name !== 'AbortError') failImport(e); }
+  }
+  async function openFolder(): Promise<void> {
+    try {
+      const root = await pickDir('read');
+      const files: FolderFile[] = [];
+      const head = await (await root.getFileHandle('project.json')).getFile();
+      files.push({ path: 'project.json', text: await head.text() });
+      const gdir = await root.getDirectoryHandle('grafcets');
+      for await (const ent of gdir.values()) if (ent.kind === 'file' && ent.name.endsWith('.json')) files.push({ path: 'grafcets/' + ent.name, text: await (await (await gdir.getFileHandle(ent.name)).getFile()).text() });
+      const r = importFolder(files);
+      commitImport(r.model, r.report.entries);
+    } catch (e) { if ((e as Error).name !== 'AbortError') failImport(e); }
+  }
   function onFile(e: Event): void {
     const input = e.target as HTMLInputElement;
     const f = input.files?.[0];
     if (!f) return;
     const r = new FileReader();
-    r.onload = () => { importText.value = String(r.result); applyImport(f.name); };
-    r.readAsText(f);
+    r.onload = () => {
+      const bytes = new Uint8Array(r.result as ArrayBuffer);
+      if (looksLikeZip(bytes)) {
+        try { const x = importArchive(bytes); commitImport(x.model, x.report.entries); } catch (err) { failImport(err); }
+      } else { importText.value = new TextDecoder('utf-8').decode(bytes); applyImport(f.name); }
+    };
+    r.readAsArrayBuffer(f);
     input.value = '';
   }
 
@@ -382,7 +465,7 @@ export const useUiStore = defineStore('ui', () => {
     nextTick(() => {
       viewStore.fit(false);
       let s1: string | null = null;
-      walkAll(activeG.value.items, (it) => { if (!s1 && it.kind === 'step' && it.num === 1) s1 = it.id; });
+      walkAll(activeG.value.items, (it) => { if (!s1 && it.kind === 'step' && it.num === '1') s1 = it.id; });
       sel.value = s1 ?? viewStore.layout.focus[0]?.id ?? null;
       if (sel.value) { const id = sel.value; nextTick(() => viewStore.reveal(id)); }
     });
@@ -392,14 +475,14 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   return {
-    sel, tab, tabs, theme, themeLabel, dataView, sim, liveMsg, announce, insertWhere, whereNow, whereFixed,
+    sel, tab, tabs, linkedNum, linkedIn, sharedNum, theme, themeLabel, dataView, sim, liveMsg, announce, insertWhere, whereNow, whereFixed,
     selBase, selLoc, selItem, isDivBar, selText, selShort, allowed, slotPos, activeRegion, jumpTargets, recFb, tokens,
     wrap, canWrap, unwrap, canUnwrap, moveBranch, canMoveBranch,
     insertKind, removeSel, setField, setAction, addAction, delAction, addToken, addBranch, delBranch, doRenumber,
     openG, addGrafcet, dupGrafcet, delGrafcet,
     pick, pickFromText, focusHost, onHostFocus, goIssue, onKey,
     simActive, simEnabled, simReset, simFire, toggleSim,
-    dataText, importReport, exportReport, downloadSfcEdit, copyMsg, importMsg, importText, copyData, downloadNative, applyImport, onFile,
+    dataText, importReport, exportReport, downloadSfcEdit, downloadArchive, canFolder, saveFolder, openFolder, copyMsg, importMsg, importText, copyData, downloadNative, applyImport, onFile,
     legalDoc, openLegal, closeLegal, syncLegalFromHash,
     cycleTheme, setLang, init,
   };

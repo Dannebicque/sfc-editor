@@ -38,7 +38,7 @@ export const useProjectStore = defineStore('project', () => {
   const activeG = computed<Grafcet>(() => project.value.grafcets.find((g) => g.id === activeId.value) ?? project.value.grafcets[0]!);
   /** Numéros d'étapes de tout le projet : une réceptivité peut référencer une étape d'un autre GRAFCET (Xn). */
   const knownSteps = computed(() => {
-    const out = new Set<number>();
+    const out = new Set<string>();
     for (const g of project.value.grafcets) walkAll(g.items, (it) => { if (it.kind === 'step') out.add(it.num); });
     return out;
   });

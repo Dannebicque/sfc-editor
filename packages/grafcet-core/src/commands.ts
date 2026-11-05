@@ -50,19 +50,22 @@ export function removeBranch(g: Grafcet, id: string): string | null {
   return loc.block.branches[Math.min(loc.branchIdx, loc.block.branches.length - 1)]![0]!.id;
 }
 
-/** Renumérote étapes (0…n) et transitions (1…n) dans l'ordre du document, en mettant à jour les références Xn des réceptivités. */
+/**
+ * Renumérote les étapes à numéro entier (0…n) et les transitions (1…n) dans l'ordre du document, en mettant à jour les
+ * références Xn des réceptivités. Les étapes dont l'identifiant est un texte (« INIT », « X3 »…) ne sont pas touchées.
+ */
 export function renumber(g: Grafcet): void {
-  const map = new Map<number, number>();
+  const map = new Map<string, string>();
   let n = 0, tn = 1;
-  const stepNew = new Map<string, number>(), transNew = new Map<string, number>();
+  const stepNew = new Map<string, string>(), transNew = new Map<string, number>();
   walkAll(g.items, (it) => {
-    if (it.kind === 'step') { map.set(it.num, n); stepNew.set(it.id, n++); }
+    if (it.kind === 'step') { if (/^\d+$/.test(it.num)) { map.set(it.num, String(n)); stepNew.set(it.id, String(n++)); } }
     else if (it.kind === 'trans') transNew.set(it.id, tn++);
   });
-  const rewrite = (s: string) => s.replace(/\bX(\d+)\b/g, (m, d: string) => (map.has(+d) ? 'X' + map.get(+d) : m));
+  const rewrite = (s: string) => s.replace(/\bX(\d+)\b/g, (m, d: string) => (map.has(d) ? 'X' + map.get(d) : m));
   walkAll(g.items, (it) => {
     if (it.kind === 'step') {
-      it.num = stepNew.get(it.id)!;
+      if (stepNew.has(it.id)) it.num = stepNew.get(it.id)!;
       for (const a of it.actions) if (a.cond) a.cond = rewrite(a.cond);
     } else if (it.kind === 'trans') {
       it.num = transNew.get(it.id)!;
@@ -108,7 +111,7 @@ export { findItem };
 export interface Wrapped { blockId: string; /** Premier élément de la branche créée (à sélectionner ensuite). */ firstId: string }
 
 const probeFirst = (kind: BlockKind): Item =>
-  kind === 'or' ? { id: '?', kind: 'trans', num: 0, recept: '' } : { id: '?', kind: 'step', num: 0, name: '', initial: false, actions: [] };
+  kind === 'or' ? { id: '?', kind: 'trans', num: 0, recept: '' } : { id: '?', kind: 'step', num: '0', name: '', initial: false, actions: [] };
 
 /** Plages candidates autour de l'indice i, de la plus petite à la plus large. */
 const runsAround = (i: number): [number, number][] => [[i, i], [i - 1, i + 1], [i - 1, i], [i, i + 1]];

@@ -22,6 +22,8 @@ const { dataView, dataText, copyMsg, importMsg, importText, importReport, export
       <button class="btn solid" @click="ui.copyData()"><Icon n="copy" />{{ T('copy') }}</button>
       <button class="btn solid" @click="ui.downloadNative()"><Icon n="download" />{{ T('download') }}</button>
       <button class="btn solid" @click="ui.downloadSfcEdit()"><Icon n="download" />{{ T('download_sfcedit') }}</button>
+      <button class="btn solid" @click="ui.downloadArchive()"><Icon n="download" />{{ T('download_zip') }}</button>
+      <button v-if="ui.canFolder" class="btn solid" @click="ui.saveFolder()"><Icon n="download" />{{ T('save_folder') }}</button>
       <span class="msg" :class="copyMsg.cls" role="status">{{ copyMsg.text }}</span>
     </div>
     <ul v-if="exportReport.length" class="report" :aria-label="T('report_aria')">
@@ -34,7 +36,8 @@ const { dataView, dataText, copyMsg, importMsg, importText, importReport, export
     <div class="row">
       <button class="btn solid" :disabled="!importText.trim()" @click="ui.applyImport()">{{ T('import_btn') }}</button>
       <label class="btn solid" for="imp-file" style="cursor: pointer">{{ T('open_file') }}</label>
-      <input id="imp-file" class="sr" type="file" accept=".json,.xml,application/json,application/xml,text/xml" @change="ui.onFile" />
+      <button v-if="ui.canFolder" class="btn solid" @click="ui.openFolder()">{{ T('open_folder') }}</button>
+      <input id="imp-file" class="sr" type="file" accept=".json,.xml,.zip,application/json,application/xml,text/xml,application/zip" @change="ui.onFile" />
     </div>
     <p class="msg" :class="importMsg.cls" role="status">{{ importMsg.text }}</p>
     <ul v-if="importReport.length" class="report" :aria-label="T('report_aria')">

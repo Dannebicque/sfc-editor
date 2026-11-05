@@ -249,3 +249,9 @@ mark.todo{background:var(--warn-soft);color:var(--warn);padding:0 4px;border-rad
 .report li.warning { border-left-color: #b7791f; }
 .report li.error { border-left-color: #c53030; }
 .report li strong { margin-right: 6px; }
+
+.cv .linked .st-box{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2.2}
+.gitem.linked{box-shadow:inset 3px 0 0 var(--accent);background:var(--accent-soft)}
+.gitem .shared{font:600 11px var(--font-mono);color:var(--accent);margin-left:auto}
+.shared-box{margin:4px 0 8px}
+.shared-list{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}

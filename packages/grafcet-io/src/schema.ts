@@ -7,8 +7,10 @@ const ActionSchema = z.object({
   label: z.string(),
   cond: z.string(),
 });
+/** Identifiant d'étape : texte (les fichiers 1.0 stockaient un entier, lu comme texte). */
+const StepNum = z.preprocess((v) => (typeof v === 'number' ? String(v) : v), z.string().min(1));
 const StepSchema = z.object({
-  id: z.string().min(1), kind: z.literal('step'), num: z.number().int().min(0),
+  id: z.string().min(1), kind: z.literal('step'), num: StepNum,
   name: z.string(), initial: z.boolean(), actions: z.array(ActionSchema),
 });
 const TransSchema = z.object({ id: z.string().min(1), kind: z.literal('trans'), num: z.number().int().min(0), recept: z.string() });
@@ -30,4 +32,4 @@ export const ProjectSchema: z.ZodType<Project> = z.object({
 });
 
 export const FORMAT_ID = 'grafcet-studio-project';
-export const SCHEMA_VERSION = '1.0.0';
+export const SCHEMA_VERSION = '1.1.0';

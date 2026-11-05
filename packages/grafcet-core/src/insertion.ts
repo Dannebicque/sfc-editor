@@ -7,7 +7,7 @@ import { isBlock } from './types';
 export const nextId = (P: Project): string => 'n' + P.counter++;
 
 export const mkStep = (P: Project, g: Grafcet): Item => ({
-  id: nextId(P), kind: 'step', num: g.nextStep++, name: '', initial: false, actions: [],
+  id: nextId(P), kind: 'step', num: String(g.nextStep++), name: '', initial: false, actions: [],
 });
 export const mkTrans = (P: Project, g: Grafcet): Item => ({
   id: nextId(P), kind: 'trans', num: g.nextTrans++, recept: '',
@@ -25,9 +25,9 @@ const PATTERNS: Record<ItemKind, ItemKind[][]> = {
 /** Éléments factices, uniquement pour tester la validité d'une séquence. */
 function probeItem(kind: ItemKind): Item {
   if (kind === 'or') return { id: '?', kind, branches: [[{ id: '?', kind: 'trans', num: 0, recept: '' }], [{ id: '?', kind: 'trans', num: 0, recept: '' }]] };
-  if (kind === 'and') return { id: '?', kind, branches: [[{ id: '?', kind: 'step', num: 0, name: '', initial: false, actions: [] }], [{ id: '?', kind: 'step', num: 0, name: '', initial: false, actions: [] }]] };
+  if (kind === 'and') return { id: '?', kind, branches: [[{ id: '?', kind: 'step', num: '0', name: '', initial: false, actions: [] }], [{ id: '?', kind: 'step', num: '0', name: '', initial: false, actions: [] }]] };
   if (kind === 'jump') return { id: '?', kind, target: null };
-  if (kind === 'step') return { id: '?', kind, num: 0, name: '', initial: false, actions: [] };
+  if (kind === 'step') return { id: '?', kind, num: '0', name: '', initial: false, actions: [] };
   return { id: '?', kind: 'trans', num: 0, recept: '' };
 }
 
