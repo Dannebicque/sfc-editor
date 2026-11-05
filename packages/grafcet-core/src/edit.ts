@@ -156,27 +156,22 @@ export function addConvergence(P: Project, g: Grafcet, id: string, op: 'or' | 'a
     let ix = indexOf(g);
     const loc = ix.node.get(id);
     if (!loc) return null;
-    const want: Node['kind'] = op === 'or' ? 'step' : 'trans';
+    const want: Node['kind'] = op === 'or' ? 'step' : 'trans'; // nature du premier élément de la base
+    const endKind: Node['kind'] = want === 'step' ? 'trans' : 'step'; // nature du dernier élément d'une branche
     const { seq } = loc;
-    let idx = loc.idx;
-    if (loc.item.kind !== want) {
-      // L'élément choisi termine une branche : la barre se place juste après lui (l'élément suivant ouvre la base).
-      if (idx + 1 >= seq.items.length) seq.items.push(mk(P, g, want));
-      idx++;
-    }
-    ix = indexOf(g);
-    const child = (): Seq => mkSeq(P, g, [mk(P, g, branchKind(op))]);
-    if (idx === 0) {
+    const child = (): Seq => mkSeq(P, g, [mk(P, g, endKind)]);
+    // Sélection = début d'une base de même type : on ajoute simplement une branche à cette convergence.
+    if (loc.idx === 0 && loc.item.kind === want) {
       const su = ix.startUse.get(seq.id);
-      if (su) {
-        if (su.role === 'base' && su.link.op === op) { const c = child(); su.link.nodes.push(c.id); return c.items[0]!.id; }
-        return null;
-      }
-      const c1 = child(), c2 = child();
-      g.links.push({ id: nextId(P, 'l'), kind: 'conv', op, base: seq.id, nodes: [c1.id, c2.id] });
-      return c2.items[0]!.id;
+      if (su && su.role === 'base' && su.link.op === op) { const c = child(); su.link.nodes.push(c.id); return c.items[0]!.id; }
     }
-    const tail = splitSeq(P, g, seq, idx);
+    // Sinon la barre se place juste APRÈS l'élément sélectionné : celui-ci (ou l'élément qui le suit) termine la branche existante.
+    let e = loc.idx + (loc.item.kind === endKind ? 0 : 1);
+    if (e >= seq.items.length) seq.items.push(mk(P, g, endKind));
+    if (e + 1 >= seq.items.length) seq.items.push(mk(P, g, want));
+    ix = indexOf(g);
+    e++;
+    const tail = splitSeq(P, g, seq, e);
     const c = child();
     g.links.push({ id: nextId(P, 'l'), kind: 'conv', op, base: tail.id, nodes: [seq.id, c.id] });
     return c.items[0]!.id;
