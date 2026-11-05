@@ -56,6 +56,12 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump'] as const)
               <line class="tick" :x1="v.x - 9" :x2="v.x + 9" :y1="v.y + 20" :y2="v.y + 20" />
               <text class="tnum" :x="v.x - 17" :y="v.y + 24" text-anchor="end">({{ v.num }})</text>
               <text class="rec" :class="{ empty: !v.recept }" :x="v.x + 17" :y="v.y + 24">{{ v.recept || '?' }}</text>
+              <g v-for="a in v.acts" :key="a.i">
+                <rect v-if="a.cell" class="act-box" :x="a.x" :y="a.y" :width="a.condW" height="22" />
+                <text v-if="a.cell" class="act-txt" :x="a.x + a.condW / 2" :y="a.y + 15" text-anchor="middle">{{ a.cond || '?' }}</text>
+                <rect class="act-box" :x="a.x + a.condW" :y="a.y" :width="a.labW" height="22" />
+                <text class="act-txt" :x="a.x + a.condW + 8" :y="a.y + 15">{{ a.text }}</text>
+              </g>
               <rect v-if="sel === v.id" class="ring" :x="v.x - 15" :y="v.y + 11" width="30" height="18" rx="4" />
             </g>
             <g v-else-if="v.kind === 'jump'" class="el" @pointerdown.stop="ui.pick(v.id)">

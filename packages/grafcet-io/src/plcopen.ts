@@ -124,6 +124,7 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
         preds = [{ id, fp: 'sfc' }]; y += ROW;
       } else if (it.kind === 'trans') {
         const id = next++;
+        if (it.actions?.length) report.push(warn('rep_p_trans_action', { g: g.name, n: it.num }));
         let cond = '';
         if (it.recept.trim()) cond = `<condition><inline name="">${st(toST(it.recept, known, notes))}</inline></condition>`;
         else report.push(warn('rep_p_empty_cond', { g: g.name, n: it.num }));

@@ -1,5 +1,8 @@
 import { isBlock, type Item, type ItemKind, type SeqContext } from './types';
 
+/** Branche ET qui ne converge pas : elle finit par un renvoi ou par une transition puits. */
+export const endsApart = (b: Item[]): boolean => { const k = b[b.length - 1]?.kind; return k === 'jump' || k === 'trans'; };
+
 /** Alternance étape / transition : une divergence OU commence par une transition, ET par une étape. */
 const TYPE: Record<ItemKind, 'S' | 'T'> = { step: 'S', trans: 'T', or: 'S', and: 'T', jump: 'S' };
 
@@ -30,7 +33,7 @@ export function checkSeq(items: Item[], ctx: SeqContext): string | null {
         const e = checkSeq(b, it.kind);
         if (e) return e;
       }
-      if (it.kind === 'and' && it.branches.every((b) => b[b.length - 1]!.kind === 'jump')) return 'chk_and_all_jump';
+      if (it.kind === 'and' && it.branches.every(endsApart)) return 'chk_and_all_jump';
     } else if (it.kind === 'jump') {
       if (i !== items.length - 1) return 'chk_jump_last';
       // Un renvoi suit une étape ou une transition ; dans une branche ET, il peut aussi constituer toute la branche.
@@ -41,6 +44,6 @@ export function checkSeq(items: Item[], ctx: SeqContext): string | null {
   const last = items[items.length - 1]!;
   if (isBlock(last)) return 'chk_block_end';
   if (ctx === 'or' && !(last.kind === 'trans' || last.kind === 'jump')) return 'chk_or_end';
-  if (ctx === 'and' && last.kind !== 'step' && last.kind !== 'jump') return 'chk_and_end';
+  if (ctx === 'and' && last.kind !== 'step' && last.kind !== 'jump' && last.kind !== 'trans') return 'chk_and_end';
   return null;
 }

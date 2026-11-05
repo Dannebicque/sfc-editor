@@ -364,6 +364,10 @@
   "sync_ok": "Lien",
   "sync_unknown": "Inconnue",
   "sync_line": "« {g} » teste l’étape {n} (définie dans : {d})",
-  "chk_and_all_jump": "une divergence ET doit garder au moins une branche qui converge (toutes finissent par un renvoi)",
-  "note_jump_replace": "l’étape vide de cette branche est remplacée par le renvoi"
+  "chk_and_all_jump": "une divergence ET doit garder au moins une branche qui converge (les autres peuvent finir par un renvoi ou une transition puits)",
+  "note_jump_replace": "l’étape vide de cette branche est remplacée par le renvoi",
+  "h_trans_actions": "Actions liées à la transition",
+  "trans_act_help": "Exécutées au franchissement ; la condition (facultative) s’affiche au-dessus de l’action.",
+  "rep_p_trans_action": "« {g} » : les actions liées à la transition ({n}) ne sont pas exportées.",
+  "rep_trans_action": "« {g} » : les actions liées à la transition ({n}) ne sont pas exportées en XML SFCEdit."
 }

@@ -14,7 +14,7 @@ const StepSchema = z.object({
   name: z.string(), initial: z.boolean(), actions: z.array(ActionSchema),
   expansion: z.string().nullable().optional(), role: z.enum(['entry', 'exit']).optional(),
 });
-const TransSchema = z.object({ id: z.string().min(1), kind: z.literal('trans'), num: z.number().int().min(0), recept: z.string() });
+const TransSchema = z.object({ id: z.string().min(1), kind: z.literal('trans'), num: z.number().int().min(0), recept: z.string(), actions: z.array(ActionSchema).optional() });
 const JumpSchema = z.object({ id: z.string().min(1), kind: z.literal('jump'), target: z.string().nullable() });
 
 export const ItemSchema: z.ZodType<Item> = z.lazy(() =>

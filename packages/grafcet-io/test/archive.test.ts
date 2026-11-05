@@ -34,3 +34,15 @@ describe('format dossier et archive ZIP', () => {
     expect(() => readZip(z)).toThrow();
   });
 });
+
+describe('actions liées à une transition', () => {
+  it('survivent à l’aller-retour natif', async () => {
+    const { exportNative, importNative } = await import('../src');
+    const P = (await import('../../grafcet-core/test/helpers')).demoProject();
+    const t = P.grafcets[0]!.items.find((i) => i.kind === 'trans')! as { actions?: unknown[] };
+    t.actions = [{ kind: 'event', label: 'B:=0', cond: 'X3' }];
+    const back = importNative(exportNative(P).output);
+    const t2 = back.model.grafcets[0]!.items.find((i) => i.kind === 'trans')! as { actions?: unknown[] };
+    expect(t2.actions).toEqual([{ kind: 'event', label: 'B:=0', cond: 'X3' }]);
+  });
+});

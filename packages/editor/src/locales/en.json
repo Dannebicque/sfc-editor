@@ -364,6 +364,10 @@
   "sync_ok": "Link",
   "sync_unknown": "Unknown",
   "sync_line": "“{g}” tests step {n} (defined in: {d})",
-  "chk_and_all_jump": "an AND divergence must keep at least one converging branch (all of them end with a jump)",
-  "note_jump_replace": "the empty step of this branch is replaced by the jump"
+  "chk_and_all_jump": "an AND divergence must keep at least one converging branch (the others may end with a jump or a sink transition)",
+  "note_jump_replace": "the empty step of this branch is replaced by the jump",
+  "h_trans_actions": "Actions linked to the transition",
+  "trans_act_help": "Executed when the transition fires; the optional condition is shown above the action.",
+  "rep_p_trans_action": "“{g}”: actions linked to transition ({n}) are not exported.",
+  "rep_trans_action": "“{g}”: actions linked to transition ({n}) are not exported to SFCEdit XML."
 }

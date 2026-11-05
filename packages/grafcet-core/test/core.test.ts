@@ -399,3 +399,49 @@ suite('saisie d’un renvoi dans une branche ET', () => {
     expect(allowedInsertions(g, 's1', 'after').find((i) => i.kind === 'jump')?.noteKey ?? null).not.toBe('note_jump_replace');
   });
 });
+
+suite('transition puits dans une branche ET', () => {
+  const S = (id: string, n: string, initial = false) => ({ id, kind: 'step' as const, num: n, name: '', initial, actions: [] });
+  const T = (id: string, n: number) => ({ id, kind: 'trans' as const, num: n, recept: 'a' });
+  const mk = (): Grafcet['items'] => [
+    S('s0', '0', true), T('t1', 1),
+    { id: 'a', kind: 'and', branches: [[S('s3', '3')], [S('s4', '4'), T('t4', 4)]] }, T('t2', 2), S('s5', '5'), T('t3', 3),
+  ];
+  it('accepte une branche ET qui finit par une transition', () => {
+    expect(checkSeq(mk(), 'root')).toBeNull();
+  });
+  it('n’y fait pas converger la branche puits', () => {
+    const P = demoProject();
+    const g = newGrafcet(P, 'x');
+    g.items = mk();
+    expect(flatten(g).links.filter((l) => l.to === 't2').map((l) => l.from)).toEqual(['s3']);
+  });
+  it('permet de créer le puits en supprimant la dernière étape d’une branche', () => {
+    const P = demoProject();
+    const g = newGrafcet(P, 'x');
+    g.items = mk();
+    const branch = (g.items[2] as { branches: Grafcet['items'][] }).branches[1]!;
+    branch.push(S('s9', '9'));
+    expect(removeItem(g, 's9').ok).toBe(true);
+    expect(branch.map((i) => i.id)).toEqual(['s4', 't4']);
+  });
+});
+
+suite('actions liées à une transition', () => {
+  it('comptent comme citation d’une étape', () => {
+    const P = demoProject();
+    const g = P.grafcets[0]!;
+    const t = g.items.find((i) => i.kind === 'trans')! as { id: string; recept: string; actions?: { kind: string; label: string; cond: string }[] };
+    t.recept = 'a';
+    t.actions = [{ kind: 'event', label: 'B:=0', cond: 'X99' }];
+    expect(referencesTo(g, '99', new Set(['99']))).toContain(t.id);
+  });
+});
+
+suite('négation', () => {
+  it('s’applique à l’opérande qui suit, un groupe doit être entre parenthèses', () => {
+    expect(parseRecept('/(a+b).c').ok).toBe(true);
+    expect(parseRecept('/(a+b').ok).toBe(false);
+    expect(parseRecept('/a+b').refs).toEqual([]);
+  });
+});

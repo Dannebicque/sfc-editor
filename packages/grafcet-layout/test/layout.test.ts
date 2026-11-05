@@ -95,3 +95,18 @@ describe('OU enchaîné sur un ET', () => {
     expect(L.views.filter((v) => v.kind === 'step')).toHaveLength(5);
   });
 });
+
+describe('actions liées à une transition', () => {
+  it('place les actions à droite de la réceptivité', () => {
+    const g = { id: 'g', name: 'g', nextStep: 3, nextTrans: 3, items: [
+      { id: 's0', kind: 'step', num: '0', name: '', initial: true, actions: [] },
+      { id: 't1', kind: 'trans', num: 1, recept: 'abc', actions: [{ kind: 'event', label: 'B:=0', cond: 'X5' }] },
+      { id: 's1', kind: 'step', num: '1', name: '', initial: false, actions: [] },
+    ] } as unknown as Grafcet;
+    const L = layoutGrafcet(g, tw);
+    const t = L.views.find((v) => v.kind === 'trans') as { acts: { x: number; cell: boolean }[]; x: number };
+    expect(t.acts).toHaveLength(1);
+    expect(t.acts[0]!.x).toBeGreaterThan(t.x + 7 * 3);
+    expect(t.acts[0]!.cell).toBe(true);
+  });
+});

@@ -161,11 +161,11 @@ export const useUiStore = defineStore('ui', () => {
   }
   function setAction(i: number, field: 'label' | 'kind' | 'cond', value: string): void {
     const id = selBase.value;
-    project.mutate((g) => { const it = findItem(g.items, id!); if (it && it.kind === 'step' && it.actions[i]) (it.actions[i] as unknown as Record<string, string>)[field] = value; }, { key: 'a:' + id + i + field });
+    project.mutate((g) => { const it = findItem(g.items, id!); const l = it && (it.kind === 'step' || it.kind === 'trans') ? it.actions : undefined; if (l && l[i]) (l[i] as unknown as Record<string, string>)[field] = value; }, { key: 'a:' + id + i + field });
   }
   function addAction(): void {
     const id = selBase.value;
-    project.mutate((g) => { const it = findItem(g.items, id!); if (it && it.kind === 'step') it.actions.push({ kind: 'continue', label: '', cond: '' }); });
+    project.mutate((g) => { const it = findItem(g.items, id!); if (it && it.kind === 'step') it.actions.push({ kind: 'continue', label: '', cond: '' }); else if (it && it.kind === 'trans') (it.actions ??= []).push({ kind: 'event', label: '', cond: '' }); });
     nextTick(() => {
       const els = [...document.querySelectorAll<HTMLInputElement>('.acts li input[type=text]')];
       els.filter((e) => e.placeholder === T('act_ph')).pop()?.focus();
@@ -173,7 +173,7 @@ export const useUiStore = defineStore('ui', () => {
   }
   function delAction(i: number): void {
     const id = selBase.value;
-    project.mutate((g) => { const it = findItem(g.items, id!); if (it && it.kind === 'step') it.actions.splice(i, 1); });
+    project.mutate((g) => { const it = findItem(g.items, id!); if (it && (it.kind === 'step' || it.kind === 'trans')) { it.actions?.splice(i, 1); if (it.kind === 'trans' && !it.actions?.length) delete it.actions; } });
   }
   function addToken(t: string): void {
     const id = selBase.value;

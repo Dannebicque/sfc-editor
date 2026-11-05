@@ -18,7 +18,8 @@ export function flatten(g: Grafcet): FlatGraph {
         tails = [it.id];
       } else if (it.kind === 'or' || it.kind === 'and') {
         const nt: string[] = [];
-        for (const b of it.branches) nt.push(...walk(b, tails));
+        // Une branche ET qui finit par une transition puits ne converge pas.
+        for (const b of it.branches) { const t = walk(b, tails); if (!(it.kind === 'and' && b[b.length - 1]?.kind === 'trans')) nt.push(...t); }
         tails = nt;
       } else if (it.kind === 'jump') {
         if (it.target) for (const p of tails) links.push({ from: p, to: it.target, jump: true });
