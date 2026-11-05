@@ -445,3 +445,23 @@ suite('négation', () => {
     expect(parseRecept('/a+b').refs).toEqual([]);
   });
 });
+
+suite('transition autour d’un ET en tête de branche OU', () => {
+  const S = (id: string, n: string, initial = false) => ({ id, kind: 'step' as const, num: n, name: '', initial, actions: [] });
+  const T = (id: string, n: number) => ({ id, kind: 'trans' as const, num: n, recept: 'a' });
+  const g = (): Grafcet => {
+    const P = demoProject();
+    const x = newGrafcet(P, 'x');
+    x.items = [S('s0', '0', true), T('t1', 1), S('s1', '1'),
+      { id: 'o', kind: 'or', branches: [[T('t2', 2)], [{ id: 'a', kind: 'and', branches: [[S('s9', '9'), T('t8', 8), S('s10', '10')], [{ id: 'j', kind: 'jump', target: 's0' }]] }, T('t3', 3)]] },
+      S('s5', '5'), T('t4', 4)];
+    return x;
+  };
+  it('propose une transition entre la barre OU et la barre ET', () => {
+    expect(checkSeq(g().items, 'root')).toBeNull();
+    expect(allowedInsertions(g(), 'a:d', 'before').map((i) => i.kind)).toContain('trans');
+  });
+  it('n’en propose pas entre la barre ET et la première étape d’une branche', () => {
+    expect(allowedInsertions(g(), 's9', 'before').map((i) => i.kind)).not.toContain('trans');
+  });
+});
