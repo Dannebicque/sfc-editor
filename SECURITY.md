@@ -2,7 +2,7 @@
 
 ## Versions concernées
 
-GRAFCET Studio est en développement actif (avant la version 1.0) : seule la branche `main` reçoit des correctifs de sécurité.
+SFC Editor est en développement actif (avant la version 1.0) : seule la branche `main` reçoit des correctifs de sécurité.
 
 ## Signaler une vulnérabilité
 
@@ -28,4 +28,4 @@ Hors périmètre : les attaques nécessitant déjà un contrôle total du naviga
 
 ## Sécurité fonctionnelle
 
-GRAFCET Studio est un outil de conception, d'étude et d'enseignement. **Il n'est pas certifié pour la sécurité fonctionnelle** : tout GRAFCET ou code qui en est tiré doit être validé indépendamment avant d'être utilisé sur une installation réelle.
+SFC Editor est un outil de conception, d'étude et d'enseignement. **Il n'est pas certifié pour la sécurité fonctionnelle** : tout GRAFCET ou code qui en est tiré doit être validé indépendamment avant d'être utilisé sur une installation réelle.

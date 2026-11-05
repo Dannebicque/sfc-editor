@@ -1,10 +1,12 @@
-# GRAFCET Studio
+# SFC Editor
 
 Éditeur et validateur de GRAFCET (IEC 60848) pour le web, **local-first**, pensé pour remplacer SFCEdit :
 construction guidée (le curseur ne propose que ce qui est valide), validation continue, simulation à jetons,
 interface fr/en, accessibilité clavier et lecteur d'écran.
 
 > État : prototype découpé en paquets (jalon 1a). Voir [docs/decoupage.md](docs/decoupage.md) et la feuille de route ci-dessous.
+
+> **Nom.** L'application s'appelle **SFC Editor**. Les identifiants techniques historiques (`grafcet-studio-project` pour le format natif, clés de stockage `grafcet-studio-v1*`, paquets `@grafcet/*`) sont conservés pour ne pas casser les fichiers et les projets déjà enregistrés.
 
 ## Démarrer
 

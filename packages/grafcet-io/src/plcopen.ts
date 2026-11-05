@@ -33,7 +33,7 @@ const COMPARE = /^\s*(<=|>=|==|!=|=|<|>)\s*(-?\d+(?:[.,]\d+)?|[A-Za-zÀ-ÿ_][A-Z
 
 interface Notes { edge: boolean; timer: boolean; vars: Map<string, 'BOOL' | 'INT'> }
 
-/** Réceptivité GRAFCET Studio → expression ST. */
+/** Réceptivité SFC Editor → expression ST. */
 function toST(src: string, known: ReadonlySet<string>, notes: Notes): string {
   const stepOf = (w: string): string | null => {
     if (known.has(w)) return w;
@@ -201,7 +201,7 @@ export function exportPlcopenXml(project: Project, opts: PlcopenExportOptions = 
   const date = (opts.now ?? new Date()).toISOString().slice(0, 19);
   const scaling = '<scaling x="1" y="1"/>';
   const output = `<?xml version="1.0" encoding="UTF-8"?>\n<project xmlns="${PLCOPEN_NS}" xmlns:xhtml="${XHTML_NS}">\n`
-    + `<fileHeader companyName="" productName="GRAFCET Studio" productVersion="0.1.0" creationDateTime="${date}"/>\n`
+    + `<fileHeader companyName="" productName="SFC Editor" productVersion="0.1.0" creationDateTime="${date}"/>\n`
     + `<contentHeader name="${esc(project.name || 'projet')}"><coordinateInfo><fbd>${scaling}</fbd><ld>${scaling}</ld><sfc>${scaling}</sfc></coordinateInfo></contentHeader>\n`
     + `<types><dataTypes/><pous>\n${pous.join('\n')}\n</pous></types>\n<instances><configurations/></instances>\n</project>\n`;
   return { output, report: { entries: dedupe(report) } };
@@ -214,7 +214,7 @@ function dedupe(entries: ReportEntry[]): ReportEntry[] {
 
 /* ------------------------------------------------------------------ import */
 
-/** Expression ST d'une condition → réceptivité GRAFCET Studio. */
+/** Expression ST d'une condition → réceptivité SFC Editor. */
 function fromST(src: string): { text: string; lossy: boolean } {
   let lossy = false;
   const text = src

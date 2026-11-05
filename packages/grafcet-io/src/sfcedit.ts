@@ -10,7 +10,7 @@ import { elements, esc, parseXml, textOf, type XNode } from './xml';
  * liens de convergence `conv and|or` : `seqid` = séquence qui suit, `node` = branches qui convergent) et des `jump`
  * (renvoi de la fin d'une séquence vers le début d'une autre). Une négation s'écrit `<cpl>…</cpl>` (barre de complément).
  *
- * Extensions propres à GRAFCET Studio, ignorées par SFCEdit : attributs `x-label` (nom de l'étape) et `x-kind`
+ * Extensions propres à SFC Editor, ignorées par SFCEdit : attributs `x-label` (nom de l'étape) et `x-kind`
  * (type d'action) pour que l'aller-retour ne perde rien.
  */
 
@@ -25,7 +25,7 @@ export const looksLikeSfcEditXml = (text: string): boolean => /<project[\s>]/.te
 
 const ATOM = /^(?:[A-Za-zÀ-ÿ_][A-Za-z0-9À-ÿ_]*|\d+)$/;
 
-/** Contenu d'une condition SFCEdit → syntaxe de réceptivité de GRAFCET Studio (`<cpl>x</cpl>` devient `/x`). */
+/** Contenu d'une condition SFCEdit → syntaxe de réceptivité de SFC Editor (`<cpl>x</cpl>` devient `/x`). */
 function convertCondition(node: XNode, report: ReportEntry[]): string {
   const render = (n: XNode): string =>
     n.children.map((c) => {
@@ -169,7 +169,7 @@ export interface SfcEditImportOptions {
   projectName: string;
 }
 
-/** Importe un export XML de SFCEdit : un projet GRAFCET Studio et un rapport de conversion. */
+/** Importe un export XML de SFCEdit : un projet SFC Editor et un rapport de conversion. */
 export function importSfcEditXml(text: string, opts: SfcEditImportOptions): ImportResult<Project> {
   let root: XNode;
   try { root = parseXml(text); } catch (e) { throw new ImportError({ key: 'imp_sfcedit', params: { m: String((e as Error).message) } }); }
@@ -192,7 +192,7 @@ const TIMER = /^(?:t\d*\/X\d+\/\d+(?:[.,]\d+)?\s?(?:ms|s|min)|\d+(?:[.,]\d+)?\s?
 const IDENT = /^[A-Za-zÀ-ÿ_][A-Za-z0-9À-ÿ_]*/;
 const COMPARE = /^\s*(?:<=|>=|==|!=|=|<|>)\s*(?:-?\d+(?:[.,]\d+)?|[A-Za-zÀ-ÿ_][A-Za-z0-9À-ÿ_]*)/;
 
-/** Réceptivité GRAFCET Studio → contenu de `<condition>` SFCEdit (`/x` devient `<cpl>x</cpl>`). */
+/** Réceptivité SFC Editor → contenu de `<condition>` SFCEdit (`/x` devient `<cpl>x</cpl>`). */
 function toSfcCondition(src: string, notes: { edge: boolean; timer: boolean }): string {
   function operand(s: string, i: number): [string, number] {
     while (s[i] === ' ') i++;
