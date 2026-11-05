@@ -1,4 +1,4 @@
-import { checkSeq, walkAll, type Action, type Block, type Grafcet, type Item, type Message, type Project, walkGrafcet } from '@grafcet/core';
+import { checkGrafcet, flatten, sequencesOf, walkAll, type Action, type Block, type Grafcet, type Item, type Message, type Project, walkGrafcet } from '@grafcet/core';
 import { ImportError, type ExportResult, type ImportResult, type ReportEntry } from './contract';
 import { elements, esc, local, parseXml, textOf, type XNode } from './xml';
 
@@ -169,7 +169,8 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
     return { preds: [{ id: convId }], y: ymax + ROW };
   }
 
-  walk(g.items, [], 0, 0);
+  let cx0 = 0;
+  for (const s of sequencesOf(g)) { walk(s, [], cx0, 0); cx0 += (widthOf(s) + 1) * COL; }
   if (notes.edge) report.push(warn('rep_p_edge', { g: g.name }));
   if (notes.timer) report.push(info('rep_p_timer', { g: g.name }));
 
@@ -290,6 +291,7 @@ function importPou(P: Project, pou: XNode, report: ReportEntry[], index: number)
   }
 
   const visited = new Set<string>();
+  const pendingSync: { t: Extract<Item, { kind: 'trans' }>; refs: string[] }[] = [];
   /** Construit la suite d'éléments depuis `start` ; s'arrête à une convergence (renvoyée) ou en fin de graphe. */
   function chain(start: string | undefined): { items: Item[]; stop: string | null } {
     const items: Item[] = [];
@@ -321,6 +323,9 @@ function importPou(P: Project, pou: XNode, report: ReportEntry[], index: number)
         }
         const t: Extract<Item, { kind: 'trans' }> = { id: nid(), kind: 'trans', num: 0, recept };
         items.push(t); itemOf.set(cur, t);
+        // Plusieurs étapes en amont (convergence ET libre) : synchronisation, résolue après la construction.
+        const stepIns = n.ins.map((c) => c.ref).filter((r) => nodes.get(r)?.tag === 'step');
+        if (stepIns.length > 1) pendingSync.push({ t, refs: stepIns });
       } else if (n.tag === 'jumpStep') {
         const j: Extract<Item, { kind: 'jump' }> = { id: nid(), kind: 'jump', target: null };
         jumpsToFix.push({ jump: j, name: n.el.attrs.targetName ?? '' });
@@ -351,6 +356,23 @@ function importPou(P: Project, pou: XNode, report: ReportEntry[], index: number)
   if (!start) return null;
   if (!roots.length) report.push(warn('rep_p_no_initial', { g: g.name }));
   g.items = chain(start).items;
+  // Séquences indépendantes : chaque étape sans amont (ou initiale) non encore atteinte ouvre une séquence supplémentaire.
+  const more: Item[][] = [];
+  for (const id of order) {
+    const nd = nodes.get(id)!;
+    if (visited.has(id) || nd.tag !== 'step' || (nd.ins.length && nd.el.attrs.initialStep !== 'true')) continue;
+    const r = chain(id);
+    if (r.items.length) more.push(r.items);
+  }
+  if (more.length) g.more = more;
+  for (const { t, refs } of pendingSync) {
+    const ids = refs.map((r) => itemOf.get(r)).filter((x): x is Item => !!x && x.kind === 'step').map((x) => x.id);
+    if (ids.length) t.sync = ids;
+  }
+  const linked = new Set(flatten(g).links.filter((l) => !l.sync).map((l) => l.from + '>' + l.to));
+  walkGrafcet(g, (it) => {
+    if (it.kind === 'trans' && it.sync) { it.sync = it.sync.filter((s) => !linked.has(s + '>' + it.id)); if (!it.sync.length) delete it.sync; }
+  });
   for (const id of order) if (!visited.has(id) && !['selectionConvergence', 'simultaneousConvergence'].includes(nodes.get(id)!.tag)) { report.push(warn('rep_p_orphan', { g: g.name })); break; }
   for (const { jump, name } of jumpsToFix) {
     const t = stepByName.get(name);
@@ -359,7 +381,7 @@ function importPou(P: Project, pou: XNode, report: ReportEntry[], index: number)
   let tn = 1, maxStep = -1;
   walkGrafcet(g, (it) => { if (it.kind === 'trans') it.num = tn++; else if (it.kind === 'step' && /^\d+$/.test(it.num)) maxStep = Math.max(maxStep, +it.num); });
   g.nextTrans = tn; g.nextStep = maxStep + 1;
-  const e = g.items.length ? checkSeq(g.items, 'root') : null;
+  const e = g.items.length ? checkGrafcet(g) : null;
   if (e) report.push(err('rep_structure', { g: g.name, e: { key: e } }));
   return g;
 }

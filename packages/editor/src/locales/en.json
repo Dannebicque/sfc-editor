@@ -376,7 +376,7 @@
   "sync_add": "Also wait for step",
   "sync_choose": "Choose a step…",
   "sync_del_aria": "Stop waiting for step {n}",
-  "rep_x_sync": "“{g}”: the synchronisation of transition ({n}) is not exported to SFCEdit XML (the extra awaited steps are ignored).",
+  "rep_x_sync": "“{g}”: a step awaited by transition ({n}) is not at the end of a sequence; it is not linked in the SFCEdit XML.",
   "h_conv_or": "OR convergence (arrivals)",
   "conv_or_hint": "Jumps arriving here from other branches. They are shown as labelled arrows joined by a bar.",
   "conv_add": "Add an arrival from",
@@ -394,5 +394,7 @@
   "a_seq_added": "Sequence added.",
   "a_seq_deleted": "Sequence deleted.",
   "a_seq_moved": "Sequence moved.",
-  "text_seq": "Sequence {i}"
+  "text_seq": "Sequence {i}",
+  "rep_free_conv_and": "“{g}”: free AND convergence imported as a synchronisation of the transition.",
+  "rep_free_conv_or": "“{g}”: free OR convergence imported as jumps."
 }
