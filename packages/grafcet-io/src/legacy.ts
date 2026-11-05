@@ -1,37 +1,55 @@
-import { checkSeq, walkAll, type Grafcet, type Item, type Project } from '@grafcet/core';
+import { checkGraph, nodesOf, treeToGraph, type Grafcet, type Project, type TreeGrafcet } from '@grafcet/core';
 import { ImportError, type ImportResult } from './contract';
 
 /** Résultat d'un import « JSON libre » : le projet à utiliser et le GRAFCET à ouvrir. */
 export interface JsonImport { project: Project; activeId: string }
 
-const maxItemId = (items: Item[]) => {
+const maxId = (g: Grafcet) => {
   let m = 0;
-  walkAll(items, (it) => { const r = /^n(\d+)$/.exec(it.id || ''); if (r) m = Math.max(m, +r[1]!); });
+  const seen = (id: string) => { const r = /^[nqlj](\d+)$/.exec(id || ''); if (r) m = Math.max(m, +r[1]!); };
+  for (const s of g.seqs) { seen(s.id); for (const it of s.items) seen(it.id); }
+  for (const l of g.links) seen(l.id);
+  for (const j of g.jumps) seen(j.id);
   return m;
 };
 
-/** Valide et complète un GRAFCET issu d'un JSON saisi à la main ou du prototype (champs absents → valeurs par défaut). */
-function normalizeGrafcet(g: Grafcet): void {
-  if (!g || !Array.isArray(g.items)) throw new ImportError({ key: 'imp_items' });
-  const e = checkSeq(g.items, 'root');
-  if (e) throw new ImportError({ key: 'imp_struct', params: { g: g.name || '?', e: { key: e } } });
+/**
+ * Valide et complète un GRAFCET issu d'un JSON saisi à la main ou du prototype (champs absents → valeurs par défaut).
+ * Accepte l'ancien format en arbre (`items`), converti en séquences + liens, et le format `seqs`/`links`/`jumps`.
+ */
+function normalizeGrafcet(raw: any, counter: { counter: number }): Grafcet {
+  if (!raw || (!Array.isArray(raw.items) && !Array.isArray(raw.seqs))) throw new ImportError({ key: 'imp_items' });
+  const name = raw.name || '';
+  let g: Grafcet;
+  if (Array.isArray(raw.items)) {
+    const t = raw as TreeGrafcet;
+    t.name = name; t.nextStep = t.nextStep ?? 0; t.nextTrans = t.nextTrans ?? 1;
+    g = treeToGraph(t, counter);
+  } else {
+    g = raw as Grafcet;
+    g.links = g.links || [];
+    g.jumps = g.jumps || [];
+  }
   const ids = new Set<string>();
-  walkAll(g.items, (it) => {
-    if (!it.id || ids.has(it.id)) throw new ImportError({ key: 'imp_ids', params: { g: g.name || '?' } });
+  for (const it of nodesOf(g)) {
+    if (!it.id || ids.has(it.id)) throw new ImportError({ key: 'imp_ids', params: { g: name || '?' } });
     ids.add(it.id);
-  });
-  g.name = g.name || '';
-  walkAll(g.items, (it) => {
+  }
+  g.name = name;
+  for (const it of nodesOf(g)) {
     if (it.kind === 'step') { it.num = String((it as { num: unknown }).num ?? ''); it.actions = it.actions || []; it.name = it.name || ''; it.initial = !!it.initial; }
     if (it.kind === 'trans') it.recept = it.recept || '';
-  });
+  }
+  const e = checkGraph(g);
+  if (e) throw new ImportError({ key: 'imp_struct', params: { g: name || '?', e: { key: e } } });
   let maxStep = -1, maxTrans = 0;
-  walkAll(g.items, (it) => {
+  for (const it of nodesOf(g)) {
     if (it.kind === 'step' && /^\d+$/.test(it.num)) maxStep = Math.max(maxStep, +it.num);
     if (it.kind === 'trans') maxTrans = Math.max(maxTrans, it.num);
-  });
+  }
   g.nextStep = Math.max(g.nextStep ?? 0, maxStep + 1);
   g.nextTrans = Math.max(g.nextTrans ?? 1, maxTrans + 1);
+  return g;
 }
 
 /**
@@ -49,20 +67,16 @@ export function importJson(
   if (!o || typeof o !== 'object') throw new ImportError({ key: 'imp_items' });
   if (Array.isArray(o.grafcets)) {
     if (!o.grafcets.length) throw new ImportError({ key: 'imp_empty' });
-    o.grafcets.forEach((g: Grafcet, i: number) => { g.id = g.id || 'g' + (i + 1); normalizeGrafcet(g); if (!g.name) g.name = defaults.grafcetName; });
-    const project: Project = {
-      name: o.name || defaults.projectName,
-      grafcets: o.grafcets,
-      gcount: o.grafcets.length + 1 + 100,
-      counter: 1 + Math.max(0, ...o.grafcets.map((g: Grafcet) => maxItemId(g.items))),
-    };
+    const counter = { counter: 1 + 1000 };
+    const grafcets = o.grafcets.map((g: any, i: number) => { g.id = g.id || 'g' + (i + 1); const x = normalizeGrafcet(g, counter); if (!x.name) x.name = defaults.grafcetName; return x; });
+    const project: Project = { name: o.name || defaults.projectName, grafcets, gcount: grafcets.length + 1 + 100, counter: counter.counter };
     return { model: { project, activeId: project.grafcets[0]!.id }, report: { entries: [] } };
   }
-  normalizeGrafcet(o);
-  if (!o.name) o.name = defaults.grafcetName;
   const next: Project = JSON.parse(JSON.stringify(current));
-  o.id = 'g' + next.gcount++;
-  next.counter = Math.max(next.counter, 1 + maxItemId(o.items));
-  next.grafcets.push(o);
-  return { model: { project: next, activeId: o.id }, report: { entries: [] } };
+  const g = normalizeGrafcet(o, next);
+  if (!g.name) g.name = defaults.grafcetName;
+  g.id = 'g' + next.gcount++;
+  next.counter = Math.max(next.counter, 1 + maxId(g));
+  next.grafcets.push(g);
+  return { model: { project: next, activeId: g.id }, report: { entries: [] } };
 }

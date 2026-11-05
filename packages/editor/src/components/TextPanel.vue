@@ -14,6 +14,6 @@ const { sel } = storeToRefs(ui);
   <div id="pan-text" class="panel" role="tabpanel" aria-labelledby="tab-text">
     <h2>{{ T('text_title') }}</h2>
     <p class="hint">{{ T('text_hint') }}</p>
-    <OutlineList :items="activeG.items" :sel="sel" :g="activeG" @pick="ui.pickFromText" />
+    <OutlineList :sel="sel" :g="activeG" @pick="ui.pickFromText" />
   </div>
 </template>

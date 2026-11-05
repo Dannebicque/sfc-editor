@@ -31,7 +31,7 @@ export const useViewStore = defineStore('view', () => {
     void fontTick.value;
     return layoutGrafcet(useProjectStore().activeG, tw);
   });
-  const shapes = computed(() => layout.value.views.filter((v) => v.kind !== 'region'));
+  const shapes = computed(() => layout.value.views);
   const gTransform = computed(() => `translate(${view.x},${view.y}) scale(${view.z})`);
   const gridStyle = computed(() => ({ '--z': Math.max(view.z, 0.25), '--px': view.x + 'px', '--py': view.y + 'px' }));
 

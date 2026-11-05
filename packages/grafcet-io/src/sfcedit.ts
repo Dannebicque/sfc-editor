@@ -1,4 +1,4 @@
-import { checkSeq, walkAll, type Action, type Block, type Grafcet, type Item, type Message, type Project } from '@grafcet/core';
+import { checkGraph, docOrder, indexOf, nodesOf, numberTransitions, type Action, type Grafcet, type Message, type Node, type Project, type Seq } from '@grafcet/core';
 import { ImportError, type ExportResult, type ImportResult, type ReportEntry } from './contract';
 import { elements, esc, parseXml, textOf, type XNode } from './xml';
 
@@ -40,29 +40,27 @@ function convertCondition(node: XNode, report: ReportEntry[]): string {
   return render(node).replace(/\s+/g, ' ').trim();
 }
 
-interface SeqData { id: string; items: Item[] }
-interface HLink { kind: 'div' | 'conv'; op: 'and' | 'or'; seqid: string; nodes: string[] }
-
 function importGrafcet(P: Project, gx: XNode, report: ReportEntry[], index: number): Grafcet {
   const nameAttr = gx.attrs.name || `Grafcet ${index + 1}`;
-  const g: Grafcet = { id: 'g' + P.gcount++, name: nameAttr, nextStep: 0, nextTrans: 1, items: [] };
+  const g: Grafcet = { id: 'g' + P.gcount++, name: nameAttr, nextStep: 0, nextTrans: 1, seqs: [], links: [], jumps: [] };
   if (gx.attrs.comment) g.comment = gx.attrs.comment;
   if (gx.attrs.type && gx.attrs.type !== 'normal') report.push(warn('rep_grafcet_type', { g: g.name, type: gx.attrs.type }));
   if (gx.attrs.owner) report.push(info('rep_owner', { g: g.name, owner: gx.attrs.owner }));
 
-  const seqs = new Map<string, SeqData>();
-  const pendingNumbers: Extract<Item, { kind: 'step' }>[] = [];
-  const nid = () => 'n' + P.counter++;
+  /** Identifiants de séquence SFCEdit → séquences. */
+  const seqs = new Map<string, Seq>();
+  const pendingNumbers: Extract<Node, { kind: 'step' }>[] = [];
+  const nid = (p = 'n') => p + P.counter++;
 
   for (const sx of elements(gx, 'sequence')) {
-    const seq: SeqData = { id: sx.attrs.id ?? String(seqs.size + 1), items: [] };
+    const seq: Seq = { id: nid('q'), items: [] };
     for (const c of elements(sx)) {
       if (c.tag === 'step') {
         const rawName = (c.attrs.name ?? '').trim();
         const m = /^X(\d+)$/i.exec(rawName);
         const type = c.attrs.type ?? 'normal';
         if (type !== 'normal' && type !== 'initial') report.push(warn('rep_step_type', { g: g.name, type, name: c.attrs.name ?? '?' }));
-        const step: Extract<Item, { kind: 'step' }> = {
+        const step: Extract<Node, { kind: 'step' }> = {
           id: nid(), kind: 'step', num: m ? m[1]! : rawName || '', name: c.attrs['x-label'] ?? '', initial: type === 'initial',
           actions: elements(c, 'action').map((a) => importAction(a, g.name, report)),
         };
@@ -73,79 +71,34 @@ function importGrafcet(P: Project, gx: XNode, report: ReportEntry[], index: numb
         seq.items.push({ id: nid(), kind: 'trans', num: 0, recept: cond ? convertCondition(cond, report) : '' });
       } else report.push(warn('rep_unknown_tag', { tag: c.tag }));
     }
-    seqs.set(seq.id, seq);
+    seqs.set(sx.attrs.id ?? String(seqs.size + 1), seq);
+    g.seqs.push(seq);
   }
+  const ref = (id: string | undefined): string | null => (id !== undefined && seqs.has(id) ? seqs.get(id)!.id : null);
 
-  const links: HLink[] = [];
   for (const h of elements(gx, 'hlink')) {
     const m = /^(div|conv)\s+(and|or)$/i.exec((h.attrs.type ?? '').trim());
     if (!m) { report.push(warn('rep_unknown_tag', { tag: `hlink ${h.attrs.type ?? ''}`.trim() })); continue; }
-    links.push({ kind: m[1]!.toLowerCase() as 'div' | 'conv', op: m[2]!.toLowerCase() as 'and' | 'or', seqid: h.attrs.seqid ?? '', nodes: elements(h, 'node').map((n) => n.attrs.seqid ?? '') });
+    const nodes = elements(h, 'node').map((n) => ref(n.attrs.seqid)).filter((x): x is string => !!x);
+    const base = h.attrs.seqid ? ref(h.attrs.seqid) : null;
+    if (h.attrs.seqid && !base) report.push(err('rep_structure', { g: g.name, e: { key: 'chk_ref' } }));
+    if (nodes.length < 2) { report.push(warn('rep_conv_missing', { g: g.name })); continue; }
+    g.links.push({ id: nid('l'), kind: m[1]!.toLowerCase() as 'div' | 'conv', op: m[2]!.toLowerCase() as 'and' | 'or', base, nodes });
   }
-  const jumps = new Map<string, string>();
-  for (const j of elements(gx, 'jump')) jumps.set(j.attrs.seqid_from ?? '', j.attrs.seqid_to ?? '');
+  for (const j of elements(gx, 'jump')) {
+    const from = ref(j.attrs.seqid_from), to = seqs.get(j.attrs.seqid_to ?? '')?.items[0];
+    if (!from) continue;
+    if (!to) report.push(err('rep_jump_target', { g: g.name }));
+    g.jumps.push({ id: nid('j'), from, to: to?.id ?? null });
+  }
   for (const t of gx.children) if (typeof t !== 'string' && !['sequence', 'hlink', 'jump'].includes(t.tag)) report.push(warn('rep_unknown_tag', { tag: t.tag }));
 
-  const divByParent = new Map(links.filter((l) => l.kind === 'div').map((l) => [l.seqid, l] as const));
-  const convs = links.filter((l) => l.kind === 'conv');
-  const used = new Set<HLink>();
-  const building = new Set<string>();
-  const built = new Set<string>();
-
-  interface Built { items: Item[]; end: string; endsWithJump: boolean }
-  function build(id: string): Built {
-    const s = seqs.get(id);
-    if (!s || building.has(id)) { report.push(err('rep_cycle', { g: g.name })); return { items: [], end: id, endsWithJump: true }; }
-    building.add(id); built.add(id);
-    const items = [...s.items];
-    let end = id, endsWithJump = false;
-    const div = divByParent.get(id);
-    if (div) {
-      const block: Block = { id: nid(), kind: div.op, branches: [] };
-      const ends: { seq: string; jumps: boolean }[] = [];
-      for (const node of div.nodes) {
-        const b = build(node);
-        block.branches.push(b.items);
-        ends.push({ seq: b.end, jumps: b.endsWithJump });
-      }
-      items.push(block);
-      const live = ends.filter((e) => !e.jumps).map((e) => e.seq);
-      const conv = convs.find((c) => !used.has(c) && c.nodes.length === live.length && live.every((x) => c.nodes.includes(x)));
-      if (conv) {
-        used.add(conv);
-        if (conv.op !== div.op) report.push(warn('rep_conv_kind', { g: g.name }));
-        const cont = build(conv.seqid);
-        items.push(...cont.items);
-        end = cont.end; endsWithJump = cont.endsWithJump;
-      } else if (live.length) report.push(warn('rep_conv_missing', { g: g.name }));
-      else endsWithJump = true;
-    } else {
-      const to = jumps.get(id);
-      if (to !== undefined) {
-        const first = seqs.get(to)?.items[0];
-        if (!first) report.push(err('rep_jump_target', { g: g.name }));
-        items.push({ id: nid(), kind: 'jump', target: first ? first.id : null });
-        endsWithJump = true;
-      }
-    }
-    building.delete(id);
-    return { items, end, endsWithJump };
-  }
-
-  const nodesOfDiv = new Set(links.filter((l) => l.kind === 'div').flatMap((l) => l.nodes));
-  const contSeqs = new Set(convs.map((l) => l.seqid));
-  const roots = [...seqs.keys()].filter((id) => !nodesOfDiv.has(id) && !contSeqs.has(id));
-  if (roots.length) {
-    g.items = build(roots[0]!).items;
-    for (const id of seqs.keys()) if (!built.has(id)) report.push(warn('rep_orphan_seq', { g: g.name, n: id }));
-  } else if (seqs.size) report.push(err('rep_cycle', { g: g.name }));
-
-  let tn = 1, maxStep = -1;
-  walkAll(g.items, (it) => { if (it.kind === 'trans') it.num = tn++; else if (it.kind === 'step' && /^\d+$/.test(it.num)) maxStep = Math.max(maxStep, +it.num); });
-  for (const s of pendingNumbers) s.num = String(++maxStep);
-  g.nextTrans = tn;
-  g.nextStep = maxStep + 1;
-  const e = g.items.length ? checkSeq(g.items, 'root') : 'chk_empty';
+  numberTransitions(g);
+  const maxStep = Math.max(-1, ...nodesOf(g).filter((it) => it.kind === 'step' && /^\d+$/.test(it.num)).map((it) => +it.num));
+  let n = maxStep;
+  for (const s of pendingNumbers) s.num = String(++n);
+  g.nextStep = n + 1;
+  const e = checkGraph(g);
   if (e) report.push(err('rep_structure', { g: g.name, e: { key: e } }));
   return g;
 }
@@ -229,18 +182,14 @@ function toSfcCondition(src: string, notes: { edge: boolean; timer: boolean }): 
   return body(src);
 }
 
-interface OutSeq { id: number; nodes: string[] }
-
 function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boolean }): string {
-  const seqs: OutSeq[] = [];
-  const hlinks: string[] = [];
-  const jumps: { from: number; target: string | null }[] = [];
-  const placement = new Map<string, { seq: number; idx: number }>();
+  const ix = indexOf(g);
+  const order = docOrder(g);
+  const num = new Map(order.map((s, i) => [s.id, i + 1] as const));
   const notes = { edge: false, timer: false };
   let actionKinds = false, macroFlag = false;
-  const newSeq = (): OutSeq => { const s = { id: seqs.length + 1, nodes: [] as string[] }; seqs.push(s); return s; };
 
-  function stepXml(it: Extract<Item, { kind: 'step' }>): string {
+  function stepXml(it: Extract<Node, { kind: 'step' }>): string {
     const attrs = `type="${it.initial ? 'initial' : 'normal'}" name="${/^\d+$/.test(it.num) ? 'X' + it.num : esc(it.num)}"` + (it.name ? ` x-label="${esc(it.name)}"` : '');
     if (it.name) flags.labels = true;
     if (it.expansion !== undefined) macroFlag = true;
@@ -255,42 +204,19 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
     });
     return `\t\t\t<step ${attrs}>\n${acts.join('\n')}\n\t\t\t</step>`;
   }
+  const nodeXml = (it: Node): string => {
+    if (it.kind === 'step') return stepXml(it);
+    if (it.actions?.length) report.push(warn('rep_trans_action', { g: g.name, n: it.num }));
+    return `\t\t\t<transition>\n\t\t\t\t<condition>${toSfcCondition(it.recept, notes)}</condition>\n\t\t\t</transition>`;
+  };
 
-  interface Chain { first: number; end: number; endsWithJump: boolean }
-  function emit(items: Item[]): Chain {
-    let cur: OutSeq = newSeq();
-    const first = cur.id;
-    let endsWithJump = false;
-    for (let i = 0; i < items.length; i++) {
-      const it = items[i]!;
-      if (it.kind === 'step' || it.kind === 'trans') {
-        placement.set(it.id, { seq: cur.id, idx: cur.nodes.length });
-        if (it.kind === 'trans' && it.actions?.length) report.push(warn('rep_trans_action', { g: g.name, n: it.num }));
-        cur.nodes.push(it.kind === 'step' ? stepXml(it)
-          : `\t\t\t<transition>\n\t\t\t\t<condition>${toSfcCondition(it.recept, notes)}</condition>\n\t\t\t</transition>`);
-      } else if (it.kind === 'jump') {
-        jumps.push({ from: cur.id, target: it.target });
-        endsWithJump = true;
-      } else {
-        const parent = cur;
-        const results = it.branches.map((b) => emit(b));
-        hlinks.push(`\t\t<hlink type="div ${it.kind}" seqid="${parent.id}">\n${results.map((r) => `\t\t\t<node seqid="${r.first}" />`).join('\n')}\n\t\t</hlink>`);
-        const live = results.filter((r) => !r.endsWithJump).map((r) => r.end);
-        if (i + 1 < items.length && live.length) {
-          cur = newSeq();
-          hlinks.push(`\t\t<hlink type="conv ${it.kind}" seqid="${cur.id}">\n${live.map((s) => `\t\t\t<node seqid="${s}" />`).join('\n')}\n\t\t</hlink>`);
-        } else { endsWithJump = !live.length; if (live.length) cur = seqs[live[0]! - 1]!; }
-      }
-    }
-    return { first, end: cur.id, endsWithJump };
-  }
-  emit(g.items);
-
-  const jumpXml = jumps.map((j) => {
-    const p = j.target ? placement.get(j.target) : undefined;
-    if (!p) { report.push(err('rep_x_jump_target', { g: g.name })); return ''; }
-    if (p.idx !== 0) report.push(err('rep_x_jump_mid', { g: g.name }));
-    return `\t\t<jump seqid_from="${j.from}" seqid_to="${p.seq}" />`;
+  const body = order.map((s) => `\t\t<sequence id="${num.get(s.id)}">${s.items.length ? '\n' + s.items.map(nodeXml).join('\n') + '\n\t\t' : ''}</sequence>`);
+  const hlinks = g.links.map((l) => `\t\t<hlink type="${l.kind} ${l.op}"${l.base ? ` seqid="${num.get(l.base)}"` : ''}>\n${l.nodes.map((n) => `\t\t\t<node seqid="${num.get(n)}" />`).join('\n')}\n\t\t</hlink>`);
+  const jumpXml = g.jumps.map((j) => {
+    const t = j.to ? ix.node.get(j.to) : undefined;
+    if (!t) { report.push(err('rep_x_jump_target', { g: g.name })); return ''; }
+    if (t.idx !== 0) report.push(err('rep_x_jump_mid', { g: g.name }));
+    return `\t\t<jump seqid_from="${num.get(j.from)}" seqid_to="${num.get(t.seq.id)}" />`;
   }).filter(Boolean);
   if (notes.edge) report.push(warn('rep_x_edge', { g: g.name }));
   if (notes.timer) report.push(warn('rep_x_timer', { g: g.name }));
@@ -298,7 +224,6 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
   if (macroFlag) report.push(warn('rep_x_macro', { g: g.name }));
 
   const head = `\t<grafcet type="normal" owner="" name="${esc(g.name)}" comment="${esc(g.comment ?? '')}">`;
-  const body = seqs.map((s) => `\t\t<sequence id="${s.id}">\n${s.nodes.join('\n')}\n\t\t</sequence>`);
   return [head, ...body, ...hlinks, ...jumpXml, '\t</grafcet>'].join('\n');
 }
 

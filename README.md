@@ -24,8 +24,8 @@ Prérequis : Node ≥ 20, pnpm 10.
 
 | Paquet | Rôle | Dépendances |
 |---|---|---|
-| `packages/grafcet-core` | Modèle, grammaire d'insertion guidée, commandes, parseur de réceptivités, validation, graphe plat. **Aucun texte traduit** : le noyau renvoie des clés de message. | aucune |
-| `packages/grafcet-layout` | Mise en page récursive calculée depuis l'arbre (pas de coordonnées stockées). | core |
+| `packages/grafcet-core` | Modèle séquences + liens (ADR 0003), règles structurelles, commandes transactionnelles, parseur de réceptivités, validation, graphe plat. **Aucun texte traduit** : le noyau renvoie des clés de message. | aucune |
+| `packages/grafcet-layout` | Mise en page calculée depuis les séquences et les liens (pas de coordonnées stockées). | core |
 | `packages/grafcet-simulation` | Simulation à jetons (marquage, transitions validables, franchissement). | core |
 | `packages/grafcet-io` | Format natif versionné (`schemaVersion`), import JSON libre, contrat `import → { model, report }`. | core, zod |
 | `packages/editor` | Application Vue : stores Pinia (document, interface, vue), composants, vue-i18n fr/en. | tous |
@@ -38,7 +38,7 @@ Les paquets internes sont consommés **directement en TypeScript** (pas d'étape
 ## Feuille de route
 
 - **1a (fait)** noyau + mise en page + format natif JSON + éditeur web, tests de propriétés.
-- **1b (fait)** insertion avant/après (Maj + lettre pour le côté opposé), encadrer un élément dans une divergence OU/ET, dissoudre une divergence en gardant une branche, déplacer une branche.
+- **1b (fait)** insertion avant/après (Maj + lettre pour le côté opposé), divergences/convergences OU/ET, connecter deux éléments, fusionner des branches, renvois, ajout/suppression/déplacement de branches, barre d'outils complète. Modèle séquences + liens (branche `feat/graph-model`, [ADR 0003](docs/adr/0003-sequences-et-liens.md)).
 - **1c (en grande partie fait)** PWA hors ligne, format dossier (un fichier par GRAFCET, adapté à Git) et archive ZIP déterministe. Reste : shell Electron minimal.
 - **2** ✅ macro-étapes (expansion dans le même projet), actions sur événement, transitions source/puits, vue des synchronisations entre GRAFCET. Reste : GRAFCETs partiels, étapes englobantes, forçages.
 - **3 (fait)** import/export SFCEdit (XML) et PLCopen XML TC6 v2.01 (partie SFC), validés contre le schéma officiel ; voir `fixtures/plcopen/README.md`.

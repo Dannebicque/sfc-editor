@@ -1,6 +1,6 @@
 import type { Issue } from './validate';
-import { walkAll } from './tree';
-import type { Grafcet, Item } from './types';
+import { indexOf, first, nodesOf } from './graph';
+import type { Grafcet, Node } from './types';
 
 /**
  * Profils de vérification. Les règles communes (structure, doublons, références, accessibilité du graphe…) s'appliquent
@@ -39,24 +39,23 @@ const IEC_IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export function profileIssues(g: Grafcet, profile: ValidationProfile): Issue[] {
   const issues: Issue[] = [];
-  const byId = new Map<string, Item>();
-  walkAll(g.items, (it) => byId.set(it.id, it));
+  const ix = indexOf(g);
 
   if (profile === 'grafcet') {
-    walkAll(g.items, (it) => {
-      if (it.kind !== 'or') return;
-      const first = it.branches.map((b) => b[0]).filter((x): x is Extract<Item, { kind: 'trans' }> => !!x && x.kind === 'trans' && !!x.recept.trim());
-      for (let i = 0; i < first.length; i++) {
-        const j = first.findIndex((t, k) => k > i && !provablyExclusive(first[i]!.recept, t.recept));
-        if (j >= 0) { issues.push({ level: 'warning', key: 'v_or_exclusive', params: { a: first[i]!.num, b: first[j]!.num }, id: it.id }); break; }
+    for (const l of g.links) {
+      if (l.kind !== 'div' || l.op !== 'or') continue;
+      const firsts = l.nodes.map((n) => first(ix.seq.get(n))).filter((x): x is Extract<Node, { kind: 'trans' }> => !!x && x.kind === 'trans' && !!x.recept.trim());
+      for (let i = 0; i < firsts.length; i++) {
+        const j = firsts.findIndex((t, k) => k > i && !provablyExclusive(firsts[i]!.recept, t.recept));
+        if (j >= 0) { issues.push({ level: 'warning', key: 'v_or_exclusive', params: { a: firsts[i]!.num, b: firsts[j]!.num }, id: l.id }); break; }
       }
-    });
+    }
     return issues;
   }
 
   // sfc et plcopen
-  walkAll(g.items, (it) => {
-    if (it.kind === 'jump' && it.target && byId.get(it.target)?.kind === 'trans') issues.push({ level: 'error', key: 'v_sfc_jump_trans', id: it.id });
+  for (const j of g.jumps) if (j.to && ix.node.get(j.to)?.item.kind === 'trans') issues.push({ level: 'error', key: 'v_sfc_jump_trans', id: j.id });
+  for (const it of nodesOf(g)) {
     if (it.kind === 'trans' && /[↑↓^]/.test(it.recept)) issues.push({ level: 'warning', key: 'v_sfc_edge', params: { n: it.num }, id: it.id });
     if (it.kind === 'step') {
       for (const a of it.actions) {
@@ -65,6 +64,6 @@ export function profileIssues(g: Grafcet, profile: ValidationProfile): Issue[] {
         if (profile === 'plcopen' && (a.kind === 'conditional' || a.kind === 'event')) issues.push({ level: 'warning', key: 'v_plc_cond_action', params: { n: it.num }, id: it.id });
       }
     }
-  });
+  }
   return issues;
 }
