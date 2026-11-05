@@ -214,3 +214,32 @@ pre.code{margin:0 0 10px;max-height:290px;overflow:auto;border:1px solid var(--l
   .ins .l small{display:none}
   .btn .txt{display:none}
 }
+
+/* Informations légales */
+.linklike{background:none;border:0;padding:2px 4px;margin:0;font:inherit;color:var(--ink-2);text-decoration:underline;text-underline-offset:2px;cursor:pointer;border-radius:4px}
+.linklike:hover{color:var(--ink)}
+.linklike:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+dialog.legal{border:1px solid var(--line-2);border-radius:12px;padding:0;width:min(900px,94vw);max-height:88vh;background:var(--panel);color:var(--ink);box-shadow:var(--shadow)}
+dialog.legal[open]{display:flex;flex-direction:column}
+dialog.legal::backdrop{background:rgba(10,30,26,.5)}
+.legal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.legal-head h2{margin:0;font-size:16px}
+.legal-body{display:grid;grid-template-columns:210px minmax(0,1fr);min-height:0;overflow:hidden}
+.legal-body nav{border-right:1px solid var(--line);padding:10px 8px;overflow:auto}
+.legal-body nav ul{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.legal-body nav button{width:100%;text-align:left;border:0;background:none;padding:7px 10px;border-radius:6px;color:var(--ink-2);cursor:pointer;font:inherit}
+.legal-body nav button:hover{background:var(--panel-2)}
+.legal-body nav button[aria-current="page"]{background:var(--accent-soft);color:var(--ink);font-weight:600}
+.legal-body nav button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.legal-body article{padding:6px 20px 20px;overflow:auto;line-height:1.55;outline:none}
+.legal-body article h3{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:20px 0 6px}
+.legal-body article p,.legal-body article li{max-width:68ch}
+.legal-body article a{color:var(--accent)}
+.legal-table{overflow:auto;border:1px solid var(--line);border-radius:8px;margin:8px 0}
+.legal-table:focus-visible{outline:2px solid var(--accent)}
+.legal-table table{border-collapse:collapse;width:100%;font-size:12.5px}
+.legal-table th,.legal-table td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.legal-table th{background:var(--panel-2)}
+.legal-table td:first-child{font-family:var(--font-mono)}
+mark.todo{background:var(--warn-soft);color:var(--warn);padding:0 4px;border-radius:4px;font-weight:600}
+@media (max-width:700px){.legal-body{grid-template-columns:1fr;overflow:auto}.legal-body nav{border-right:0;border-bottom:1px solid var(--line)}.legal-body nav ul{grid-auto-flow:column;overflow:auto}.legal-body nav button{white-space:nowrap}}

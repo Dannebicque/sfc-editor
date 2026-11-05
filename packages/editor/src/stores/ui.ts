@@ -8,6 +8,7 @@ import {
 import { exportNative, FORMAT_ID, importJson, importNative, ImportError } from '@grafcet/io';
 import { enabledTransitions, fire, initialMarking } from '@grafcet/simulation';
 import { describeText, renderMessage } from '../format';
+import { isLegalDocId, type LegalDocId } from '../legal';
 import { applyLang, kindLabel, KEYMAP, LS_PREFIX, T, lang, type Lang } from '../i18n';
 import { useProjectStore } from './project';
 import { useViewStore } from './view';
@@ -333,6 +334,21 @@ export const useUiStore = defineStore('ui', () => {
     announce(T('a_lang'));
   }
 
+  /* ----- informations légales : dialogue adressable par #/legal/<doc> ----- */
+  const legalDoc = ref<LegalDocId | null>(null);
+  function openLegal(id: LegalDocId = 'mentions'): void {
+    legalDoc.value = id;
+    if (location.hash !== `#/legal/${id}`) location.hash = `/legal/${id}`;
+  }
+  function closeLegal(): void {
+    legalDoc.value = null;
+    if (location.hash.startsWith('#/legal/')) history.replaceState(null, '', location.pathname + location.search);
+  }
+  function syncLegalFromHash(): void {
+    const m = /^#\/legal\/(\w+)$/.exec(location.hash);
+    legalDoc.value = m && isLegalDocId(m[1]!) ? (m[1] as LegalDocId) : null;
+  }
+
   /** À appeler une fois l'interface montée : thème mémorisé, cadrage, sélection de l'étape 1. */
   function init(): void {
     try {
@@ -347,6 +363,8 @@ export const useUiStore = defineStore('ui', () => {
       if (sel.value) { const id = sel.value; nextTick(() => viewStore.reveal(id)); }
     });
     document.fonts?.ready.then(() => viewStore.invalidateFonts());
+    syncLegalFromHash();
+    window.addEventListener('hashchange', syncLegalFromHash);
   }
 
   return {
@@ -358,6 +376,7 @@ export const useUiStore = defineStore('ui', () => {
     pick, pickFromText, focusHost, onHostFocus, goIssue, onKey,
     simActive, simEnabled, simReset, simFire, toggleSim,
     dataText, copyMsg, importMsg, importText, copyData, downloadNative, applyImport, onFile,
+    legalDoc, openLegal, closeLegal, syncLegalFromHash,
     cycleTheme, setLang, init,
   };
 });

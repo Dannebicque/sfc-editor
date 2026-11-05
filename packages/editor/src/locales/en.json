@@ -242,5 +242,10 @@
   "a_wrap_impossible": "This element cannot be wrapped here.",
   "a_unwrapped": "Divergence dissolved, branch {n} kept.",
   "a_unwrap_impossible": "Not possible: the result would not be a valid GRAFCET.",
-  "a_branch_moved": "Branch moved."
+  "a_branch_moved": "Branch moved.",
+  "legal_link": "Legal",
+  "legal_close": "Close",
+  "legal_nav_aria": "Legal documents",
+  "legal_todo": "[to be completed]",
+  "legal_dialog_aria": "Legal information"
 }
