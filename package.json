@@ -1,0 +1,25 @@
+{
+  "name": "grafcet-studio",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Éditeur / validateur de GRAFCET (IEC 60848), local-first.",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @grafcet/web dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "~5.9.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@grafcet/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {},
+  "devDependencies": { "vitest": "^3.2.4", "fast-check": "^4.3.0" }
+}
