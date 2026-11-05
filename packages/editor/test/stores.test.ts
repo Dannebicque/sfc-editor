@@ -171,6 +171,18 @@ describe('étape présente dans plusieurs GRAFCET', () => {
   });
 });
 
+describe('profil de vérification', () => {
+  it('change les contrôles et mémorise le choix', () => {
+    const project = useProjectStore();
+    expect(project.profile).toBe('grafcet');
+    project.setProfile('sfc');
+    expect(project.profile).toBe('sfc');
+    expect(localStorage.getItem('grafcet-studio-v1-profile')).toBe('sfc');
+    setActivePinia(createPinia());
+    expect(useProjectStore().profile).toBe('sfc');
+  });
+});
+
 describe('étape citée dans des réceptivités', () => {
   it('surligne les transitions qui citent l’étape sélectionnée, ici et dans les autres GRAFCET', async () => {
     const { readFileSync } = await import('node:fs');

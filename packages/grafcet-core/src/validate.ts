@@ -3,6 +3,7 @@ import { flatten } from './flatten';
 import { parseRecept } from './recept';
 import { walkAll } from './tree';
 import type { Grafcet, Message } from './types';
+import { DEFAULT_PROFILE, profileIssues, type ValidationProfile } from './profiles';
 
 export type IssueLevel = 'error' | 'warning';
 
@@ -21,6 +22,8 @@ export interface ValidateOptions {
    * (par exemple X15 dans un autre GRAFCET du projet) : ces références ne sont pas signalées comme manquantes.
    */
   knownSteps?: Iterable<string>;
+  /** Profil de vérification (défaut : `grafcet`). */
+  profile?: ValidationProfile;
 }
 
 export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[] {
@@ -73,5 +76,6 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
   if (reach.size) for (const n of fg.nodes) if (!reach.has(n.id)) issues.push({ level: 'warning', key: 'v_unreachable', params: { x: nodeName(n) }, id: n.id });
   const e = checkSeq(g.items, 'root');
   if (e) issues.push({ level: 'error', key: 'v_structure', params: { e: { key: e } }, id: null });
+  issues.push(...profileIssues(g, opts.profile ?? DEFAULT_PROFILE));
   return issues;
 }

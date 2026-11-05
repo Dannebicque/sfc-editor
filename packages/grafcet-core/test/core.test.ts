@@ -2,7 +2,7 @@ import { describe as suite, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
   addBranch, allowedInsertions, checkSeq, describeId, flatten, insertAfter, newGrafcet, parseRecept,
-  referencesTo, removeBranch, removeItem, renumber, stats, validateGrafcet, walkAll, duplicateGrafcet, INSERT_KINDS,
+  provablyExclusive, referencesTo, removeBranch, removeItem, renumber, stats, validateGrafcet, walkAll, duplicateGrafcet, INSERT_KINDS,
   type Grafcet, type Project,
 } from '../src';
 import { demoProject } from './helpers';
@@ -172,6 +172,45 @@ suite('identifiants d’étapes textuels', () => {
     const r = parseRecept('INIT.X12');
     expect(r.refs).toEqual(['12']);
     expect([...r.vars]).toEqual(['INIT']);
+  });
+});
+
+suite('profils de vérification', () => {
+  it('démontre l’exclusion mutuelle seulement quand elle est certaine', () => {
+    expect(provablyExclusive('a', '/a')).toBe(true);
+    expect(provablyExclusive('a.b', '/a')).toBe(true);
+    expect(provablyExclusive('a+b', '/a./b')).toBe(true);
+    expect(provablyExclusive('a', 'b')).toBe(false);
+    expect(provablyExclusive('a+b', '/a')).toBe(false);
+    expect(provablyExclusive('(a)', '/a')).toBe(false); // trop complexe : non démontré
+  });
+  const build = (recA: string, recB: string): Grafcet => ({
+    id: 'g', name: 'g', nextStep: 3, nextTrans: 4,
+    items: [
+      { id: 's0', kind: 'step', num: '0', name: '', initial: true, actions: [{ kind: 'continue', label: 'Ouvrir vanne', cond: '' }] },
+      { id: 'o', kind: 'or', branches: [
+        [{ id: 't1', kind: 'trans', num: 1, recept: recA }, { id: 's1', kind: 'step', num: '1', name: '', initial: false, actions: [] }],
+        [{ id: 't2', kind: 'trans', num: 2, recept: recB }, { id: 's2', kind: 'step', num: '2', name: '', initial: false, actions: [] }],
+      ] },
+      { id: 't3', kind: 'trans', num: 3, recept: '↑a' },
+      { id: 'j', kind: 'jump', target: 't1' },
+    ],
+  });
+  it('grafcet : signale une divergence OU non exclusive, pas les contrôles propres à l’automate', () => {
+    const k = (rec: string) => validateGrafcet(build('a', rec), { profile: 'grafcet' }).map((i) => i.key);
+    expect(k('b')).toContain('v_or_exclusive');
+    expect(k('/a')).not.toContain('v_or_exclusive');
+    expect(k('/a')).not.toContain('v_sfc_edge');
+    expect(k('/a')).not.toContain('v_sfc_jump_trans');
+  });
+  it('sfc : signale renvoi vers une transition, front et identifiant invalide ; plcopen ajoute les actions conditionnelles', () => {
+    const keys = validateGrafcet(build('a', 'b'), { profile: 'sfc' }).map((i) => i.key);
+    expect(keys).toEqual(expect.arrayContaining(['v_sfc_jump_trans', 'v_sfc_edge', 'v_sfc_ident']));
+    expect(keys).not.toContain('v_or_exclusive');
+    const g = build('a', 'b');
+    (g.items[0] as { actions: { kind: string }[] }).actions[0]!.kind = 'conditional';
+    expect(validateGrafcet(g, { profile: 'sfc' }).map((i) => i.key)).not.toContain('v_plc_cond_action');
+    expect(validateGrafcet(g, { profile: 'plcopen' }).map((i) => i.key)).toContain('v_plc_cond_action');
   });
 });
 

@@ -1,14 +1,24 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import {
-  checkSeq, duplicateGrafcet, findItem, flatten, newGrafcet, parseRecept, stats as statsOf, validateGrafcet, walkAll,
-  type Grafcet, type Project,
+  checkSeq, DEFAULT_PROFILE, isProfile, duplicateGrafcet, findItem, flatten, newGrafcet, parseRecept, stats as statsOf, validateGrafcet, walkAll,
+  type Grafcet, type Project, type ValidationProfile,
 } from '@grafcet/core';
 import { LS_PREFIX, T, lang } from '../i18n';
 import { demoProject, syncDemo } from '../demo';
 import { useUiStore } from './ui';
 
 const STORAGE_KEY = LS_PREFIX;
+const PROFILE_KEY = LS_PREFIX + '-profile';
+
+/**
+ * Profil de vérification par défaut. Aujourd'hui : le dernier choix local, sinon `grafcet`.
+ * Point d'extension prévu : un profil par défaut lié au compte connecté (voir la phase « serveur »).
+ */
+function defaultProfile(): ValidationProfile {
+  try { const v = localStorage.getItem(PROFILE_KEY); if (isProfile(v)) return v; } catch { /* ignoré */ }
+  return DEFAULT_PROFILE;
+}
 
 interface HistoryEntry { p: string; sel: string | null; a: string }
 
@@ -35,6 +45,12 @@ export const useProjectStore = defineStore('project', () => {
   const future = ref<HistoryEntry[]>([]);
   const coalesce = { key: null as string | null, t: 0 };
 
+  const profile = ref<ValidationProfile>(defaultProfile());
+  function setProfile(p: ValidationProfile): void {
+    profile.value = p;
+    try { localStorage.setItem(PROFILE_KEY, p); } catch { /* ignoré */ }
+  }
+
   const activeG = computed<Grafcet>(() => project.value.grafcets.find((g) => g.id === activeId.value) ?? project.value.grafcets[0]!);
   /** Numéros d'étapes de tout le projet : une réceptivité peut référencer une étape d'un autre GRAFCET (Xn). */
   const knownSteps = computed(() => {
@@ -42,7 +58,7 @@ export const useProjectStore = defineStore('project', () => {
     for (const g of project.value.grafcets) walkAll(g.items, (it) => { if (it.kind === 'step') out.add(it.num); });
     return out;
   });
-  const issues = computed(() => validateGrafcet(activeG.value, { knownSteps: knownSteps.value }));
+  const issues = computed(() => validateGrafcet(activeG.value, { knownSteps: knownSteps.value, profile: profile.value }));
   const issueErr = computed(() => issues.value.filter((i) => i.level === 'error').length);
   const flat = computed(() => flatten(activeG.value));
   const stats = computed(() => statsOf(activeG.value));
@@ -50,7 +66,7 @@ export const useProjectStore = defineStore('project', () => {
     const o: Record<string, { steps: number; trans: number; err: number; warn: number }> = {};
     for (const g of project.value.grafcets) {
       const s = statsOf(g);
-      const iss = validateGrafcet(g, { knownSteps: knownSteps.value });
+      const iss = validateGrafcet(g, { knownSteps: knownSteps.value, profile: profile.value });
       o[g.id] = { steps: s.steps, trans: s.trans, err: iss.filter((i) => i.level === 'error').length, warn: iss.filter((i) => i.level === 'warning').length };
     }
     return o;
@@ -165,7 +181,7 @@ export const useProjectStore = defineStore('project', () => {
   }
 
   return {
-    project, activeId, activeG, knownSteps, past, future, issues, issueErr, flat, stats, sums, varList,
+    project, activeId, activeG, knownSteps, profile, setProfile, past, future, issues, issueErr, flat, stats, sums, varList,
     persist, mutate, undo, redo, replaceProject, renameGrafcet, renameProject, addGrafcet, dupGrafcet, delGrafcet, syncDemoLanguage,
   };
 });
