@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
-import { arrivalSources, arrivalsTo, describeId, walkAll } from '@grafcet/core';
+import { arrivalSources, arrivalsTo, describeId, walkAll, walkGrafcet } from '@grafcet/core';
 import { describeText } from '../format';
 import { T, keys as K } from '../i18n';
 import { useProjectStore } from '../stores/project';
@@ -14,7 +14,7 @@ const { activeG, stats, varList } = storeToRefs(project);
 const { selItem, selLoc, recFb, tokens, jumpTargets } = storeToRefs(ui);
 const allSteps = computed(() => {
   const out: { id: string; num: string }[] = [];
-  walkAll(activeG.value.items, (it) => { if (it.kind === 'step') out.push({ id: it.id, num: it.num }); });
+  walkGrafcet(activeG.value, (it) => { if (it.kind === 'step') out.push({ id: it.id, num: it.num }); });
   return out;
 });
 const stepLabel = (id: string) => allSteps.value.find((s) => s.id === id)?.num ?? '?';
@@ -230,6 +230,17 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
         <button class="btn solid" :disabled="!ui.canMoveBranch(1)" @click="ui.moveBranch(1)">{{ T('branch_move_r') }} →</button>
       </div>
     </template>
+    <h3>{{ T('h_seq') }}</h3>
+    <p v-if="selItem" class="hint">{{ T('seq_pos', { i: ui.seqIdx + 1, n: ui.seqCount }) }}</p>
+    <p v-else class="hint">{{ T('seq_hint') }}</p>
+    <div class="row">
+      <button class="btn solid" @click="ui.addSeq()"><Icon n="plus" />{{ T('seq_add') }}</button>
+      <button v-if="selItem && ui.seqIdx > 0" class="btn solid danger" @click="ui.delSeq()"><Icon n="trash" />{{ T('seq_del') }}</button>
+    </div>
+    <div v-if="selItem && ui.seqCount > 1" class="row">
+      <button class="btn solid" :disabled="ui.seqIdx < 1" @click="ui.moveSeq(-1)">← {{ T('seq_move_l') }}</button>
+      <button class="btn solid" :disabled="ui.seqIdx >= ui.seqCount - 1" @click="ui.moveSeq(1)">{{ T('seq_move_r') }} →</button>
+    </div>
     <div v-if="selItem" class="row"><button class="btn solid danger" @click="ui.removeSel()"><Icon n="trash" />{{ T('del_item') }}</button></div>
   </div>
 </template>

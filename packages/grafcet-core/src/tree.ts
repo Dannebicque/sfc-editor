@@ -48,3 +48,20 @@ export function locate(
   }
   return null;
 }
+
+/** Toutes les séquences d'un GRAFCET : la principale, puis les séquences supplémentaires. */
+export const sequencesOf = (g: { items: Item[]; more?: Item[][] }): Item[][] => [g.items, ...(g.more ?? [])];
+
+export function walkGrafcet(g: { items: Item[]; more?: Item[][] }, fn: Parameters<typeof walkAll>[1]): void {
+  for (const s of sequencesOf(g)) walkAll(s, fn);
+}
+
+export function findInGrafcet(g: { items: Item[]; more?: Item[][] }, id: string): Item | null {
+  for (const s of sequencesOf(g)) { const r = findItem(s, id); if (r) return r; }
+  return null;
+}
+
+export function locateIn(g: { items: Item[]; more?: Item[][] }, id: string): Location | null {
+  for (const s of sequencesOf(g)) { const r = locate(s, id); if (r) return r; }
+  return null;
+}

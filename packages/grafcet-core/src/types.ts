@@ -72,7 +72,10 @@ export interface Grafcet {
   comment?: string;
   nextStep: number;
   nextTrans: number;
+  /** Séquence principale. */
   items: Item[];
+  /** Séquences supplémentaires (indépendantes de la principale, reliées par renvois et synchronisations). */
+  more?: Item[][];
 }
 
 export interface Project {

@@ -27,6 +27,7 @@ export const ItemSchema: z.ZodType<Item> = z.lazy(() =>
 export const GrafcetSchema = z.object({
   id: z.string().min(1), name: z.string(), comment: z.string().optional(), nextStep: z.number().int().min(0), nextTrans: z.number().int().min(0),
   items: z.array(ItemSchema),
+  more: z.array(z.array(ItemSchema)).optional(),
 });
 export const ProjectSchema: z.ZodType<Project> = z.object({
   name: z.string(), counter: z.number().int().min(0), gcount: z.number().int().min(0), grafcets: z.array(GrafcetSchema),

@@ -1,4 +1,11 @@
-import { isBlock, type Item, type ItemKind, type SeqContext } from './types';
+import { sequencesOf } from './tree';
+import { isBlock, type Grafcet, type Item, type ItemKind, type SeqContext } from './types';
+
+/** Valide toutes les séquences d'un GRAFCET (la principale et les supplémentaires) ; renvoie la première erreur. */
+export function checkGrafcet(g: Pick<Grafcet, 'items' | 'more'>): string | null {
+  for (const s of sequencesOf(g)) { const e = checkSeq(s, 'root'); if (e) return e; }
+  return null;
+}
 
 /** Branche ET qui ne converge pas : elle finit par un renvoi ou par une transition puits. */
 export const endsApart = (b: Item[]): boolean => { const k = b[b.length - 1]?.kind; return k === 'jump' || k === 'trans'; };

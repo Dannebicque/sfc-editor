@@ -1,4 +1,4 @@
-import { walkAll } from './tree';
+import { sequencesOf, walkAll, walkGrafcet } from './tree';
 import type { Grafcet, Item } from './types';
 
 export interface FlatNode { id: string; kind: 'step' | 'trans'; num: string | number }
@@ -29,12 +29,12 @@ export function flatten(g: Grafcet): FlatGraph {
     }
     return tails;
   }
-  walk(g.items, []);
+  for (const s of sequencesOf(g)) walk(s, []);
   return { nodes: [...nodes.values()], links };
 }
 
 export function stepsOf(g: Grafcet) {
   const out: Extract<Item, { kind: 'step' }>[] = [];
-  walkAll(g.items, (it) => { if (it.kind === 'step') out.push(it); });
+  walkGrafcet(g, (it) => { if (it.kind === 'step') out.push(it); });
   return out;
 }

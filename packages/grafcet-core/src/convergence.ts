@@ -1,13 +1,13 @@
-import { checkSeq } from './grammar';
+import { checkGrafcet } from './grammar';
 import { nextId } from './insertion';
-import { locate, walkAll } from './tree';
+import { locateIn, sequencesOf, walkGrafcet } from './tree';
 import { isBlock } from './types';
 import type { Grafcet, Item, Project } from './types';
 
 /** Renvois qui arrivent sur un élément (convergence OU « libre »). */
 export function arrivalsTo(g: Grafcet, targetId: string): Extract<Item, { kind: 'jump' }>[] {
   const out: Extract<Item, { kind: 'jump' }>[] = [];
-  walkAll(g.items, (it) => { if (it.kind === 'jump' && it.target === targetId) out.push(it); });
+  walkGrafcet(g, (it) => { if (it.kind === 'jump' && it.target === targetId) out.push(it); });
   return out;
 }
 
@@ -16,7 +16,7 @@ export function arrivalsTo(g: Grafcet, targetId: string): Extract<Item, { kind: 
  * une étape pour une transition cible. Les fins qui rendraient la structure invalide sont écartées.
  */
 export function arrivalSources(g: Grafcet, targetId: string): string[] {
-  const target = locate(g.items, targetId)?.item;
+  const target = locateIn(g, targetId)?.item;
   if (!target || (target.kind !== 'step' && target.kind !== 'trans')) return [];
   const want = target.kind === 'step' ? 'trans' : 'step';
   const out: string[] = [];
@@ -25,20 +25,20 @@ export function arrivalSources(g: Grafcet, targetId: string): string[] {
     if (last && last.kind === want) out.push(last.id);
     for (const it of seq) if (isBlock(it)) it.branches.forEach(visit);
   };
-  visit(g.items);
+  for (const s of sequencesOf(g)) visit(s);
   return out.filter((id) => {
     const copy: Grafcet = JSON.parse(JSON.stringify(g));
-    const loc = locate(copy.items, id);
+    const loc = locateIn(copy, id);
     if (!loc) return false;
     loc.seq.splice(loc.idx + 1, 0, { id: '?', kind: 'jump', target: targetId });
-    return !checkSeq(copy.items, 'root');
+    return !checkGrafcet(copy);
   });
 }
 
 /** Ajoute un renvoi vers `targetId` à la suite de `sourceId` ; renvoie l'id du renvoi créé. */
 export function addArrival(P: Project, g: Grafcet, targetId: string, sourceId: string): string | null {
   if (!arrivalSources(g, targetId).includes(sourceId)) return null;
-  const loc = locate(g.items, sourceId);
+  const loc = locateIn(g, sourceId);
   if (!loc) return null;
   const j: Item = { id: nextId(P), kind: 'jump', target: targetId };
   loc.seq.splice(loc.idx + 1, 0, j);
