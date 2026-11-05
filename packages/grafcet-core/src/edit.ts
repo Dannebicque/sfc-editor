@@ -160,8 +160,9 @@ export function addConvergence(P: Project, g: Grafcet, id: string, op: 'or' | 'a
     const { seq } = loc;
     let idx = loc.idx;
     if (loc.item.kind !== want) {
-      if (idx > 0) idx--;
-      else seq.items.unshift(mk(P, g, want));
+      // L'élément choisi termine une branche : la barre se place juste après lui (l'élément suivant ouvre la base).
+      if (idx + 1 >= seq.items.length) seq.items.push(mk(P, g, want));
+      idx++;
     }
     ix = indexOf(g);
     const child = (): Seq => mkSeq(P, g, [mk(P, g, branchKind(op))]);
