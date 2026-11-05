@@ -61,3 +61,19 @@ describe('arrivée des renvois', () => {
     expect(s1.ay).toBe(s1.y);
   });
 });
+
+describe('transition source et puits', () => {
+  it('place une transition en tête et en queue avec des coordonnées finies', () => {
+    const g = {
+      id: 'g', name: 'g', nextStep: 2, nextTrans: 3,
+      items: [
+        { id: 'a', kind: 'trans', num: 1, recept: 'a' },
+        { id: 'b', kind: 'step', num: '1', name: '', initial: false, actions: [] },
+        { id: 'c', kind: 'trans', num: 2, recept: 'b' },
+      ],
+    } as unknown as Grafcet;
+    const L = layoutGrafcet(g, tw);
+    for (const l of L.lines) for (const v of Object.values(l)) expect(Number.isFinite(v)).toBe(true);
+    expect(L.views.filter((v) => v.kind === 'trans')).toHaveLength(2);
+  });
+});

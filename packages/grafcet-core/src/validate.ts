@@ -42,7 +42,8 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
   });
   const entries = steps.filter((s) => s.role === 'entry'), exits = steps.filter((s) => s.role === 'exit');
   const isExpansion = !!opts.project && opts.project.grafcets.some((x) => x.id !== g.id && macrosOf(x).some((m) => m.expansion === g.id));
-  if (!steps.some((s) => s.initial) && !entries.length) issues.push({ level: 'error', key: 'v_noinit', id: null });
+  const hasSource = transitions.some((t) => g.items[0] === t);
+  if (!steps.some((s) => s.initial) && !entries.length && !hasSource) issues.push({ level: 'error', key: 'v_noinit', id: null });
   if (isExpansion || entries.length || exits.length) {
     if (entries.length !== 1) issues.push({ level: 'error', key: 'v_expansion_entry', params: { n: entries.length }, id: entries[1]?.id ?? null });
     if (exits.length !== 1) issues.push({ level: 'error', key: 'v_expansion_exit', params: { n: exits.length }, id: exits[1]?.id ?? null });
@@ -85,11 +86,13 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
   const out = new Map<string, number>();
   for (const l of fg.links) out.set(l.from, (out.get(l.from) || 0) + 1);
   const exitIds = new Set(exits.map((x) => x.id));
-  for (const n of fg.nodes) if (!out.has(n.id) && !exitIds.has(n.id)) issues.push({ level: 'warning', key: 'v_dead_end', params: { x: nodeName(n) }, id: n.id });
+  // Une transition sans étape aval est une transition puits : légitime.
+  for (const n of fg.nodes) if (n.kind === 'step' && !out.has(n.id) && !exitIds.has(n.id)) issues.push({ level: 'warning', key: 'v_dead_end', params: { x: nodeName(n) }, id: n.id });
   const adj = new Map<string, string[]>();
   for (const l of fg.links) { if (!adj.has(l.from)) adj.set(l.from, []); adj.get(l.from)!.push(l.to); }
   const reach = new Set<string>();
   const queue = steps.filter((s) => s.initial || s.role === 'entry').map((s) => s.id);
+  if (g.items[0]?.kind === 'trans') queue.push(g.items[0].id);
   while (queue.length) {
     const x = queue.pop()!;
     if (reach.has(x)) continue;

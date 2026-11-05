@@ -40,3 +40,11 @@ describe('simulation avec macro-étape', () => {
     expect(macroActive(sim, m, macroId)).toBe(false);
   });
 });
+
+describe('transition source', () => {
+  it('est validable sans étape amont', () => {
+    const flat = { nodes: [{ id: 't', kind: 'trans' as const, num: 1 }, { id: 's', kind: 'step' as const, num: '1' }], links: [{ from: 't', to: 's' }] };
+    expect([...enabledTransitions(flat, new Set())]).toEqual(['t']);
+    expect([...fire(flat, new Set(), 't')]).toEqual(['s']);
+  });
+});

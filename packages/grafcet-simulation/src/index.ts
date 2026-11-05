@@ -24,7 +24,8 @@ export function enabledTransitions(flat: FlatGraph, marking: Marking): Set<strin
   for (const n of flat.nodes) {
     if (n.kind !== 'trans') continue;
     const p = preds.get(n.id) ?? [];
-    if (p.length && p.every((x) => marking.has(x))) en.add(n.id);
+    // Une transition source (sans étape amont) est toujours validable ; sa réceptivité seule décide.
+    if (p.every((x) => marking.has(x))) en.add(n.id);
   }
   return en;
 }

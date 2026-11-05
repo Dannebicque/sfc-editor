@@ -7,7 +7,9 @@ const TYPE: Record<ItemKind, 'S' | 'T'> = { step: 'S', trans: 'T', or: 'S', and:
 export function checkSeq(items: Item[], ctx: SeqContext): string | null {
   if (!items.length) return 'chk_empty';
   const want = ctx === 'or' ? 'trans' : 'step';
-  if (items[0]!.kind !== want) return ctx === 'or' ? 'chk_start_or' : 'chk_start_and';
+  // Au premier niveau, une séquence peut commencer par une transition source (sans étape amont, CEI 60848).
+  const startOk = items[0]!.kind === want || (ctx === 'root' && items[0]!.kind === 'trans');
+  if (!startOk) return ctx === 'or' ? 'chk_start_or' : 'chk_start_and';
   let prev: Item | null = null;
   for (let i = 0; i < items.length; i++) {
     const it = items[i]!;

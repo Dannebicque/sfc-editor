@@ -356,5 +356,7 @@
   "act_event_ph": "event, e.g. ↑a",
   "v_event_no_edge": "Step {n}: the event of an on-event action should contain an edge (↑ or ↓).",
   "v_assign_continuous": "Step {n}: an assignment (:=) is a stored action; use “on activation”, “on deactivation” or “on event”.",
-  "rep_p_event_action": "“{g}”: on-event actions are exported as an ST assignment (the edge is lost)."
+  "rep_p_event_action": "“{g}”: on-event actions are exported as an ST assignment (the edge is lost).",
+  "rep_p_source": "“{g}”: the source transition (no upstream step) is exported with no input connection; some tools reject it.",
+  "rep_p_sink": "“{g}”: the sink transition (no downstream step) is exported with nothing after it; some tools reject it."
 }

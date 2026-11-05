@@ -356,5 +356,7 @@
   "act_event_ph": "événement, ex. ↑a",
   "v_event_no_edge": "Étape {n} : l’événement d’une action sur événement devrait contenir un front (↑ ou ↓).",
   "v_assign_continuous": "Étape {n} : une affectation (:=) est une action mémorisée ; utilisez « sur activation », « sur désactivation » ou « sur événement ».",
-  "rep_p_event_action": "« {g} » : les actions sur événement sont exportées comme affectation ST (le front est perdu)."
+  "rep_p_event_action": "« {g} » : les actions sur événement sont exportées comme affectation ST (le front est perdu).",
+  "rep_p_source": "« {g} » : la transition source (sans étape amont) est exportée sans connexion d’entrée ; certains outils la refusent.",
+  "rep_p_sink": "« {g} » : la transition puits (sans étape aval) est exportée sans suite ; certains outils la refusent."
 }

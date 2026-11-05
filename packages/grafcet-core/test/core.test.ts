@@ -281,3 +281,31 @@ suite('actions sur événement', () => {
     expect(validateGrafcet(bad.g).map((i) => i.key)).toContain('v_assign_continuous');
   });
 });
+
+suite('transitions source et puits', () => {
+  it('accepte une séquence commençant ou finissant par une transition', () => {
+    const t = (id: string, n: number) => ({ id, kind: 'trans' as const, num: n, recept: 'a' });
+    const s = (id: string, n: string, initial = false) => ({ id, kind: 'step' as const, num: n, name: '', initial, actions: [] });
+    expect(checkSeq([t('t1', 1), s('s1', '1'), t('t2', 2)], 'root')).toBeNull();
+    expect(checkSeq([t('t1', 1), s('s1', '1')], 'or')).not.toBeNull();
+  });
+  it('ne signale ni absence d’étape initiale ni bout de ligne', () => {
+    const P = demoProject();
+    const g = newGrafcet(P, 'src');
+    g.items = [
+      { id: 'a', kind: 'trans', num: 1, recept: 'a' },
+      { id: 'b', kind: 'step', num: '1', name: '', initial: false, actions: [] },
+      { id: 'c', kind: 'trans', num: 2, recept: 'b' },
+    ];
+    const keys = validateGrafcet(g).map((i) => i.key);
+    expect(keys).not.toContain('v_noinit');
+    expect(keys).not.toContain('v_dead_end');
+    expect(keys).not.toContain('v_unreachable');
+  });
+  it('propose l’insertion d’une transition avant la première étape', () => {
+    const P = demoProject();
+    const g = P.grafcets[0]!;
+    const first = g.items[0]!;
+    expect(allowedInsertions(g, first.id, 'before').map((i) => i.kind)).toContain('trans');
+  });
+});

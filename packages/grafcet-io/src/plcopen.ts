@@ -88,6 +88,8 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
   const outputs = new Set<string>();
   const idx = new Map<string, Item>();
   walkAll(g.items, (it) => idx.set(it.id, it));
+  if (g.items[0]?.kind === 'trans') report.push(warn('rep_p_source', { g: g.name }));
+  if (g.items.at(-1)?.kind === 'trans') report.push(warn('rep_p_sink', { g: g.name }));
   const pos = (x: number, y: number) => `<position x="${Math.round(x)}" y="${Math.round(y)}"/>`;
   const cpin = (preds: Pred[]) => (preds.length ? `<connectionPointIn>${preds.map((p) => `<connection refLocalId="${p.id}"${p.fp != null ? ` formalParameter="${p.fp}"` : ''}/>`).join('')}</connectionPointIn>` : '');
   const st = (text: string) => `<ST><xhtml:p><![CDATA[${text.replace(/]]>/g, ']] >')}]]></xhtml:p></ST>`;
