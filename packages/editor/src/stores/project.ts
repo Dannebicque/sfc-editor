@@ -181,7 +181,7 @@ export const useProjectStore = defineStore('project', () => {
   }
 
   return {
-    project, activeId, activeG, profile, setProfile, past, future, issues, issueErr, flat, stats, sums, varList,
+    project, activeId, activeG, knownSteps, profile, setProfile, past, future, issues, issueErr, flat, stats, sums, varList,
     persist, mutate, undo, redo, replaceProject, renameGrafcet, renameProject, addGrafcet, dupGrafcet, delGrafcet, syncDemoLanguage,
   };
 });

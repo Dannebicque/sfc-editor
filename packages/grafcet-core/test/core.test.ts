@@ -2,7 +2,7 @@ import { describe as suite, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
   addBranch, allowedInsertions, checkSeq, describeId, flatten, insertAfter, newGrafcet, parseRecept,
-  provablyExclusive, removeBranch, removeItem, renumber, stats, validateGrafcet, walkAll, duplicateGrafcet, INSERT_KINDS,
+  provablyExclusive, referencesTo, removeBranch, removeItem, renumber, stats, validateGrafcet, walkAll, duplicateGrafcet, INSERT_KINDS,
   type Grafcet, type Project,
 } from '../src';
 import { demoProject } from './helpers';
@@ -211,5 +211,19 @@ suite('profils de vérification', () => {
     (g.items[0] as { actions: { kind: string }[] }).actions[0]!.kind = 'conditional';
     expect(validateGrafcet(g, { profile: 'sfc' }).map((i) => i.key)).not.toContain('v_plc_cond_action');
     expect(validateGrafcet(g, { profile: 'plcopen' }).map((i) => i.key)).toContain('v_plc_cond_action');
+  });
+});
+
+suite('références à une étape', () => {
+  it('trouve les transitions et actions conditionnelles qui citent une étape', () => {
+    const P = demoProject();
+    const g = P.grafcets[0]!;
+    const known = new Set<string>();
+    for (const gg of P.grafcets) walkAll(gg.items, (i) => { if (i.kind === 'step') known.add(i.num); });
+    const trans = g.items.find((i) => i.kind === 'trans')!;
+    if (trans.kind !== 'trans') throw new Error();
+    trans.recept = 'a.X3+/b';
+    expect(referencesTo(g, '3', known)).toContain(trans.id);
+    expect(referencesTo(g, '4', known)).not.toContain(trans.id);
   });
 });

@@ -182,3 +182,30 @@ describe('profil de vérification', () => {
     expect(useProjectStore().profile).toBe('sfc');
   });
 });
+
+describe('étape citée dans des réceptivités', () => {
+  it('surligne les transitions qui citent l’étape sélectionnée, ici et dans les autres GRAFCET', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const xml = readFileSync(resolve(process.cwd(), '../../fixtures/sfcedit/convergence-et-renvoi.xml'), 'utf8');
+    const ui = useUiStore();
+    const project = useProjectStore();
+    ui.importText = xml;
+    ui.applyImport('x.xml');
+    const [g1, g2] = project.project.grafcets;
+    // Grafcet cite X15 (étape de Grafcet1) ; Grafcet1 cite X2, X9, X4, X11 (étapes de Grafcet)
+    project.activeId = g2!.id;
+    ui.sel = g2!.items[0]!.id; // étape 15
+    await new Promise((r) => setTimeout(r, 0));
+    expect(ui.linkedNum).toBe('15');
+    expect(ui.citedIn.map((c) => c.gid)).toEqual([g1!.id]);
+    expect(ui.citedIn[0]!.count).toBe(2); // « X15 » et « /X13.X15 »
+    expect(ui.citingActive.size).toBe(0);
+    // sélection de l'étape 2 dans Grafcet : citée par la transition de Grafcet1
+    project.activeId = g1!.id;
+    const s2 = g1!.items.flatMap((i) => (i.kind === 'and' ? i.branches.flat() : [i])).find((i) => i.kind === 'step' && i.num === '2')!;
+    ui.sel = s2.id;
+    await new Promise((r) => setTimeout(r, 0));
+    expect(ui.citedIn.map((c) => c.gid)).toEqual([g2!.id]);
+  });
+});
