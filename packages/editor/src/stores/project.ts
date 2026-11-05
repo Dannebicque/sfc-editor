@@ -36,7 +36,13 @@ export const useProjectStore = defineStore('project', () => {
   const coalesce = { key: null as string | null, t: 0 };
 
   const activeG = computed<Grafcet>(() => project.value.grafcets.find((g) => g.id === activeId.value) ?? project.value.grafcets[0]!);
-  const issues = computed(() => validateGrafcet(activeG.value));
+  /** Numéros d'étapes de tout le projet : une réceptivité peut référencer une étape d'un autre GRAFCET (Xn). */
+  const knownSteps = computed(() => {
+    const out = new Set<number>();
+    for (const g of project.value.grafcets) walkAll(g.items, (it) => { if (it.kind === 'step') out.add(it.num); });
+    return out;
+  });
+  const issues = computed(() => validateGrafcet(activeG.value, { knownSteps: knownSteps.value }));
   const issueErr = computed(() => issues.value.filter((i) => i.level === 'error').length);
   const flat = computed(() => flatten(activeG.value));
   const stats = computed(() => statsOf(activeG.value));
@@ -44,7 +50,7 @@ export const useProjectStore = defineStore('project', () => {
     const o: Record<string, { steps: number; trans: number; err: number; warn: number }> = {};
     for (const g of project.value.grafcets) {
       const s = statsOf(g);
-      const iss = validateGrafcet(g);
+      const iss = validateGrafcet(g, { knownSteps: knownSteps.value });
       o[g.id] = { steps: s.steps, trans: s.trans, err: iss.filter((i) => i.level === 'error').length, warn: iss.filter((i) => i.level === 'warning').length };
     }
     return o;

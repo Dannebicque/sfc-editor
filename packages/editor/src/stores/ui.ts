@@ -5,7 +5,7 @@ import {
   locate, moveBranch as moveBranchCmd, parseRecept, removeBranch, removeItem, renumber, unwrapBlock, walkAll,
   wrapInBlock, type BlockKind, type InsertWhere, type ItemKind,
 } from '@grafcet/core';
-import { exportNative, FORMAT_ID, importJson, importNative, ImportError } from '@grafcet/io';
+import { exportNative, exportSfcEditXml, FORMAT_ID, importJson, importNative, importSfcEditXml, looksLikeSfcEditXml, ImportError, type ReportEntry } from '@grafcet/io';
 import { enabledTransitions, fire, initialMarking } from '@grafcet/simulation';
 import { describeText, renderMessage } from '../format';
 import { isLegalDocId, type LegalDocId } from '../legal';
@@ -25,7 +25,7 @@ export const useUiStore = defineStore('ui', () => {
   const sel = ref<string | null>(null);
   const tab = ref<TabId>('props');
   const theme = ref<Theme>('auto');
-  const dataView = ref<'json' | 'graph' | 'native'>('json');
+  const dataView = ref<'json' | 'graph' | 'native' | 'sfcedit'>('json');
   /** Côté d'insertion choisi pour les éléments simples (les blocs imposent le leur : barre = avant, convergence = après). */
   const insertWhere = ref<InsertWhere>('after');
   const sim = reactive({ on: false, active: [] as string[] });
@@ -268,11 +268,16 @@ export const useUiStore = defineStore('ui', () => {
   /* ----- données : vue, copie, import ----- */
   const dataText = computed(() => {
     if (dataView.value === 'native') return exportNative(projectRef.value).output;
+    if (dataView.value === 'sfcedit') return exportSfcEditXml(projectRef.value).output;
     return JSON.stringify(dataView.value === 'json' ? activeG.value : flat.value, null, 1);
   });
   const copyMsg = reactive({ text: '', cls: '' });
   const importMsg = reactive({ text: '', cls: '' });
   const importText = ref('');
+  /** Rapport de conversion du dernier import / de l'export en cours (lignes déjà localisées). */
+  const importReport = ref<{ level: ReportEntry['level']; text: string }[]>([]);
+  const toLines = (es: ReportEntry[]) => es.map((e) => ({ level: e.level, text: renderMessage(e.message) }));
+  const exportReport = computed(() => (dataView.value === 'sfcedit' ? toLines(exportSfcEditXml(projectRef.value).report.entries) : []));
   function copyData(): void {
     const done = (ok: boolean) => { copyMsg.text = ok ? T('copied') : T('copy_fail'); copyMsg.cls = ok ? 'ok' : 'err'; };
     try { navigator.clipboard.writeText(dataText.value).then(() => done(true), () => done(false)); } catch { done(false); }
@@ -286,9 +291,28 @@ export const useUiStore = defineStore('ui', () => {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
-  function applyImport(): void {
+  /** Télécharge le projet au format XML de SFCEdit. */
+  function downloadSfcEdit(): void {
+    const blob = new Blob([exportSfcEditXml(projectRef.value).output], { type: 'application/xml' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (projectRef.value.name || 'projet').replace(/[^\w\-.]+/g, '_') + '.xml';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  function applyImport(fileName?: string): void {
+    importReport.value = [];
     try {
       let next, activeId: string;
+      if (looksLikeSfcEditXml(importText.value)) {
+        const base = (fileName ?? '').replace(/\.[^.]+$/, '') || T('p_imported');
+        const r = importSfcEditXml(importText.value, { projectName: base });
+        importReport.value = toLines(r.report.entries);
+        project.replaceProject(r.model);
+        openG(r.model.grafcets[0]!.id);
+        importMsg.text = T('imp_ok'); importMsg.cls = 'ok'; importText.value = '';
+        return;
+      }
       const isNative = (() => { try { return JSON.parse(importText.value)?.format === FORMAT_ID; } catch { return false; } })();
       if (isNative) {
         const p = importNative(importText.value).model;
@@ -310,7 +334,7 @@ export const useUiStore = defineStore('ui', () => {
     const f = input.files?.[0];
     if (!f) return;
     const r = new FileReader();
-    r.onload = () => { importText.value = String(r.result); applyImport(); };
+    r.onload = () => { importText.value = String(r.result); applyImport(f.name); };
     r.readAsText(f);
     input.value = '';
   }
@@ -375,7 +399,7 @@ export const useUiStore = defineStore('ui', () => {
     openG, addGrafcet, dupGrafcet, delGrafcet,
     pick, pickFromText, focusHost, onHostFocus, goIssue, onKey,
     simActive, simEnabled, simReset, simFire, toggleSim,
-    dataText, copyMsg, importMsg, importText, copyData, downloadNative, applyImport, onFile,
+    dataText, importReport, exportReport, downloadSfcEdit, copyMsg, importMsg, importText, copyData, downloadNative, applyImport, onFile,
     legalDoc, openLegal, closeLegal, syncLegalFromHash,
     cycleTheme, setLang, init,
   };

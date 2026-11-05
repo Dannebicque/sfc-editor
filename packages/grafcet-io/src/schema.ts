@@ -22,7 +22,7 @@ export const ItemSchema: z.ZodType<Item> = z.lazy(() =>
 ) as z.ZodType<Item>;
 
 export const GrafcetSchema = z.object({
-  id: z.string().min(1), name: z.string(), nextStep: z.number().int().min(0), nextTrans: z.number().int().min(0),
+  id: z.string().min(1), name: z.string(), comment: z.string().optional(), nextStep: z.number().int().min(0), nextTrans: z.number().int().min(0),
   items: z.array(ItemSchema),
 });
 export const ProjectSchema: z.ZodType<Project> = z.object({

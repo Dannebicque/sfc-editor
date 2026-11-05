@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+	<grafcet type="normal" owner="" name="Grafcet" comment="">
+		<sequence id="1">
+			<step type="normal" name="X1">
+				<action type="normal">
+					<text>Conveyor_1</text>
+				</action>
+			</step>
+			<transition>
+				<condition>At_entry_1</condition>
+			</transition>
+			<step type="normal" name="X13" />
+			<transition>
+				<condition>X15</condition>
+			</transition>
+			<step type="normal" name="X2">
+				<action type="normal">
+					<text>Conveyor_1</text>
+				</action>
+				<action type="normal">
+					<text>Load_1</text>
+				</action>
+			</step>
+			<transition>
+				<condition><cpl>At_entry_1</cpl></condition>
+			</transition>
+			<step type="normal" name="X3">
+				<action type="normal">
+					<text>Load_1</text>
+				</action>
+				<action type="normal">
+					<text>Exit_conveyor</text>
+				</action>
+			</step>
+			<transition>
+				<condition>At_exit</condition>
+			</transition>
+			<step type="normal" name="X4">
+				<action type="normal">
+					<text>Load_1</text>
+				</action>
+				<action type="normal">
+					<text>Exit_conveyor</text>
+				</action>
+			</step>
+			<transition>
+				<condition><cpl>At_exit</cpl></condition>
+			</transition>
+			<step type="normal" name="X5" />
+		</sequence>
+		<sequence id="2">
+			<step type="normal" name="X6">
+				<action type="normal">
+					<text>Conveyor_2</text>
+				</action>
+			</step>
+			<transition>
+				<condition>At_entry_2</condition>
+			</transition>
+			<step type="normal" name="X7">
+				<action type="normal">
+					<text>Conveyor_2</text>
+				</action>
+				<action type="normal">
+					<text>Load_2</text>
+				</action>
+			</step>
+			<transition>
+				<condition><cpl>At_entry_2</cpl></condition>
+			</transition>
+			<step type="normal" name="X8">
+				<action type="normal">
+					<text>Load_2</text>
+				</action>
+			</step>
+			<transition>
+				<condition>At_transfer_2</condition>
+			</transition>
+			<step type="normal" name="X14" />
+			<transition>
+				<condition><cpl>X13</cpl>.X15</condition>
+			</transition>
+			<step type="normal" name="X9">
+				<action type="normal">
+					<text>Transfer_left_2</text>
+				</action>
+				<action type="normal">
+					<text>Transfer_left_1</text>
+				</action>
+			</step>
+			<transition>
+				<condition>At_transfer_1</condition>
+			</transition>
+			<step type="normal" name="X10">
+				<action type="normal">
+					<text>Load_1</text>
+				</action>
+				<action type="normal">
+					<text>Exit_conveyor</text>
+				</action>
+			</step>
+			<transition>
+				<condition>At_exit</condition>
+			</transition>
+			<step type="normal" name="X11">
+				<action type="normal">
+					<text>Load_1</text>
+				</action>
+				<action type="normal">
+					<text>Exit_conveyor</text>
+				</action>
+			</step>
+			<transition>
+				<condition><cpl>At_exit</cpl></condition>
+			</transition>
+			<step type="normal" name="X12" />
+		</sequence>
+		<sequence id="3">
+			<transition>
+				<condition>1</condition>
+			</transition>
+		</sequence>
+		<sequence id="4">
+			<step type="initial" name="X0" />
+			<transition>
+				<condition>Auto</condition>
+			</transition>
+		</sequence>
+		<hlink type="div and" seqid="4">
+			<node seqid="1" />
+			<node seqid="2" />
+		</hlink>
+		<hlink type="conv and" seqid="3">
+			<node seqid="1" />
+			<node seqid="2" />
+		</hlink>
+		<jump seqid_from="3" seqid_to="4" />
+	</grafcet>
+	<grafcet type="normal" owner="" name="Grafcet1" comment="">
+		<sequence id="1">
+			<step type="initial" name="X15" />
+			<transition>
+				<condition>X2+X9</condition>
+			</transition>
+			<step type="normal" name="X16" />
+			<transition>
+				<condition>(X4+X11).<cpl>At_exit</cpl></condition>
+			</transition>
+		</sequence>
+		<jump seqid_from="1" seqid_to="1" />
+	</grafcet>
+</project>

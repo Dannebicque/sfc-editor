@@ -243,3 +243,9 @@ dialog.legal::backdrop{background:rgba(10,30,26,.5)}
 .legal-table td:first-child{font-family:var(--font-mono)}
 mark.todo{background:var(--warn-soft);color:var(--warn);padding:0 4px;border-radius:4px;font-weight:600}
 @media (max-width:700px){.legal-body{grid-template-columns:1fr;overflow:auto}.legal-body nav{border-right:0;border-bottom:1px solid var(--line)}.legal-body nav ul{grid-auto-flow:column;overflow:auto}.legal-body nav button{white-space:nowrap}}
+
+.report { margin: 8px 0 0; padding: 0; list-style: none; font-size: 12.5px; display: grid; gap: 4px; }
+.report li { padding: 6px 8px; border-left: 3px solid var(--line, #888); background: var(--panel-2, transparent); }
+.report li.warning { border-left-color: #b7791f; }
+.report li.error { border-left-color: #c53030; }
+.report li strong { margin-right: 6px; }

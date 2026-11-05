@@ -8,6 +8,6 @@ export {
 } from './commands';
 export { parseRecept, type ReceptResult } from './recept';
 export { flatten, stepsOf, type FlatGraph, type FlatNode, type FlatLink } from './flatten';
-export { validateGrafcet, type Issue, type IssueLevel } from './validate';
+export { validateGrafcet, type Issue, type IssueLevel, type ValidateOptions } from './validate';
 export { describe, describeId, type Description } from './describe';
 export { buildDemoProject, type DemoTexts } from './demo';
