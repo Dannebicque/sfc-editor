@@ -63,7 +63,7 @@ describe('lecture de l’ancien format 1.x (arbre de blocs)', () => {
   it('est converti en séquences et liens', () => {
     const P = importNative(JSON.stringify(tree)).model;
     const g = P.grafcets[0]!;
-    expect(g.links.map((l) => `${l.kind}-${l.op}`)).toEqual(['div-or']);
+    expect(g.links.map((l) => `${l.kind}-${l.op}`)).toEqual(['div-or', 'conv-or']);
     expect(g.jumps).toHaveLength(1);
     expect(g.seqs.length).toBe(4);
   });
