@@ -1,8 +1,8 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import {
-  checkSeq, DEFAULT_PROFILE, isProfile, duplicateGrafcet, findItem, flatten, newGrafcet, parseRecept, stats as statsOf, validateGrafcet, walkAll,
-  type Grafcet, type Project, type ValidationProfile,
+  checkGraph, DEFAULT_PROFILE, describeId, isProfile, duplicateGrafcet, flatten, migrateProject, newGrafcet, nodesOf, parseRecept, stats as statsOf, validateGrafcet,
+  type Grafcet, type Project, type TreeProject, type ValidationProfile,
 } from '@grafcet/core';
 import { LS_PREFIX, T, lang } from '../i18n';
 import { demoProject, syncDemo } from '../demo';
@@ -25,8 +25,11 @@ interface HistoryEntry { p: string; sel: string | null; a: string }
 function loadSaved(): { project: Project; activeId: string } | null {
   try {
     const o = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-    if (o && o.project && Array.isArray(o.project.grafcets) && o.project.grafcets.length
-      && o.project.grafcets.every((g: Grafcet) => Array.isArray(g.items) && !checkSeq(g.items, 'root'))) return o;
+    if (o && o.project && Array.isArray(o.project.grafcets) && o.project.grafcets.length) {
+      // Un projet mémorisé avec l'ancien modèle (arbre de blocs) est converti en séquences + liens.
+      const project: Project = o.project.grafcets.some((g: { items?: unknown }) => Array.isArray(g.items)) ? migrateProject(o.project as TreeProject) : o.project;
+      if (project.grafcets.every((g: Grafcet) => Array.isArray(g.seqs) && !checkGraph(g))) return { project, activeId: o.activeId };
+    }
   } catch { /* stockage indisponible ou contenu invalide */ }
   return null;
 }
@@ -55,7 +58,7 @@ export const useProjectStore = defineStore('project', () => {
   /** Numéros d'étapes de tout le projet : une réceptivité peut référencer une étape d'un autre GRAFCET (Xn). */
   const knownSteps = computed(() => {
     const out = new Set<string>();
-    for (const g of project.value.grafcets) walkAll(g.items, (it) => { if (it.kind === 'step') out.add(it.num); });
+    for (const g of project.value.grafcets) for (const it of nodesOf(g)) if (it.kind === 'step') out.add(it.num);
     return out;
   });
   const issues = computed(() => validateGrafcet(activeG.value, { knownSteps: knownSteps.value, profile: profile.value, project: project.value }));
@@ -73,10 +76,10 @@ export const useProjectStore = defineStore('project', () => {
   });
   const varList = computed(() => {
     const set = new Set<string>();
-    walkAll(activeG.value.items, (it) => {
+    for (const it of nodesOf(activeG.value)) {
       if (it.kind === 'trans' && it.recept) parseRecept(it.recept).vars.forEach((v) => set.add(v));
       if (it.kind === 'step') it.actions.forEach((a) => { if (a.label) set.add(a.label); });
-    });
+    }
     return [...set].sort((a, b) => a.localeCompare(b));
   });
 
@@ -113,7 +116,7 @@ export const useProjectStore = defineStore('project', () => {
     const ui = useUiStore();
     project.value = JSON.parse(e.p);
     activeId.value = project.value.grafcets.some((g) => g.id === e.a) ? e.a : project.value.grafcets[0]!.id;
-    ui.sel = e.sel && findItem(activeG.value.items, e.sel.replace(':d', '')) ? e.sel : null;
+    ui.sel = e.sel && describeId(activeG.value, e.sel) ? e.sel : null;
     coalesce.key = null;
     persist();
   }

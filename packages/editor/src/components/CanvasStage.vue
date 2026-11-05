@@ -5,28 +5,27 @@ import { useUiStore } from '../stores/ui';
 import { useViewStore } from '../stores/view';
 import { computed } from 'vue';
 import Icon from './Icon.vue';
-import InsertBar from './InsertBar.vue';
+import Toolbar from './Toolbar.vue';
 
 const ui = useUiStore();
 const view = useViewStore();
 const { host } = storeToRefs(view);
 const { shapes, layout, gTransform, gridStyle } = storeToRefs(view);
-const { sel, sim, simActive, simEnabled, slotPos, activeRegion, sharedNum, citingActive } = storeToRefs(ui);
-const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump'] as const).map((k) => K.value[k]).join(', '));
+const { sel, sim, simActive, simEnabled, slotPos, sharedNum, citingActive, pending } = storeToRefs(ui);
+const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump', 'link'] as const).map((k) => K.value[k]).join(', '));
 </script>
 
 <template>
   <section class="stage" :aria-label="T('stage_aria')">
     <div
-      id="canvas" ref="host" class="host" tabindex="0" role="application"
+      id="canvas" ref="host" class="host" :class="{ pending: !!pending }" tabindex="0" role="application"
       :aria-label="T('canvas_aria', { k: keyList })" :style="gridStyle"
       @keydown="ui.onKey" @focus="ui.onHostFocus" @wheel.prevent="view.onWheel"
     >
       <svg class="cv" aria-hidden="true" @pointerdown="view.panStart" @pointermove="view.panMove" @pointerup="view.panEnd" @pointercancel="view.panEnd">
         <g :transform="gTransform">
-          <rect v-if="activeRegion" class="region" :x="activeRegion.x1 - 8" :y="activeRegion.y1" :width="activeRegion.x2 - activeRegion.x1 + 16" :height="activeRegion.y2 - activeRegion.y1" rx="8" />
           <line v-for="(l, i) in layout.lines" :key="'l' + i" class="lk" :x1="l.x1" :y1="l.y1" :x2="l.x2" :y2="l.y2" />
-          <template v-for="v in shapes" :key="v.id + (v.kind === 'bar' ? v.part : '')">
+          <template v-for="v in shapes" :key="v.id">
             <g v-if="v.kind === 'step'" class="el" :class="{ active: simActive.has(v.id), linked: sharedNum !== null && v.num === sharedNum, cites: citingActive.has(v.id) }" @pointerdown.stop="ui.pick(v.id)" @dblclick.stop="v.macro && ui.openExpansion(v.id)">
               <rect class="hit" :x="v.x - v.l" :y="v.ay" :width="v.l + v.r" :height="v.h + v.y - v.ay" />
               <g v-if="v.arrivals.length" class="arrival">
@@ -70,10 +69,16 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump'] as const)
               <text class="jtxt" :class="{ broken: v.broken }" :x="v.x" :y="v.y + 43" text-anchor="middle">{{ v.label }}</text>
               <rect v-if="sel === v.id" class="ring" :x="v.x - v.l" :y="v.y + 14" :width="v.l + v.r" height="34" rx="5" />
             </g>
-            <g v-else-if="v.kind === 'bar'" class="el" @pointerdown.stop="ui.pick(v.part === 'd' ? v.id + ':d' : v.id)">
+            <g v-else-if="v.kind === 'seq'" class="el" @pointerdown.stop="ui.pick(v.id)">
+              <rect class="hit" :x="v.x - v.l" :y="v.y" :width="v.l + v.r" :height="v.h" />
+              <rect class="x-box" :x="v.x - 15" :y="v.y + 5" width="30" height="30" rx="4" />
+              <text class="x-txt" :x="v.x" :y="v.y + 26" text-anchor="middle">X</text>
+              <rect v-if="sel === v.id" class="ring" :x="v.x - 20" :y="v.y" width="40" height="40" rx="6" />
+            </g>
+            <g v-else-if="v.kind === 'bar'" class="el" :class="{ open: v.open }" @pointerdown.stop="ui.pick(v.id)">
               <rect class="hit" :x="v.x1 - 4" :y="v.ys[0]! - 9" :width="v.x2 - v.x1 + 8" :height="v.ys[v.ys.length - 1]! - v.ys[0]! + 18" />
               <line v-for="(yy, i) in v.ys" :key="i" class="bar" :x1="v.x1" :x2="v.x2" :y1="yy" :y2="yy" />
-              <rect v-if="sel === (v.part === 'd' ? v.id + ':d' : v.id)" class="ring" :x="v.x1 - 5" :y="v.ys[0]! - 8" :width="v.x2 - v.x1 + 10" :height="v.ys[v.ys.length - 1]! - v.ys[0]! + 16" rx="5" />
+              <rect v-if="sel === v.id" class="ring" :x="v.x1 - 5" :y="v.ys[0]! - 8" :width="v.x2 - v.x1 + 10" :height="v.ys[v.ys.length - 1]! - v.ys[0]! + 16" rx="5" />
             </g>
           </template>
           <g v-if="slotPos" class="slot" :transform="'translate(' + slotPos.x + ',' + slotPos.y + ')'"><circle r="8.5" /><path d="M-3.6 0H3.6M0 -3.6V3.6" /></g>
@@ -81,13 +86,13 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump'] as const)
       </svg>
       <div id="kbd-hint" class="cues">
         <span><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> {{ T('cue_nav') }}</span>
-        <span><kbd>{{ K.step }}</kbd><kbd>{{ K.trans }}</kbd><kbd>{{ K.or }}</kbd><kbd>{{ K.and }}</kbd><kbd>{{ K.jump }}</kbd> {{ T('cue_ins') }}</span>
+        <span><kbd>{{ K.step }}</kbd><kbd>{{ K.trans }}</kbd><kbd>{{ K.or }}</kbd><kbd>{{ K.and }}</kbd><kbd>{{ K.jump }}</kbd><kbd>{{ K.link }}</kbd> {{ T('cue_ins') }}</span>
         <span><kbd>{{ T('kbd_shift') }}</kbd>+<kbd>…</kbd> {{ T('cue_shift') }}</span>
         <span><kbd>{{ T('kbd_del') }}</kbd> {{ T('cue_del') }}</span><span><kbd>{{ T('kbd_enter') }}</kbd> {{ T('cue_props') }}</span>
       </div>
     </div>
 
-    <InsertBar />
+    <Toolbar />
     <div v-if="sim.on" class="simbar">
       <p><b>{{ T('sim') }}</b>{{ T('colon') }}{{ T('sim_help') }}</p>
       <button class="btn solid" @click="ui.simReset()"><Icon n="reset" />{{ T('sim_reset') }}</button>

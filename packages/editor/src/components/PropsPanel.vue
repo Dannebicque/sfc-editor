@@ -8,7 +8,7 @@ import Icon from './Icon.vue';
 const project = useProjectStore();
 const ui = useUiStore();
 const { activeG, stats, varList } = storeToRefs(project);
-const { selItem, selLoc, recFb, tokens, jumpTargets } = storeToRefs(ui);
+const { selItem, selLink, selJump, selEmpty, selBranch, recFb, tokens, jumpTargets } = storeToRefs(ui);
 const val = (e: Event) => (e.target as HTMLInputElement).value;
 const checked = (e: Event) => (e.target as HTMLInputElement).checked;
 </script>
@@ -108,22 +108,29 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
       <button class="btn solid" @click="ui.addAction()"><Icon n="plus" />{{ T('act_add') }}</button>
     </template>
 
-    <template v-else-if="selItem && selItem.kind === 'jump'">
+    <template v-else-if="selJump">
       <h2>{{ T('jump_title') }}</h2>
       <div class="field">
         <label for="f-target">{{ T('f_target') }}</label>
-        <select id="f-target" data-main-field :value="selItem.target ?? ''" @change="ui.setField('target', val($event))">
+        <select id="f-target" data-main-field :value="selJump.to ?? ''" @change="ui.setJump(val($event))">
+          <option v-if="!selJump.to" value="">{{ T('d_jump_none') }}</option>
           <option v-for="t in jumpTargets" :key="t.id" :value="t.id">{{ t.label }}</option>
         </select>
       </div>
       <p class="hint">{{ T('jump_hint') }}</p>
     </template>
 
-    <template v-else-if="selItem && (selItem.kind === 'or' || selItem.kind === 'and')">
-      <h2>{{ T(selItem.kind === 'or' ? 'div_or' : 'div_and') }}</h2>
-      <p class="hint">{{ T(selItem.kind === 'or' ? 'or_hint' : 'and_hint') }}</p>
-      <dl class="kv"><dt>{{ T('branches_k') }}</dt><dd>{{ selItem.branches.length }}</dd></dl>
+    <template v-else-if="selLink">
+      <h2>{{ T((selLink.kind === 'div' ? 'div_' : 'conv_') + selLink.op) }}</h2>
+      <p class="hint">{{ T(selLink.op === 'or' ? 'or_hint_' + selLink.kind : 'and_hint_' + selLink.kind) }}</p>
+      <dl class="kv"><dt>{{ T('branches_k') }}</dt><dd>{{ selLink.nodes.length }}</dd><dt>{{ T(selLink.kind === 'div' ? 'link_base_div' : 'link_base_conv') }}</dt><dd>{{ selLink.base ? T('link_attached') : T('link_open') }}</dd></dl>
       <div class="row"><button class="btn solid" @click="ui.addBranch(-1)"><Icon n="plus" />{{ T('branch_left') }}</button><button class="btn solid" @click="ui.addBranch(1)"><Icon n="plus" />{{ T('branch_right') }}</button></div>
+      <p class="hint">{{ T('link_hint') }}</p>
+    </template>
+
+    <template v-else-if="selEmpty">
+      <h2>{{ T('d_seq_empty') }}</h2>
+      <p class="hint">{{ T('seq_empty_hint') }}</p>
     </template>
 
     <template v-else>
@@ -137,42 +144,27 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
       <h3>{{ T('h_keyboard') }}</h3>
       <ul class="keys">
         <li><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> {{ T('key_move') }}</li>
-        <li><kbd>{{ K.step }}</kbd><kbd>{{ K.trans }}</kbd><kbd>{{ K.or }}</kbd><kbd>{{ K.and }}</kbd><kbd>{{ K.jump }}</kbd> {{ T('key_insert') }}</li>
+        <li><kbd>{{ K.step }}</kbd><kbd>{{ K.trans }}</kbd> {{ T('key_insert') }}</li>
+        <li><kbd>{{ K.or }}</kbd><kbd>{{ K.and }}</kbd> {{ T('key_div') }} ; <kbd>{{ T('kbd_shift') }}</kbd>+<kbd>{{ K.or }}</kbd><kbd>{{ K.and }}</kbd> {{ T('key_conv') }}</li>
+        <li><kbd>{{ K.jump }}</kbd> {{ T('key_jump') }}, <kbd>{{ K.link }}</kbd> {{ T('key_link') }}</li>
         <li><kbd>{{ T('kbd_del') }}</kbd> {{ T('key_delete') }}</li>
         <li><kbd>{{ T('kbd_enter') }}</kbd> {{ T('key_edit') }}, <kbd>{{ T('kbd_esc') }}</kbd> {{ T('key_back') }}</li>
         <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd> {{ T('key_undo') }}</li>
       </ul>
     </template>
 
-    <template v-if="selItem && (selItem.kind === 'step' || selItem.kind === 'trans')">
-      <h3>{{ T('h_structure') }}</h3>
-      <div class="row">
-        <button class="btn solid" :disabled="!ui.canWrap('or')" @click="ui.wrap('or')"><Icon n="plus" />{{ T('wrap_or') }}</button>
-        <button class="btn solid" :disabled="!ui.canWrap('and')" @click="ui.wrap('and')"><Icon n="plus" />{{ T('wrap_and') }}</button>
-      </div>
-      <p class="hint">{{ T('wrap_hint') }}</p>
-    </template>
-
-    <template v-if="selItem && (selItem.kind === 'or' || selItem.kind === 'and')">
-      <h3>{{ T('unwrap_title') }}</h3>
-      <div class="row">
-        <button v-for="(_, i) in selItem.branches" :key="i" class="btn solid" :disabled="!ui.canUnwrap(i)" @click="ui.unwrap(i)">{{ T('unwrap_keep', { n: i + 1 }) }}</button>
-      </div>
-      <p class="hint">{{ T('unwrap_hint') }}</p>
-    </template>
-
-    <template v-if="selItem && selLoc && selLoc.block">
-      <h3>{{ T('branch_of', { i: selLoc.branchIdx + 1, n: selLoc.block.branches.length }) }}</h3>
+    <template v-if="selBranch && selBranch.index >= 0">
+      <h3>{{ T('branch_of', { i: selBranch.index + 1, n: selBranch.count }) }}</h3>
       <div class="row">
         <button class="btn solid" @click="ui.addBranch(-1)"><Icon n="plus" />{{ T('branch_l') }}</button>
         <button class="btn solid" @click="ui.addBranch(1)"><Icon n="plus" />{{ T('branch_r') }}</button>
-        <button class="btn solid danger" :disabled="selLoc.block.branches.length < 3" @click="ui.delBranch()"><Icon n="trash" />{{ T('branch_del') }}</button>
+        <button class="btn solid danger" @click="ui.delBranch()"><Icon n="trash" />{{ T('branch_del') }}</button>
       </div>
       <div class="row">
         <button class="btn solid" :disabled="!ui.canMoveBranch(-1)" @click="ui.moveBranch(-1)">← {{ T('branch_move_l') }}</button>
         <button class="btn solid" :disabled="!ui.canMoveBranch(1)" @click="ui.moveBranch(1)">{{ T('branch_move_r') }} →</button>
       </div>
     </template>
-    <div v-if="selItem" class="row"><button class="btn solid danger" @click="ui.removeSel()"><Icon n="trash" />{{ T('del_item') }}</button></div>
+    <div v-if="selItem || selLink || selJump || selEmpty" class="row"><button class="btn solid danger" @click="ui.removeSel()"><Icon n="trash" />{{ selLink ? T('tb_del_link') : selJump ? T('tb_del_jump') : T('del_item') }}</button></div>
   </div>
 </template>

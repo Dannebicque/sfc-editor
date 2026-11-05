@@ -1,6 +1,5 @@
 import { computed } from 'vue';
 import { createI18n } from 'vue-i18n';
-import type { ItemKind } from '@grafcet/core';
 import en from './locales/en.json';
 import fr from './locales/fr.json';
 
@@ -9,9 +8,10 @@ export const LANGS: Lang[] = ['fr', 'en'];
 export const LS_PREFIX = 'grafcet-studio-v1';
 
 /** Les touches d'insertion suivent la langue (mnémoniques) : E T O A R en français, S T O A J en anglais. */
-export const KEYMAP: Record<Lang, Record<Exclude<ItemKind, never>, string>> = {
-  fr: { step: 'E', trans: 'T', or: 'O', and: 'A', jump: 'R' },
-  en: { step: 'S', trans: 'T', or: 'O', and: 'A', jump: 'J' },
+export type KeyName = 'step' | 'trans' | 'or' | 'and' | 'jump' | 'link';
+export const KEYMAP: Record<Lang, Record<KeyName, string>> = {
+  fr: { step: 'E', trans: 'T', or: 'O', and: 'A', jump: 'R', link: 'L' },
+  en: { step: 'S', trans: 'T', or: 'O', and: 'A', jump: 'J', link: 'L' },
 };
 
 export const i18n = createI18n({
@@ -33,7 +33,7 @@ export function T(key: string, params?: Record<string, string | number>): string
 
 export const lang = computed<Lang>(() => g.locale.value as Lang);
 export const keys = computed(() => KEYMAP[lang.value]);
-export const kindLabel = (k: ItemKind) => T('k_' + k);
+export const kindLabel = (k: 'step' | 'trans') => T('k_' + k);
 
 /** Langue initiale : choix mémorisé, sinon langue du navigateur. */
 export function initLang(): Lang {

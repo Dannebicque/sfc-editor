@@ -224,9 +224,9 @@ export function removeLink(g: Grafcet, linkId: string): string | null {
   return l.base ?? l.nodes[0] ?? null;
 }
 
-interface Anchor { link: HLink; seq: Seq | null }
+export interface Anchor { link: HLink; seq: Seq | null }
 /** Lien visé par une sélection (id de lien, d'élément ou de séquence). */
-function resolveLink(g: Grafcet, sel: string): Anchor | null {
+export function resolveLink(g: Grafcet, sel: string): Anchor | null {
   const ix = indexOf(g);
   const l = ix.link.get(sel);
   if (l) return { link: l, seq: null };

@@ -1,9 +1,9 @@
 import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { defineStore, storeToRefs } from 'pinia';
 import {
-  addBranch as addBranchCmd, allowedInsertions, canUnwrapBlock, canWrapInBlock, describeId, findItem, insertAt, isBlock,
-  locate, moveBranch as moveBranchCmd, parseRecept, removeBranch, removeItem, renumber, unwrapBlock, walkAll,
-  wrapInBlock, type BlockKind, type InsertWhere, type ItemKind,
+  addBranch as addBranchCmd, addConvergence, addDivergence, addJump, addOpenLink, capabilities, connect, describeId, findNode, indexOf, insertNode,
+  jumpTargets as jumpTargetsOf, mergeEnds, mergeStarts, moveBranch as moveBranchCmd, newSeq, nodesOf, parseRecept, removeBranch, removeJump, removeLink,
+  removeNode, removeSeq, renumber, resolveLink, setJumpTarget, type Node, type Capabilities,
 } from '@grafcet/core';
 import { createExpansion, macrosOf, referencesTo, setMacro } from '@grafcet/core';
 import { exportArchive, exportFolder, importArchive, importFolder, looksLikeZip, type FolderFile, exportNative, exportSfcEditXml, FORMAT_ID, importJson, importNative, importSfcEditXml, looksLikeSfcEditXml, exportPlcopenXml, importPlcopenXml, looksLikePlcopenXml, ImportError, type ReportEntry } from '@grafcet/io';
@@ -16,6 +16,7 @@ import { useViewStore } from './view';
 
 export type TabId = 'props' | 'issues' | 'text' | 'data';
 export type Theme = 'auto' | 'light' | 'dark';
+export type InsertWhere = 'before' | 'after';
 
 /** État d'interface : sélection, onglets, thème, simulation, import/export, et les commandes « utilisateur » qui combinent document + sélection + annonces. */
 export const useUiStore = defineStore('ui', () => {
@@ -37,10 +38,24 @@ export const useUiStore = defineStore('ui', () => {
   const announce = (m: string): void => { flip = !flip; liveMsg.value = m + (flip ? '' : '​'); };
 
   /* ----- sélection ----- */
-  const selBase = computed(() => (sel.value ? sel.value.replace(':d', '') : null));
-  const selLoc = computed(() => (selBase.value ? locate(activeG.value.items, selBase.value) : null));
-  const selItem = computed(() => selLoc.value?.item ?? null);
-  const isDivBar = computed(() => !!sel.value && sel.value.endsWith(':d'));
+  const ix = computed(() => indexOf(activeG.value));
+  /** Élément (étape ou transition) sélectionné ; null si la sélection est une barre, un renvoi ou un emplacement vide. */
+  const selItem = computed<Node | null>(() => (sel.value ? ix.value.node.get(sel.value)?.item ?? null : null));
+  /** Position de l'élément sélectionné dans sa séquence (début, fin) : conditions de « relier » et « réunir ». */
+  const selEnds = computed(() => {
+    const n = sel.value ? ix.value.node.get(sel.value) : undefined;
+    return n ? { first: n.idx === 0, last: n.idx === n.seq.items.length - 1 } : { first: false, last: false };
+  });
+  const selLink = computed(() => (sel.value ? ix.value.link.get(sel.value) ?? null : null));
+  const selJump = computed(() => (sel.value ? ix.value.jump.get(sel.value) ?? null : null));
+  const selEmpty = computed(() => { const q = sel.value ? ix.value.seq.get(sel.value) : undefined; return q && !q.items.length ? q : null; });
+  /** Branche (lien + rang) concernée par la sélection : barre, élément ou emplacement d'une branche. */
+  const selBranch = computed(() => {
+    const a = sel.value ? resolveLink(activeG.value, sel.value) : null;
+    if (!a) return null;
+    const at = a.seq ? a.link.nodes.indexOf(a.seq.id) : -1;
+    return { link: a.link, index: at, count: a.link.nodes.length };
+  });
   /**
    * Identifiant de la dernière étape sélectionnée. Il survit au changement de GRAFCET pour que l'étape de même identifiant
    * soit retrouvée (et mise en valeur) dans les autres GRAFCET du projet.
@@ -53,8 +68,7 @@ export const useUiStore = defineStore('ui', () => {
     if (linkedNum.value == null) return out;
     for (const g of projectRef.value.grafcets) {
       if (g.id === project.activeId) continue;
-      let hit: string | null = null;
-      walkAll(g.items, (it) => { if (!hit && it.kind === 'step' && it.num === linkedNum.value) hit = it.id; });
+      const hit = nodesOf(g).find((it) => it.kind === 'step' && it.num === linkedNum.value)?.id ?? null;
       if (hit) out.push({ gid: g.id, name: g.name, itemId: hit });
     }
     return out;
@@ -80,37 +94,24 @@ export const useUiStore = defineStore('ui', () => {
   const selText = computed(() => describeText(describeId(activeG.value, sel.value)));
   const selShort = computed(() => { const t = selText.value; return t.length > 46 ? t.slice(0, 45) + '…' : t; });
 
-  /** Côté réellement utilisé : la barre de divergence impose « avant », la convergence « après ». */
-  const effectiveWhere = (requested: InsertWhere): InsertWhere =>
-    isDivBar.value ? 'before' : selItem.value && isBlock(selItem.value) ? 'after' : requested;
-  const whereNow = computed(() => effectiveWhere(insertWhere.value));
-  const whereFixed = computed(() => isDivBar.value || (!!selItem.value && isBlock(selItem.value)));
-
-  const allowed = computed(() =>
-    sim.on ? [] : allowedInsertions(activeG.value, sel.value, whereNow.value).map((o) => ({
-      kind: o.kind, key: KEYMAP[lang.value][o.kind], label: kindLabel(o.kind), note: o.noteKey ? T(o.noteKey) : '',
-    })));
+  /** Ce que la sélection permet (barre d'outils) ; rien pendant la simulation. */
+  const caps = computed<Capabilities | null>(() => (sim.on ? null : capabilities(activeG.value, sel.value)));
+  /** Côté d'insertion effectivement utilisé pour une étape ou une transition. */
+  const whereNow = computed<InsertWhere>(() => (selEmpty.value ? 'after' : insertWhere.value));
   const slotPos = computed(() => {
-    if (sim.on || !sel.value || !allowed.value.length) return null;
+    if (sim.on || !sel.value || !caps.value) return null;
+    const c = caps.value.insert;
+    if (!(c.step[whereNow.value] || c.trans[whereNow.value])) return null;
     const f = viewStore.layout.focus.find((x) => x.id === sel.value);
     return (whereNow.value === 'before' ? f?.slotBefore : f?.slot) ?? null;
   });
-  const activeRegion = computed(() => {
-    if (sim.on || !selItem.value || !isBlock(selItem.value)) return null;
-    const r = viewStore.layout.views.find((v) => v.kind === 'region' && v.id === selBase.value);
-    return r && r.kind === 'region' ? r : null;
-  });
   const jumpTargets = computed(() => {
-    const it = selItem.value, loc = selLoc.value;
-    if (!it || it.kind !== 'jump' || !loc) return [];
-    const prev = loc.seq[loc.idx - 1];
-    const want = prev && prev.kind === 'step' ? 'trans' : 'step';
-    const out: { id: string; label: string }[] = [];
-    walkAll(activeG.value.items, (x) => {
-      if (x.kind === 'step' && want === 'step') out.push({ id: x.id, label: T('d_step', { n: x.num }) + (x.name ? ' · ' + x.name : '') });
-      if (x.kind === 'trans' && want === 'trans') out.push({ id: x.id, label: T('d_trans', { n: x.num }) + (x.recept ? ' : ' + x.recept : '') });
+    const j = selJump.value;
+    if (!j) return [];
+    return jumpTargetsOf(activeG.value, j.id).map((id) => {
+      const x = ix.value.node.get(id)!.item;
+      return { id, label: x.kind === 'step' ? T('d_step', { n: x.num }) + (x.name ? ' · ' + x.name : '') : T('d_trans', { n: x.num }) + (x.recept ? ' : ' + x.recept : '') };
     });
-    return out;
   });
   const recFb = computed(() => {
     const it = selItem.value;
@@ -133,58 +134,81 @@ export const useUiStore = defineStore('ui', () => {
   watch(sel, (v) => { if (v) announce(describeText(describeId(activeG.value, v))); });
 
   /* ----- édition (commandes utilisateur) ----- */
-  /** Insère un élément ; `invert` insère du côté opposé au mode courant (raccourci Maj + lettre). */
-  function insertKind(kind: ItemKind, invert = false): void {
+  const after = (id: string | null, msgKey = 'a_added') => {
+    if (!id) return;
+    sel.value = id;
+    nextTick(() => viewStore.reveal(id));
+    nextTick(() => announce(T(msgKey, { d: describeText(describeId(activeG.value, id)), list: '' })));
+  };
+  /** Insère une étape ou une transition ; `invert` insère du côté opposé au mode courant (raccourci Maj + lettre). */
+  function insertKind(kind: 'step' | 'trans', invert = false): void {
     if (!sel.value || sim.on) return;
-    const where = effectiveWhere(invert ? (insertWhere.value === 'after' ? 'before' : 'after') : insertWhere.value);
-    if (!allowedInsertions(activeG.value, sel.value, where).some((o) => o.kind === kind)) { announce(T('a_impossible', { k: kindLabel(kind) })); return; }
+    const where: InsertWhere = selEmpty.value ? 'after' : invert ? (insertWhere.value === 'after' ? 'before' : 'after') : insertWhere.value;
+    if (!caps.value?.insert[kind][where]) { announce(T('a_impossible', { k: kindLabel(kind) })); return; }
     const target = sel.value;
-    const newId = project.mutate((g, P) => insertAt(P, g, target, kind, where));
-    sel.value = newId;
-    nextTick(() => viewStore.reveal(newId));
-    nextTick(() => announce(T('a_added', { d: describeText(describeId(activeG.value, newId)), list: allowed.value.map((o) => o.label).join(', ') || T('a_nothing') })));
+    after(project.mutate((g, P) => insertNode(P, g, target, kind, where)));
   }
-  function removeSel(): void {
+  /** Divergence (après l'élément) ou convergence (avant l'élément), en OU ou en ET. */
+  function addLinkAt(kind: 'div' | 'conv', op: 'or' | 'and'): void {
     if (!sel.value || sim.on) return;
-    const base = selBase.value!;
-    const r = project.mutate((g) => removeItem(g, base));
-    if (!r.ok) { announce(T('a_cannot_delete')); return; }
-    sel.value = r.nextSel;
-    const next = r.nextSel;
-    nextTick(() => next && viewStore.reveal(next));
+    const target = sel.value;
+    const id = project.mutate((g, P) => (kind === 'div' ? addDivergence(P, g, target, op) : addConvergence(P, g, target, op)));
+    if (!id) { announce(T('a_impossible', { k: T('k_' + kind + '_' + op) })); return; }
+    after(id, 'a_link_added');
+  }
+  function addJumpSel(): void {
+    if (!sel.value || sim.on) return;
+    const target = sel.value;
+    const id = project.mutate((g, P) => addJump(P, g, target));
+    if (!id) { announce(T('a_impossible', { k: T('k_jump') })); return; }
+    after(id, 'a_jump_added');
+  }
+  /** Supprime la sélection : élément (avec son intercalaire), barre (les séquences restent), renvoi ou emplacement vide. */
+  function removeSel(): void {
+    const id = sel.value;
+    if (!id || sim.on) return;
+    let next: string | null | undefined;
+    if (ix.value.node.has(id)) { const r = project.mutate((g) => removeNode(g, id)); if (!r.ok) { announce(T('a_cannot_delete')); return; } next = r.nextSel; }
+    else if (ix.value.link.has(id)) next = project.mutate((g) => removeLink(g, id));
+    else if (ix.value.jump.has(id)) next = project.mutate((g) => removeJump(g, id));
+    else if (project.mutate((g) => removeSeq(g, id))) next = null;
+    else { announce(T('a_cannot_delete')); return; }
+    sel.value = next ?? viewStore.layout.focus[0]?.id ?? null;
+    const n = sel.value;
+    nextTick(() => n && viewStore.reveal(n));
     announce(T('a_deleted'));
   }
   function setField(field: string, value: unknown, coalesce = false): void {
-    const id = selBase.value;
+    const id = sel.value;
     if (!id) return;
-    project.mutate((g) => { const it = findItem(g.items, id); if (it) (it as unknown as Record<string, unknown>)[field] = value; }, coalesce ? { key: 'f:' + id + field } : {});
+    project.mutate((g) => { const it = findNode(g, id); if (it) (it as unknown as Record<string, unknown>)[field] = value; }, coalesce ? { key: 'f:' + id + field } : {});
   }
   function setAction(i: number, field: 'label' | 'kind' | 'cond', value: string): void {
-    const id = selBase.value;
-    project.mutate((g) => { const it = findItem(g.items, id!); const l = it && (it.kind === 'step' || it.kind === 'trans') ? it.actions : undefined; if (l && l[i]) (l[i] as unknown as Record<string, string>)[field] = value; }, { key: 'a:' + id + i + field });
+    const id = sel.value;
+    project.mutate((g) => { const it = findNode(g, id!); const l = it && (it.kind === 'step' || it.kind === 'trans') ? it.actions : undefined; if (l && l[i]) (l[i] as unknown as Record<string, string>)[field] = value; }, { key: 'a:' + id + i + field });
   }
   function addAction(): void {
-    const id = selBase.value;
-    project.mutate((g) => { const it = findItem(g.items, id!); if (it && it.kind === 'step') it.actions.push({ kind: 'continue', label: '', cond: '' }); else if (it && it.kind === 'trans') (it.actions ??= []).push({ kind: 'event', label: '', cond: '' }); });
+    const id = sel.value;
+    project.mutate((g) => { const it = findNode(g, id!); if (it && it.kind === 'step') it.actions.push({ kind: 'continue', label: '', cond: '' }); else if (it && it.kind === 'trans') (it.actions ??= []).push({ kind: 'event', label: '', cond: '' }); });
     nextTick(() => {
       const els = [...document.querySelectorAll<HTMLInputElement>('.acts li input[type=text]')];
       els.filter((e) => e.placeholder === T('act_ph')).pop()?.focus();
     });
   }
   function delAction(i: number): void {
-    const id = selBase.value;
-    project.mutate((g) => { const it = findItem(g.items, id!); if (it && (it.kind === 'step' || it.kind === 'trans')) { it.actions?.splice(i, 1); if (it.kind === 'trans' && !it.actions?.length) delete it.actions; } });
+    const id = sel.value;
+    project.mutate((g) => { const it = findNode(g, id!); if (it && (it.kind === 'step' || it.kind === 'trans')) { it.actions?.splice(i, 1); if (it.kind === 'trans' && !it.actions?.length) delete it.actions; } });
   }
   function addToken(t: string): void {
-    const id = selBase.value;
-    project.mutate((g) => { const it = findItem(g.items, id!); if (it && it.kind === 'trans') it.recept = it.recept + t; });
+    const id = sel.value;
+    project.mutate((g) => { const it = findNode(g, id!); if (it && it.kind === 'trans') it.recept = it.recept + t; });
     nextTick(() => {
       const el = document.getElementById('f-rec') as HTMLInputElement | null;
       if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
     });
   }
   function addBranch(side: -1 | 1): void {
-    const base = selBase.value;
+    const base = sel.value;
     if (!base) return;
     const id = project.mutate((g, P) => addBranchCmd(P, g, base, side));
     if (!id) return;
@@ -193,75 +217,84 @@ export const useUiStore = defineStore('ui', () => {
     announce(T('a_branch_added'));
   }
   function delBranch(): void {
-    const base = selBase.value;
+    const base = sel.value;
     if (!base) return;
     const next = project.mutate((g) => removeBranch(g, base));
     if (next) { sel.value = next; announce(T('a_branch_deleted')); }
   }
-  /* ----- structure : encadrer, dissoudre, déplacer ----- */
-  const canWrap = (kind: BlockKind) => !sim.on && !!selBase.value && canWrapInBlock(activeG.value, selBase.value, kind);
-  function wrap(kind: BlockKind): void {
-    const base = selBase.value;
-    if (!base || sim.on) return;
-    const r = project.mutate((g, P) => wrapInBlock(P, g, base, kind));
-    if (!r) { announce(T('a_wrap_impossible')); return; }
-    sel.value = r.firstId;
-    nextTick(() => viewStore.reveal(r.firstId));
-    announce(T('a_wrapped'));
-  }
-  const canUnwrap = (keep: number) => !sim.on && !!selBase.value && canUnwrapBlock(activeG.value, selBase.value, keep);
-  function unwrap(keep: number): void {
-    const base = selBase.value;
-    if (!base || sim.on) return;
-    const first = project.mutate((g) => unwrapBlock(g, base, keep));
-    if (!first) { announce(T('a_unwrap_impossible')); return; }
-    sel.value = first;
-    nextTick(() => viewStore.reveal(first));
-    announce(T('a_unwrapped', { n: keep + 1 }));
-  }
   function moveBranch(dir: -1 | 1): void {
-    const base = selBase.value;
+    const base = sel.value;
     if (!base) return;
     if (project.mutate((g) => moveBranchCmd(g, base, dir))) { nextTick(() => sel.value && viewStore.reveal(sel.value)); announce(T('a_branch_moved')); }
   }
-  const canMoveBranch = (dir: -1 | 1) => {
-    const loc = selLoc.value;
-    return !!loc && !!loc.block && loc.branchIdx + dir >= 0 && loc.branchIdx + dir < loc.block.branches.length;
-  };
+  const canMoveBranch = (dir: -1 | 1) => { const b = selBranch.value; return !!b && b.index >= 0 && b.index + dir >= 0 && b.index + dir < b.count; };
+  function setJump(target: string): void {
+    const id = sel.value;
+    if (id) project.mutate((g, P) => setJumpTarget(P, g, id, target || null));
+  }
+
+  /* ----- relier : commandes qui demandent un second élément ----- */
+  type PendingKind = 'connect' | 'jump' | 'mergeEnds' | 'mergeStarts';
+  const pending = ref<{ kind: PendingKind; from: string } | null>(null);
+  function startPending(kind: PendingKind): void {
+    if (!sel.value || sim.on || !selItem.value) return;
+    pending.value = { kind, from: sel.value };
+    announce(T('a_pending_' + kind));
+  }
+  function cancelPending(): void { if (pending.value) { pending.value = null; announce(T('a_pending_cancel')); } }
+  function completePending(to: string): void {
+    const p = pending.value;
+    if (!p) return;
+    if (!ix.value.node.has(to)) { announce(T('a_pending_need_node')); return; }
+    const run = (g: Parameters<Parameters<typeof project.mutate>[0]>[0], P: Parameters<Parameters<typeof project.mutate>[0]>[1]) =>
+      p.kind === 'connect' ? connect(P, g, p.from, to)
+      : p.kind === 'jump' ? addJump(P, g, p.from, to)
+      : p.kind === 'mergeEnds' ? mergeEnds(P, g, p.from, to) : mergeStarts(P, g, p.from, to);
+    const id = project.mutate(run);
+    if (!id) { announce(T('a_pending_impossible')); return; }
+    pending.value = null;
+    after(id, 'a_linked');
+  }
+  /** Nouvelle séquence libre, ou nouveau lien ouvert (divergence sans amont, convergence sans aval). */
+  function addFree(what: 'seq' | 'div_or' | 'div_and' | 'conv_or' | 'conv_and'): void {
+    if (sim.on) return;
+    const id = project.mutate((g, P) => (what === 'seq' ? newSeq(P, g) : addOpenLink(P, g, what.startsWith('div') ? 'div' : 'conv', what.endsWith('or') ? 'or' : 'and')));
+    after(id, 'a_added');
+  }
 
   function doRenumber(): void { project.mutate((g) => renumber(g)); announce(T('a_renumbered')); }
 
   /* ----- GRAFCET du projet ----- */
   /* ----- macro-étapes ----- */
   function toggleMacro(on: boolean): void {
-    const id = selBase.value;
+    const id = sel.value;
     if (id) project.mutate((g) => { setMacro(g, id, on); });
   }
   function setExpansion(gid: string | null): void {
-    const id = selBase.value;
-    if (id) project.mutate((g) => { const it = findItem(g.items, id); if (it && it.kind === 'step' && it.expansion !== undefined) it.expansion = gid; });
+    const id = sel.value;
+    if (id) project.mutate((g) => { const it = findNode(g, id); if (it && it.kind === 'step' && it.expansion !== undefined) it.expansion = gid; });
   }
   function makeExpansion(): void {
-    const id = selBase.value;
+    const id = sel.value;
     if (!id) return;
     const gid = project.mutate((g, P) => {
-      const it = findItem(g.items, id);
+      const it = findNode(g, id);
       return it && it.kind === 'step' ? createExpansion(P, g, id, T('expansion_name', { n: it.num }))?.id ?? null : null;
     });
     if (gid) { announce(T('a_expansion_created')); openG(gid); }
   }
   function setRole(role: string): void {
-    const id = selBase.value;
+    const id = sel.value;
     if (!id) return;
     project.mutate((g) => {
-      const it = findItem(g.items, id);
+      const it = findNode(g, id);
       if (!it || it.kind !== 'step') return;
       if (role === 'entry' || role === 'exit') it.role = role; else delete it.role;
     });
   }
   /** Ouvre l'expansion de la macro-étape sélectionnée (ou de celle dont l'id est donné). */
   function openExpansion(id?: string): void {
-    const it = findItem(activeG.value.items, id ?? selBase.value ?? '');
+    const it = findNode(activeG.value, id ?? sel.value ?? '');
     if (it && it.kind === 'step' && typeof it.expansion === 'string') openG(it.expansion);
   }
   /** Macro-étapes (dans tout le projet) dont ce GRAFCET est l'expansion. */
@@ -279,7 +312,7 @@ export const useUiStore = defineStore('ui', () => {
       let want = selectId ?? null;
       if (!want && linkedNum.value != null) {
         const g = projectRef.value.grafcets.find((x) => x.id === id);
-        if (g) walkAll(g.items, (it) => { if (!want && it.kind === 'step' && it.num === linkedNum.value) want = it.id; });
+        if (g) want = nodesOf(g).find((it) => it.kind === 'step' && it.num === linkedNum.value)?.id ?? null;
       }
       sel.value = want ?? viewStore.layout.focus[0]?.id ?? null;
       if (want) { const w = want; nextTick(() => viewStore.reveal(w)); }
@@ -296,6 +329,7 @@ export const useUiStore = defineStore('ui', () => {
   /* ----- sélection / clavier ----- */
   function pick(id: string): void {
     if (sim.on) { if (simEnabled.value.has(id)) simFire(id); return; }
+    if (pending.value && id !== pending.value.from) { completePending(id); return; }
     sel.value = id;
   }
   function pickFromText(id: string): void { sel.value = id; nextTick(() => viewStore.reveal(id)); }
@@ -322,9 +356,17 @@ export const useUiStore = defineStore('ui', () => {
       else if ((k === 'Enter' || k === ' ') && sel.value) { e.preventDefault(); pick(sel.value); }
       return;
     }
-    const map: Record<string, ItemKind> = {};
-    for (const kk of ['step', 'trans', 'or', 'and', 'jump'] as ItemKind[]) map[KEYMAP[lang.value][kk].toLowerCase()] = kk;
-    if (map[lk]) { e.preventDefault(); insertKind(map[lk]!, e.shiftKey); return; }
+    if (pending.value) {
+      if (k === 'Escape') { e.preventDefault(); cancelPending(); } else if ((k === 'Enter' || k === ' ') && sel.value) { e.preventDefault(); completePending(sel.value); }
+      return;
+    }
+    const km = KEYMAP[lang.value];
+    if (lk === km.step.toLowerCase()) { e.preventDefault(); insertKind('step', e.shiftKey); return; }
+    if (lk === km.trans.toLowerCase()) { e.preventDefault(); insertKind('trans', e.shiftKey); return; }
+    if (lk === km.or.toLowerCase()) { e.preventDefault(); addLinkAt(e.shiftKey ? 'conv' : 'div', 'or'); return; }
+    if (lk === km.and.toLowerCase()) { e.preventDefault(); addLinkAt(e.shiftKey ? 'conv' : 'div', 'and'); return; }
+    if (lk === km.jump.toLowerCase()) { e.preventDefault(); addJumpSel(); return; }
+    if (lk === km.link.toLowerCase()) { e.preventDefault(); startPending('connect'); return; }
     if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); removeSel(); return; }
     if (k === 'Enter') { e.preventDefault(); focusMainField(); return; }
     if (k === 'Escape') { sel.value = null; return; }
@@ -539,8 +581,7 @@ export const useUiStore = defineStore('ui', () => {
     } catch { /* ignoré */ }
     nextTick(() => {
       viewStore.fit(false);
-      let s1: string | null = null;
-      walkAll(activeG.value.items, (it) => { if (!s1 && it.kind === 'step' && it.num === '1') s1 = it.id; });
+      const s1 = nodesOf(activeG.value).find((it) => it.kind === 'step' && it.num === '1')?.id ?? null;
       sel.value = s1 ?? viewStore.layout.focus[0]?.id ?? null;
       if (sel.value) { const id = sel.value; nextTick(() => viewStore.reveal(id)); }
     });
@@ -550,10 +591,10 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   return {
-    sel, tab, tabs, linkedNum, linkedIn, sharedNum, citingActive, citedIn, theme, themeLabel, dataView, sim, liveMsg, announce, insertWhere, whereNow, whereFixed,
-    selBase, selLoc, selItem, isDivBar, selText, selShort, allowed, slotPos, activeRegion, jumpTargets, recFb, tokens,
-    wrap, canWrap, unwrap, canUnwrap, moveBranch, canMoveBranch,
-    insertKind, removeSel, setField, setAction, addAction, delAction, addToken, addBranch, delBranch, doRenumber,
+    sel, tab, tabs, linkedNum, linkedIn, sharedNum, citingActive, citedIn, theme, themeLabel, dataView, sim, liveMsg, announce, insertWhere, whereNow,
+    selItem, selEnds, selLink, selJump, selEmpty, selBranch, selText, selShort, caps, slotPos, jumpTargets, recFb, tokens, pending,
+    moveBranch, canMoveBranch, insertKind, addLinkAt, addJumpSel, removeSel, setField, setAction, addAction, delAction, addToken, addBranch, delBranch, setJump,
+    startPending, cancelPending, completePending, addFree, doRenumber,
     openG, addGrafcet, dupGrafcet, delGrafcet,
     pick, pickFromText, focusHost, onHostFocus, goIssue, onKey,
     simActive, simEnabled, simReset, simFire, toggleSim, toggleMacro, setExpansion, makeExpansion, setRole, openExpansion, parentsOfActive,

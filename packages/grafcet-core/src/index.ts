@@ -6,7 +6,7 @@ export {
 export {
   insertNode, canInsert, addDivergence, addConvergence, removeNode, removeLink, removeSeq, addBranch, removeBranch, moveBranch,
   connect, mergeEnds, mergeStarts, addJump, jumpTargets, setJumpTarget, removeJump, newSeq, addOpenLink, renumber, numberTransitions, newGrafcet,
-  duplicateGrafcet, stats, capabilities, probe, tidy, nextId, mkStep, mkTrans, INSERT_KINDS, type RemoveResult, type Capabilities,
+  duplicateGrafcet, resolveLink, stats, capabilities, probe, tidy, nextId, mkStep, mkTrans, INSERT_KINDS, type RemoveResult, type Capabilities, type Anchor,
 } from './edit';
 export { parseRecept, type ReceptResult } from './recept';
 export { referencesTo, syncLinks, type SyncLink } from './references';
