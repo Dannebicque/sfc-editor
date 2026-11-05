@@ -14,7 +14,7 @@ const StepSchema = z.object({
   name: z.string(), initial: z.boolean(), actions: z.array(ActionSchema),
   expansion: z.string().nullable().optional(), role: z.enum(['entry', 'exit']).optional(),
 });
-const TransSchema = z.object({ id: z.string().min(1), kind: z.literal('trans'), num: z.number().int().min(0), recept: z.string(), actions: z.array(ActionSchema).optional(), sync: z.array(z.string()).optional() });
+const TransSchema = z.object({ id: z.string().min(1), kind: z.literal('trans'), num: z.number().int().min(0), recept: z.string(), actions: z.array(ActionSchema).optional() });
 const JumpSchema = z.object({ id: z.string().min(1), kind: z.literal('jump'), target: z.string().nullable() });
 
 export const ItemSchema: z.ZodType<Item> = z.lazy(() =>
@@ -27,7 +27,6 @@ export const ItemSchema: z.ZodType<Item> = z.lazy(() =>
 export const GrafcetSchema = z.object({
   id: z.string().min(1), name: z.string(), comment: z.string().optional(), nextStep: z.number().int().min(0), nextTrans: z.number().int().min(0),
   items: z.array(ItemSchema),
-  more: z.array(z.array(ItemSchema)).optional(),
 });
 export const ProjectSchema: z.ZodType<Project> = z.object({
   name: z.string(), counter: z.number().int().min(0), gcount: z.number().int().min(0), grafcets: z.array(GrafcetSchema),

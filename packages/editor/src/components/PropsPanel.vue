@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
-import { arrivalSources, arrivalsTo, describeId, walkAll, walkGrafcet } from '@grafcet/core';
-import { describeText } from '../format';
 import { T, keys as K } from '../i18n';
 import { useProjectStore } from '../stores/project';
 import { useUiStore } from '../stores/ui';
@@ -12,15 +9,6 @@ const project = useProjectStore();
 const ui = useUiStore();
 const { activeG, stats, varList } = storeToRefs(project);
 const { selItem, selLoc, recFb, tokens, jumpTargets } = storeToRefs(ui);
-const allSteps = computed(() => {
-  const out: { id: string; num: string }[] = [];
-  walkGrafcet(activeG.value, (it) => { if (it.kind === 'step') out.push({ id: it.id, num: it.num }); });
-  return out;
-});
-const stepLabel = (id: string) => allSteps.value.find((s) => s.id === id)?.num ?? '?';
-const syncChoices = computed(() => allSteps.value.filter((s) => !(selItem.value && selItem.value.kind === 'trans' && selItem.value.sync?.includes(s.id))));
-const arrivalList = computed(() => (selItem.value ? arrivalsTo(activeG.value, selItem.value.id).map((j) => ({ id: j.id, label: describeText(describeId(activeG.value, j.id)) })) : []));
-const arrivalChoices = computed(() => (selItem.value ? arrivalSources(activeG.value, selItem.value.id).map((id) => ({ id, label: describeText(describeId(activeG.value, id)) })) : []));
 const val = (e: Event) => (e.target as HTMLInputElement).value;
 const checked = (e: Event) => (e.target as HTMLInputElement).checked;
 </script>
@@ -71,21 +59,6 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
           <button v-else class="btn solid" @click="ui.openExpansion()">{{ T('exp_open') }}</button>
         </div>
       </template>
-      <h3>{{ T('h_conv_or') }}</h3>
-      <p class="hint">{{ T('conv_or_hint') }}</p>
-      <ul v-if="arrivalList.length" class="acts">
-        <li v-for="a in arrivalList" :key="a.id" class="mini">
-          <button class="btn solid" @click="ui.pickFromText(a.id)">{{ a.label }}</button>
-          <button class="btn icon" :aria-label="T('conv_del_aria', { d: a.label })" @click="ui.removeArrival(a.id)"><Icon n="trash" /></button>
-        </li>
-      </ul>
-      <div v-if="arrivalChoices.length" class="field">
-        <label for="f-arr">{{ T('conv_add') }}</label>
-        <select id="f-arr" @change="ui.addArrivalFrom(val($event)); ($event.target as HTMLSelectElement).value = ''">
-          <option value="">{{ T('conv_choose') }}</option>
-          <option v-for="c in arrivalChoices" :key="c.id" :value="c.id">{{ c.label }}</option>
-        </select>
-      </div>
       <template v-if="selItem.expansion === undefined">
       <h3>{{ T('h_actions') }}</h3>
       <ul v-if="selItem.actions.length" class="acts">
@@ -119,36 +92,6 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
         <button v-for="t in tokens" :key="t.v" class="chip" :title="t.t" @click="ui.addToken(t.v)">{{ t.v.trim() }}</button>
       </div>
       <p class="hint">{{ T('syntax') }} <code class="mono">.</code> {{ T('s_and') }}, <code class="mono">+</code> {{ T('s_or') }}, <code class="mono">/a</code> {{ T('s_not') }}, <code class="mono">↑a</code> {{ T('s_rise') }}, <code class="mono">X3</code> {{ T('s_step') }}, <code class="mono">t1/X2/3s</code> {{ T('s_delay') }}.</p>
-      <h3>{{ T('h_conv_or') }}</h3>
-      <p class="hint">{{ T('conv_or_hint') }}</p>
-      <ul v-if="arrivalList.length" class="acts">
-        <li v-for="a in arrivalList" :key="a.id" class="mini">
-          <button class="btn solid" @click="ui.pickFromText(a.id)">{{ a.label }}</button>
-          <button class="btn icon" :aria-label="T('conv_del_aria', { d: a.label })" @click="ui.removeArrival(a.id)"><Icon n="trash" /></button>
-        </li>
-      </ul>
-      <div v-if="arrivalChoices.length" class="field">
-        <label for="f-arr">{{ T('conv_add') }}</label>
-        <select id="f-arr" @change="ui.addArrivalFrom(val($event)); ($event.target as HTMLSelectElement).value = ''">
-          <option value="">{{ T('conv_choose') }}</option>
-          <option v-for="c in arrivalChoices" :key="c.id" :value="c.id">{{ c.label }}</option>
-        </select>
-      </div>
-      <h3>{{ T('h_sync') }}</h3>
-      <p class="hint">{{ T('sync_hint') }}</p>
-      <ul v-if="selItem.sync?.length" class="acts">
-        <li v-for="sid in selItem.sync" :key="sid" class="mini">
-          <span class="mono">{{ stepLabel(sid) }}</span>
-          <button class="btn icon" :aria-label="T('sync_del_aria', { n: stepLabel(sid) })" @click="ui.delSync(sid)"><Icon n="trash" /></button>
-        </li>
-      </ul>
-      <div class="field">
-        <label for="f-sync">{{ T('sync_add') }}</label>
-        <select id="f-sync" @change="ui.addSync(val($event)); ($event.target as HTMLSelectElement).value = ''">
-          <option value="">{{ T('sync_choose') }}</option>
-          <option v-for="s in syncChoices" :key="s.id" :value="s.id">{{ s.num }}</option>
-        </select>
-      </div>
       <h3>{{ T('h_trans_actions') }}</h3>
       <p class="hint">{{ T('trans_act_help') }}</p>
       <ul v-if="selItem.actions?.length" class="acts">
@@ -230,17 +173,6 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
         <button class="btn solid" :disabled="!ui.canMoveBranch(1)" @click="ui.moveBranch(1)">{{ T('branch_move_r') }} →</button>
       </div>
     </template>
-    <h3>{{ T('h_seq') }}</h3>
-    <p v-if="selItem" class="hint">{{ T('seq_pos', { i: ui.seqIdx + 1, n: ui.seqCount }) }}</p>
-    <p v-else class="hint">{{ T('seq_hint') }}</p>
-    <div class="row">
-      <button class="btn solid" @click="ui.addSeq()"><Icon n="plus" />{{ T('seq_add') }}</button>
-      <button v-if="selItem && ui.seqIdx > 0" class="btn solid danger" @click="ui.delSeq()"><Icon n="trash" />{{ T('seq_del') }}</button>
-    </div>
-    <div v-if="selItem && ui.seqCount > 1" class="row">
-      <button class="btn solid" :disabled="ui.seqIdx < 1" @click="ui.moveSeq(-1)">← {{ T('seq_move_l') }}</button>
-      <button class="btn solid" :disabled="ui.seqIdx >= ui.seqCount - 1" @click="ui.moveSeq(1)">{{ T('seq_move_r') }} →</button>
-    </div>
     <div v-if="selItem" class="row"><button class="btn solid danger" @click="ui.removeSel()"><Icon n="trash" />{{ T('del_item') }}</button></div>
   </div>
 </template>

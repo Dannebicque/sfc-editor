@@ -1,4 +1,4 @@
-import { checkGrafcet, flatten, locateIn, walkAll, type Action, type Block, type Grafcet, type Item, type Message, type Project, walkGrafcet } from '@grafcet/core';
+import { checkSeq, walkAll, type Action, type Block, type Grafcet, type Item, type Message, type Project } from '@grafcet/core';
 import { ImportError, type ExportResult, type ImportResult, type ReportEntry } from './contract';
 import { elements, esc, parseXml, textOf, type XNode } from './xml';
 
@@ -137,45 +137,15 @@ function importGrafcet(P: Project, gx: XNode, report: ReportEntry[], index: numb
   const roots = [...seqs.keys()].filter((id) => !nodesOfDiv.has(id) && !contSeqs.has(id));
   if (roots.length) {
     g.items = build(roots[0]!).items;
-    // Les autres séquences indépendantes deviennent des séquences supplémentaires.
-    const more: Item[][] = [];
-    for (const id of roots.slice(1)) more.push(build(id).items);
-    // Convergences libres : la séquence de continuation (commençant par une transition) devient aussi une séquence.
-    for (const c of convs) if (!used.has(c) && !built.has(c.seqid) && seqs.has(c.seqid)) more.push(build(c.seqid).items);
-    if (more.length) g.more = more;
     for (const id of seqs.keys()) if (!built.has(id)) report.push(warn('rep_orphan_seq', { g: g.name, n: id }));
-    // Convergences libres : ET → synchronisation de la transition ; OU → renvois depuis les fins de séquence.
-    for (const c of convs) {
-      if (used.has(c)) continue;
-      const first = seqs.get(c.seqid)?.items[0];
-      if (!first) continue;
-      const ends = c.nodes.map((n) => seqs.get(n)?.items.at(-1)).filter((x): x is Item => !!x);
-      if (c.op === 'and' && first.kind === 'trans') {
-        first.sync = [...new Set(ends.filter((x) => x.kind === 'step' && x.id !== first.id).map((x) => x.id))];
-        if (!first.sync.length) delete first.sync;
-        report.push(info('rep_free_conv_and', { g: g.name }));
-      } else if (c.op === 'or') {
-        for (const e of ends) {
-          const loc = locateIn(g, e.id);
-          if (loc && loc.idx === loc.seq.length - 1 && !(e.kind === 'step' && first.kind === 'step') && !(e.kind === 'trans' && first.kind === 'trans')) loc.seq.push({ id: nid(), kind: 'jump', target: first.id });
-          else report.push(warn('rep_conv_missing', { g: g.name }));
-        }
-        report.push(info('rep_free_conv_or', { g: g.name }));
-      }
-    }
-    // Une étape déjà reliée par la structure n'a pas besoin d'être répétée dans la synchronisation.
-    const linked = new Set(flatten(g).links.filter((l) => !l.sync).map((l) => l.from + '>' + l.to));
-    walkGrafcet(g, (it) => {
-      if (it.kind === 'trans' && it.sync) { it.sync = it.sync.filter((s) => !linked.has(s + '>' + it.id)); if (!it.sync.length) delete it.sync; }
-    });
   } else if (seqs.size) report.push(err('rep_cycle', { g: g.name }));
 
   let tn = 1, maxStep = -1;
-  walkGrafcet(g, (it) => { if (it.kind === 'trans') it.num = tn++; else if (it.kind === 'step' && /^\d+$/.test(it.num)) maxStep = Math.max(maxStep, +it.num); });
+  walkAll(g.items, (it) => { if (it.kind === 'trans') it.num = tn++; else if (it.kind === 'step' && /^\d+$/.test(it.num)) maxStep = Math.max(maxStep, +it.num); });
   for (const s of pendingNumbers) s.num = String(++maxStep);
   g.nextTrans = tn;
   g.nextStep = maxStep + 1;
-  const e = g.items.length ? checkGrafcet(g) : 'chk_empty';
+  const e = g.items.length ? checkSeq(g.items, 'root') : 'chk_empty';
   if (e) report.push(err('rep_structure', { g: g.name, e: { key: e } }));
   return g;
 }
@@ -266,7 +236,6 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
   const hlinks: string[] = [];
   const jumps: { from: number; target: string | null }[] = [];
   const placement = new Map<string, { seq: number; idx: number }>();
-  const freeConvs: { seqid: number; preds: number[]; steps: string[]; n: number }[] = [];
   const notes = { edge: false, timer: false };
   let actionKinds = false, macroFlag = false;
   const newSeq = (): OutSeq => { const s = { id: seqs.length + 1, nodes: [] as string[] }; seqs.push(s); return s; };
@@ -295,12 +264,6 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
     for (let i = 0; i < items.length; i++) {
       const it = items[i]!;
       if (it.kind === 'step' || it.kind === 'trans') {
-        if (it.kind === 'trans' && it.sync?.length) {
-          // Synchronisation : la transition ouvre une séquence, reliée par une convergence ET libre.
-          const preds = cur.nodes.length ? [cur.id] : [];
-          if (cur.nodes.length) cur = newSeq();
-          freeConvs.push({ seqid: cur.id, preds, steps: it.sync, n: it.num });
-        }
         placement.set(it.id, { seq: cur.id, idx: cur.nodes.length });
         if (it.kind === 'trans' && it.actions?.length) report.push(warn('rep_trans_action', { g: g.name, n: it.num }));
         cur.nodes.push(it.kind === 'step' ? stepXml(it)
@@ -322,16 +285,6 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
     return { first, end: cur.id, endsWithJump };
   }
   emit(g.items);
-  for (const s of g.more ?? []) emit(s);
-  for (const fc of freeConvs) {
-    const nodes = [...fc.preds];
-    for (const sid of fc.steps) {
-      const p = placement.get(sid);
-      if (p && seqs[p.seq - 1]!.nodes.length - 1 === p.idx) { if (!nodes.includes(p.seq)) nodes.push(p.seq); }
-      else report.push(warn('rep_x_sync', { g: g.name, n: fc.n }));
-    }
-    if (nodes.length) hlinks.push(`\t\t<hlink type="conv and" seqid="${fc.seqid}">\n${nodes.map((s) => `\t\t\t<node seqid="${s}" />`).join('\n')}\n\t\t</hlink>`);
-  }
 
   const jumpXml = jumps.map((j) => {
     const p = j.target ? placement.get(j.target) : undefined;

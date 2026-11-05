@@ -1,4 +1,4 @@
-import { flatten, isMacro, macrosOf, walkAll, type FlatGraph, type Grafcet, type Project, walkGrafcet } from '@grafcet/core';
+import { flatten, isMacro, macrosOf, walkAll, type FlatGraph, type Grafcet, type Project } from '@grafcet/core';
 
 /** Marquage : ensemble des ids d'étapes actives. */
 export type Marking = ReadonlySet<string>;
@@ -6,7 +6,7 @@ export type Marking = ReadonlySet<string>;
 /** Marquage initial : les étapes initiales. */
 export function initialMarking(g: Grafcet): Set<string> {
   const a = new Set<string>();
-  walkGrafcet(g, (it) => { if (it.kind === 'step' && it.initial) a.add(it.id); });
+  walkAll(g.items, (it) => { if (it.kind === 'step' && it.initial) a.add(it.id); });
   return a;
 }
 
@@ -76,7 +76,7 @@ export function buildSimulation(P: Project, rootId: string): Simulation {
       include(x);
       const ids: string[] = [];
       let entry: string | undefined, exit: string | undefined;
-      walkGrafcet(x, (it) => {
+      walkAll(x.items, (it) => {
         if (it.kind !== 'step') return;
         ids.push(it.id);
         if (it.role === 'entry') entry = it.id;
@@ -95,7 +95,7 @@ export function buildSimulation(P: Project, rootId: string): Simulation {
   }));
   for (const gid of grafcets) {
     const g = P.grafcets.find((x) => x.id === gid)!;
-    walkGrafcet(g, (it) => {
+    walkAll(g.items, (it) => {
       if (it.kind !== 'step' || !it.initial) return;
       if (rewire.has(it.id)) initial.add(rewire.get(it.id)!.entry!); else initial.add(it.id);
     });

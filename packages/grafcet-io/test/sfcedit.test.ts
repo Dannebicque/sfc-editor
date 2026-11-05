@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { flatten, walkAll, type Item, type Project } from '@grafcet/core';
+import { walkAll, type Item, type Project } from '@grafcet/core';
 import { exportSfcEditXml, importSfcEditXml, looksLikeSfcEditXml } from '../src';
 
 const xml = readFileSync(new URL('../../../fixtures/sfcedit/convergence-et-renvoi.xml', import.meta.url), 'utf8');
@@ -106,35 +106,5 @@ describe('renvoi dans une branche ET', () => {
     const r = importSfcEditXml(exportSfcEditXml(project).output, { projectName: 'p' });
     expect(r.report.entries.filter((e) => e.level === 'error')).toEqual([]);
     expect(shape(r.model.grafcets[0]!.items)).toEqual(shape(items));
-  });
-});
-
-describe('séquences supplémentaires et synchronisation', () => {
-  const S = (id: string, n: string, initial = false): Item => ({ id, kind: 'step', num: n, name: '', initial, actions: [] });
-  const T = (id: string, n: number, r: string, sync?: string[]): Item => ({ id, kind: 'trans', num: n, recept: r, ...(sync ? { sync } : {}) } as Item);
-  const build = (): Project => {
-    const project = importSfcEditXml(xml, { projectName: 'p' }).model;
-    project.grafcets[0]!.items = [
-      S('s12', '1_2'),
-      { id: 'o1', kind: 'or', branches: [[T('tl', 1, 'a')], [T('ta', 2, 'b', ['s30']), S('s2a', '2A'), T('t5', 5, 'c')]] },
-      S('s9', '9'), T('t9', 9, '1'),
-    ];
-    project.grafcets[0]!.more = [[S('s30', '30', true)]];
-    return project;
-  };
-  const links = (g: Project['grafcets'][number]) => {
-    const num = new Map<string, string>();
-    walkAll(g.items, (i) => { if (i.kind === 'step' || i.kind === 'trans') num.set(i.id, i.kind === 'trans' ? 't(' + i.recept + ')' : 's' + i.num); });
-    for (const s of g.more ?? []) walkAll(s, (i) => { if (i.kind === 'step' || i.kind === 'trans') num.set(i.id, i.kind === 'trans' ? 't(' + i.recept + ')' : 's' + i.num); });
-    return flatten(g).links.map((l) => `${num.get(l.from)}>${num.get(l.to)}`).sort();
-  };
-  it('conserve les liaisons après un aller-retour', () => {
-    const project = build();
-    const before = links(project.grafcets[0]!);
-    const r = importSfcEditXml(exportSfcEditXml(project).output, { projectName: 'p' });
-    expect(r.report.entries.filter((e) => e.level === 'error')).toEqual([]);
-    const g = r.model.grafcets[0]!;
-    expect((g.more ?? []).length).toBeGreaterThanOrEqual(1);
-    expect(links(g)).toEqual(before);
   });
 });

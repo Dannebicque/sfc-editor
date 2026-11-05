@@ -1,7 +1,7 @@
 import { describe as suite, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
-  addSequence, removeSequence, extraSequenceOf, checkGrafcet, addBranch, addArrival, arrivalSources, arrivalsTo, allowedInsertions, insertAt, checkSeq, describeId, flatten, insertAfter, newGrafcet, parseRecept,
+  addBranch, allowedInsertions, insertAt, checkSeq, describeId, flatten, insertAfter, newGrafcet, parseRecept,
   createExpansion, provablyExclusive, referencesTo, syncLinks, setMacro, removeBranch, removeItem, renumber, stats, validateGrafcet, walkAll, duplicateGrafcet, INSERT_KINDS,
   type Grafcet, type Project,
 } from '../src';
@@ -463,88 +463,5 @@ suite('transition autour d’un ET en tête de branche OU', () => {
   });
   it('n’en propose pas entre la barre ET et la première étape d’une branche', () => {
     expect(allowedInsertions(g(), 's9', 'before').map((i) => i.kind)).not.toContain('trans');
-  });
-});
-
-suite('synchronisation (convergence ET libre)', () => {
-  const S = (id: string, n: string, initial = false) => ({ id, kind: 'step' as const, num: n, name: '', initial, actions: [] });
-  const T = (id: string, n: number, sync?: string[]) => ({ id, kind: 'trans' as const, num: n, recept: 'a', ...(sync ? { sync } : {}) });
-  const mk = () => {
-    const P = demoProject();
-    const g = newGrafcet(P, 'x');
-    g.items = [S('a', '1', true), T('t1', 1), S('b', '2'), T('t2', 2, ['a']), S('c', '3'), T('t3', 3)];
-    return { P, g };
-  };
-  it('ajoute une liaison depuis chaque étape attendue', () => {
-    const { g } = mk();
-    expect(flatten(g).links.filter((l) => l.to === 't2').map((l) => l.from).sort()).toEqual(['a', 'b']);
-  });
-  it('signale une étape attendue qui n’existe pas', () => {
-    const { g } = mk();
-    (g.items[3] as { sync?: string[] }).sync = ['zz'];
-    expect(validateGrafcet(g).map((i) => i.key)).toContain('v_sync_missing');
-  });
-  it('oublie une étape supprimée et suit la duplication', () => {
-    const { P, g } = mk();
-    const d = duplicateGrafcet(P, g, 'copie');
-    const ids = d.items.map((i) => i.id);
-    expect((d.items[3] as { sync?: string[] }).sync).toEqual([ids[0]]);
-    expect(removeItem(g, 'a').ok).toBe(true);
-    expect(g.items.find((i) => i.id === 't2')).toBeDefined();
-    expect((g.items.find((i) => i.id === 't2') as { sync?: string[] }).sync).toBeUndefined();
-  });
-});
-
-suite('convergence OU libre (arrivées)', () => {
-  const S = (id: string, n: string, initial = false) => ({ id, kind: 'step' as const, num: n, name: '', initial, actions: [] });
-  const T = (id: string, n: number) => ({ id, kind: 'trans' as const, num: n, recept: 'a' });
-  it('propose les fins de branche compatibles et ajoute le renvoi', () => {
-    const P = demoProject();
-    const g = newGrafcet(P, 'x');
-    g.items = [S('s0', '0', true), T('t1', 1), S('s1', '1'),
-      { id: 'o', kind: 'or', branches: [[T('t2', 2)], [T('t3', 3), S('s2', '2'), T('t4', 4)]] }, S('s3', '3'), T('t5', 5)];
-    const src = arrivalSources(g, 's0');
-    expect(src).toContain('t2');
-    expect(src).toContain('t5');
-    expect(src).not.toContain('s2');
-    const id = addArrival(P, g, 's0', 't2');
-    expect(id).not.toBeNull();
-    expect(arrivalsTo(g, 's0').map((j) => j.id)).toEqual([id]);
-    expect(checkSeq(g.items, 'root')).toBeNull();
-    expect(addArrival(P, g, 's0', 's1')).toBeNull();
-  });
-});
-
-suite('séquences supplémentaires', () => {
-  const S = (id: string, n: string, initial = false) => ({ id, kind: 'step' as const, num: n, name: '', initial, actions: [] });
-  const T = (id: string, n: number, sync?: string[]) => ({ id, kind: 'trans' as const, num: n, recept: 'a', ...(sync ? { sync } : {}) });
-  it('ajoute une séquence indépendante, reliée par une synchronisation', () => {
-    const P = demoProject();
-    const g = newGrafcet(P, 'x');
-    g.items = [S('a', '1', true), T('t1', 1), S('b', '2'), T('t2', 2)];
-    const id = addSequence(P, g);
-    expect(g.more).toHaveLength(1);
-    expect(checkGrafcet(g)).toBeNull();
-    (g.items[3] as { sync?: string[] }).sync = [id];
-    expect(flatten(g).links.filter((l) => l.to === 't2').map((l) => l.from).sort()).toEqual([id, 'b'].sort());
-    expect(validateGrafcet(g).map((i) => i.key)).not.toContain('v_sync_missing');
-    expect(extraSequenceOf(g, id)).toBe(0);
-  });
-  it('supprime une séquence et oublie les synchronisations qui l’attendaient', () => {
-    const P = demoProject();
-    const g = newGrafcet(P, 'x');
-    g.items = [S('a', '1', true), T('t1', 1, [])];
-    const id = addSequence(P, g);
-    (g.items[1] as { sync?: string[] }).sync = [id];
-    expect(removeSequence(g, id)).not.toBeNull();
-    expect(g.more).toBeUndefined();
-    expect((g.items[1] as { sync?: string[] }).sync).toBeUndefined();
-    expect(removeSequence(g, 'a')).toBeNull();
-  });
-  it('vérifie chaque séquence', () => {
-    const P = demoProject();
-    const g = newGrafcet(P, 'x');
-    g.more = [[T('t9', 9), T('t8', 8)]];
-    expect(checkGrafcet(g)).not.toBeNull();
   });
 });

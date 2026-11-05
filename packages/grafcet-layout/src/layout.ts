@@ -1,6 +1,6 @@
-import { sequencesOf, walkAll, type Grafcet, type Item, type Block, walkGrafcet } from '@grafcet/core';
+import { walkAll, type Grafcet, type Item, type Block } from '@grafcet/core';
 
-export const GEO = { stepW: 44, stepH: 40, transH: 40, tick: 9, actH: 22, actGap: 14, orPad: 18, andPad: 18, bar: 6, branchGap: 40, ov: 6, jumpH: 46, arrivalH: 28, chain: 16, syncH: 14, seqGap: 90 } as const;
+export const GEO = { stepW: 44, stepH: 40, transH: 40, tick: 9, actH: 22, actGap: 14, orPad: 18, andPad: 18, bar: 6, branchGap: 40, ov: 6, jumpH: 46, arrivalH: 28, chain: 16 } as const;
 
 /** Mesure de la largeur d'un texte en pixels (fournie par le moteur de rendu). */
 export type TextWidth = (s: string) => number;
@@ -9,8 +9,8 @@ export interface Line { x1: number; y1: number; x2: number; y2: number }
 export interface ActionView { i: number; x: number; y: number; condW: number; labW: number; cond: string; text: string; cell: boolean }
 interface BoxBase { id: string; x: number; y: number; l: number; r: number; h: number }
 /** `arrivals` : numéros des étapes d'où part un renvoi vers cet élément (affichés au-dessus, avec une flèche entrante). */
-export interface StepView extends BoxBase { kind: 'step'; num: string; w: number; macro: boolean; role: 'entry' | 'exit' | null; name: string; initial: boolean; acts: ActionView[]; arrivals: string[]; arrXs: number[]; ay: number }
-export interface TransView extends BoxBase { kind: 'trans'; num: number; recept: string; arrivals: string[]; arrXs: number[]; ay: number; acts: ActionView[]; sync: boolean }
+export interface StepView extends BoxBase { kind: 'step'; num: string; w: number; macro: boolean; role: 'entry' | 'exit' | null; name: string; initial: boolean; acts: ActionView[]; arrivals: string[]; ay: number }
+export interface TransView extends BoxBase { kind: 'trans'; num: number; recept: string; arrivals: string[]; ay: number; acts: ActionView[] }
 export interface JumpView extends BoxBase { kind: 'jump'; label: string; broken: boolean }
 export interface BarView { kind: 'bar'; id: string; part: 'd' | 'c'; ys: number[]; x1: number; x2: number }
 export interface RegionView { kind: 'region'; id: string; x1: number; x2: number; y1: number; y2: number }
@@ -34,7 +34,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
   const views: View[] = [];
   const focus: Focus[] = [];
   const idx = new Map<string, Item>();
-  walkGrafcet(g, (it) => idx.set(it.id, it));
+  walkAll(g.items, (it) => idx.set(it.id, it));
   const memo = new Map<Item, Measure>();
 
   /** Dernière étape avant l'index i d'une séquence (en traversant les blocs par leur première branche qui converge). */
@@ -53,8 +53,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
   }
   /** Pour chaque cible de renvoi : les numéros des étapes d'où l'on arrive. */
   const arrivalsOf = new Map<string, string[]>();
-  const collectArrivals = (seq: Item[]): void => collect(seq, null);
-  function collect(seq: Item[], outer: string | null): void {
+  (function collect(seq: Item[], outer: string | null): void {
     seq.forEach((it, i) => {
       if (it.kind === 'jump') {
         const n = it.target ? (stepBefore(seq, i) ?? outer) : null;
@@ -65,32 +64,10 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
         }
       } else if (it.kind === 'or' || it.kind === 'and') { const o = stepBefore(seq, i) ?? outer; it.branches.forEach((b) => collect(b, o)); }
     });
-  }
-  collectArrivals(g.items);
-  for (const s of g.more ?? []) collectArrivals(s);
-  // Synchronisations : les étapes attendues s'affichent comme des arrivées au-dessus de la transition.
-  const syncOf = new Map<string, string[]>();
-  walkGrafcet(g, (it) => {
-    if (it.kind === 'trans' && it.sync?.some((s) => idx.get(s)?.kind === 'step')) syncOf.set(it.id, it.sync.filter((s) => idx.get(s)?.kind === 'step'));
-  });
+  })(g.items, null);
   const arrivals = (id: string): string[] => arrivalsOf.get(id) ?? [];
-  /** Plusieurs arrivées : chacune a sa flèche, reliées par une barre (simple : convergence OU ; double : synchronisation). */
-  const multi = (id: string): boolean => arrivals(id).length >= 2;
-  const arrXs = (id: string): number[] => {
-    const ws = arrivals(id).map((l) => tw(l) + 18);
-    if (ws.length < 2) return [0];
-    const total = ws.reduce((a, b) => a + b, 0);
-    let acc = -total / 2;
-    return ws.map((w) => { const c = acc + w / 2; acc += w; return c; });
-  };
-  const jumpTop = (id: string): number => (!arrivals(id).length ? 0 : multi(id) ? GEO.arrivalH + 16 : GEO.arrivalH);
-  const syncTop = (id: string): number => (syncOf.has(id) ? GEO.syncH : 0);
-  const arrTop = (id: string): number => jumpTop(id) + syncTop(id);
-  const arrHalf = (id: string): number => {
-    if (!arrivals(id).length) return 0;
-    if (multi(id)) { const xs = arrXs(id); return Math.max(...xs.map(Math.abs)) + tw(arrivals(id)[0]!) / 2 + 8; }
-    return tw(arrivals(id).join(', ')) / 2 + 4;
-  };
+  const arrTop = (id: string): number => (arrivals(id).length ? GEO.arrivalH : 0);
+  const arrHalf = (id: string): number => (arrivals(id).length ? tw(arrivals(id).join(', ')) / 2 + 4 : 0);
   const actText = (a: { kind: string; label: string }) => (a.kind === 'activation' ? '↑ ' : a.kind === 'deactivation' ? '↓ ' : '') + (a.label || '?');
   const jumpLabel = (it: Extract<Item, { kind: 'jump' }>) => {
     const t = it.target ? idx.get(it.target) : undefined;
@@ -153,29 +130,11 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
   }
   const L = (x1: number, y1: number, x2: number, y2: number) => lines.push({ x1, y1, x2, y2 });
 
-  const syncBars = new Map<string, { y1: number; y2: number }>();
   function dItem(it: Item, x: number, y: number): void {
     const m0 = mItem(it);
     const top = it.kind === 'step' || it.kind === 'trans' ? arrTop(it.id) : 0;
     const ay = y;
-    if (top) {
-      const jt = it.kind === 'step' || it.kind === 'trans' ? jumpTop(it.id) : 0;
-      if (jt) {
-        if (multi(it.id)) {
-          const xs = arrXs(it.id), bar = y + 34;
-          for (const o of xs) L(x + o, y + 22, x + o, bar);
-          L(x + xs[0]!, bar, x + xs[xs.length - 1]!, bar);
-          L(x, bar, x, y + jt);
-        } else L(x, y + 13, x, y + jt);
-      }
-      if (it.kind === 'trans' && syncOf.has(it.id)) {
-        const b1 = y + jt + 4;
-        syncBars.set(it.id, { y1: b1, y2: b1 + 3 });
-        L(x, y + jt, x, b1);
-        L(x, b1 + 3, x, y + top);
-      }
-      y += top;
-    }
+    if (top) { L(x, y + 13, x, y + top); y += top; }
     const m = top ? { ...m0, h: m0.h - top } : m0;
     if (it.kind === 'step') {
       const acts: ActionView[] = [];
@@ -185,7 +144,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
         L(x + sw(it) / 2, y + 20, ax, y + 20);
       }
       if (m.h > GEO.stepH) L(x, y + GEO.stepH, x, y + m.h);
-      views.push({ kind: 'step', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, w: sw(it), macro: it.expansion !== undefined, role: it.role ?? null, name: it.name, initial: it.initial, acts, arrivals: arrivals(it.id), arrXs: arrXs(it.id), ay });
+      views.push({ kind: 'step', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, w: sw(it), macro: it.expansion !== undefined, role: it.role ?? null, name: it.name, initial: it.initial, acts, arrivals: arrivals(it.id), ay });
       focus.push({ id: it.id, x, y: y + 20, slot: { x, y: y + GEO.stepH + 11 }, slotBefore: { x, y: y - 11 } });
     } else if (it.kind === 'trans') {
       L(x, y, x, y + m.h);
@@ -195,7 +154,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
         (it.actions ?? []).forEach((a, i) => acts.push({ i, x: ax, y: y + 9 + i * GEO.actH, condW: m.ag!.condW, labW: m.ag!.labW, cond: a.cond || '', text: actText(a), cell: !!(a.cond || '').trim() }));
         L(rx, y + 20, ax, y + 20);
       }
-      views.push({ kind: 'trans', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, recept: it.recept, arrivals: arrivals(it.id), arrXs: arrXs(it.id), ay, acts, sync: syncOf.has(it.id) });
+      views.push({ kind: 'trans', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, recept: it.recept, arrivals: arrivals(it.id), ay, acts });
       focus.push({ id: it.id, x, y: y + 20, slot: { x, y: y + 31 }, slotBefore: { x, y: y - 11 } });
     } else if (it.kind === 'jump') {
       L(x, y, x, y + 24);
@@ -247,58 +206,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
     let yy = y;
     for (const it of seq) { dItem(it, x, yy); yy += mItem(it).h; }
   }
-  // Séquences côte à côte.
-  const seqs = sequencesOf(g);
-  const ms = seqs.map(mSeq);
-  const sx: number[] = [];
-  ms.forEach((m, k) => sx.push(k === 0 ? 0 : sx[k - 1]! + ms[k - 1]!.r + GEO.seqGap + m.l));
-  seqs.forEach((s, k) => dSeq(s, sx[k]!, 0));
-  routeSyncs();
-  const last = ms.length - 1;
-  return { lines, views, focus, bounds: { x: -ms[0]!.l, y: 0, w: ms[0]!.l + sx[last]! + ms[last]!.r, h: Math.max(...ms.map((m) => m.h)) } };
-
-  /** Synchronisations : double barre sur la transition, lignes orthogonales depuis chaque étape attendue. */
-  function routeSyncs(): void {
-    const steps = new Map<string, StepView>(), trans = new Map<string, TransView>();
-    for (const v of views) { if (v.kind === 'step') steps.set(v.id, v); else if (v.kind === 'trans') trans.set(v.id, v); }
-    const half = 16;
-    const ext = new Map<string, { a: number; b: number }>();
-    for (const [tid] of syncOf) { const t = trans.get(tid); if (t) ext.set(tid, { a: t.x - half, b: t.x + half }); }
-    const bySrc = new Map<string, { tid: string; dist: number }[]>();
-    for (const [tid, srcs] of syncOf) {
-      const t = trans.get(tid);
-      if (!t) continue;
-      for (const sid of srcs) {
-        const s = steps.get(sid);
-        if (!s) continue;
-        const a = bySrc.get(sid) ?? [];
-        a.push({ tid, dist: Math.abs(s.x - t.x) });
-        bySrc.set(sid, a);
-      }
-    }
-    for (const [sid, targets] of bySrc) {
-      const s = steps.get(sid)!;
-      const bottom = s.y + GEO.stepH;
-      targets.sort((p, q) => p.dist - q.dist || (p.tid < q.tid ? -1 : 1));
-      targets.forEach((tg, rank) => {
-        const t = trans.get(tg.tid)!, bar = syncBars.get(tg.tid)!, e = ext.get(tg.tid)!;
-        const yc = bottom + 14 + 8 * Math.max(0, rank - 1);
-        if (rank === 0) {
-          if (bar.y1 <= bottom) return;
-          L(s.x, bottom, s.x, bar.y1);
-          e.a = Math.min(e.a, s.x); e.b = Math.max(e.b, s.x);
-        } else {
-          const xe = Math.min(Math.max(s.x, t.x - half), t.x + half);
-          if (bar.y1 <= yc) return;
-          L(s.x, bottom, s.x, yc);
-          if (xe !== s.x) L(s.x, yc, xe, yc);
-          L(xe, yc, xe, bar.y1);
-        }
-      });
-    }
-    for (const [tid, b] of syncBars) {
-      const e = ext.get(tid);
-      if (e) views.push({ kind: 'bar', id: tid, part: 'c', ys: [b.y1, b.y2], x1: e.a, x2: e.b });
-    }
-  }
+  const root = mSeq(g.items);
+  dSeq(g.items, 0, 0);
+  return { lines, views, focus, bounds: { x: -root.l, y: 0, w: root.l + root.r, h: root.h } };
 }

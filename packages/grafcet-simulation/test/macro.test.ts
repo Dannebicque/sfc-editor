@@ -48,15 +48,3 @@ describe('transition source', () => {
     expect([...fire(flat, new Set(), 't')]).toEqual(['s']);
   });
 });
-
-describe('synchronisation', () => {
-  it('attend toutes les étapes listées', () => {
-    const flat = {
-      nodes: [{ id: 'a', kind: 'step' as const, num: '1' }, { id: 'b', kind: 'step' as const, num: '2' }, { id: 't', kind: 'trans' as const, num: 1 }, { id: 'c', kind: 'step' as const, num: '3' }],
-      links: [{ from: 'b', to: 't' }, { from: 'a', to: 't', sync: true as const }, { from: 't', to: 'c' }],
-    };
-    expect(enabledTransitions(flat, new Set(['b'])).size).toBe(0);
-    expect([...enabledTransitions(flat, new Set(['a', 'b']))]).toEqual(['t']);
-    expect([...fire(flat, new Set(['a', 'b']), 't')]).toEqual(['c']);
-  });
-});

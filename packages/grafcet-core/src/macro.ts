@@ -1,4 +1,4 @@
-import { findItem, walkAll, walkGrafcet, findInGrafcet } from './tree';
+import { findItem, walkAll } from './tree';
 import { mkStep, mkTrans } from './insertion';
 import type { Grafcet, Project, Step } from './types';
 
@@ -8,13 +8,13 @@ export const isMacro = (s: Step): boolean => s.expansion !== undefined;
 /** Les macro-étapes d'un GRAFCET. */
 export function macrosOf(g: Grafcet): Step[] {
   const out: Step[] = [];
-  walkGrafcet(g, (it) => { if (it.kind === 'step' && isMacro(it)) out.push(it); });
+  walkAll(g.items, (it) => { if (it.kind === 'step' && isMacro(it)) out.push(it); });
   return out;
 }
 
 /** Transforme une étape en macro-étape (sans expansion) ou la redevient une étape ordinaire. Renvoie false si impossible. */
 export function setMacro(g: Grafcet, stepId: string, on: boolean): boolean {
-  const it = findInGrafcet(g, stepId);
+  const it = findItem(g.items, stepId);
   if (!it || it.kind !== 'step') return false;
   if (on) { if (it.expansion === undefined) { it.expansion = null; it.actions = []; } } else delete it.expansion;
   return true;
@@ -25,7 +25,7 @@ export function setMacro(g: Grafcet, stepId: string, on: boolean): boolean {
  * reliées par une transition. `name` est le nom du nouveau GRAFCET. Renvoie le GRAFCET créé (déjà ajouté au projet).
  */
 export function createExpansion(P: Project, g: Grafcet, stepId: string, name: string): Grafcet | null {
-  const it = findInGrafcet(g, stepId);
+  const it = findItem(g.items, stepId);
   if (!it || it.kind !== 'step' || it.expansion === undefined) return null;
   const x: Grafcet = { id: 'g' + P.gcount++, name, nextStep: 0, nextTrans: 1, items: [] };
   const e = mkStep(P, x), t = mkTrans(P, x), s = mkStep(P, x);
