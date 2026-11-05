@@ -19,7 +19,7 @@ export interface LegalConfig {
 }
 
 export const LEGAL: LegalConfig = {
-  product: 'GRAFCET Studio',
+  product: 'SFC Editor',
   publisher: 'David Annebicque',
   contact: '',
   publisherAddress: '',

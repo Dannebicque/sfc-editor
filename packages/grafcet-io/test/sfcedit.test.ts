@@ -43,3 +43,29 @@ describe('SFCEdit XML', () => {
     expect(nums).toEqual([...nums].sort((a, b) => a - b));
   });
 });
+
+describe('action sur événement', () => {
+  it('survit à un aller-retour SFCEdit', () => {
+    const project = importSfcEditXml(xml, { projectName: "p" }).model;
+    const s = project.grafcets[0]!.items.find((i) => i.kind === 'step')! as { actions: { kind: string; label: string; cond: string }[] };
+    s.actions = [{ kind: 'event', label: 'B:=1', cond: '↑a' }];
+    const back = importSfcEditXml(exportSfcEditXml(project).output, { projectName: "p" }).model;
+    const t = back.grafcets[0]!.items.find((i) => i.kind === 'step')! as { actions: { kind: string; cond: string }[] };
+    expect(t.actions[0]).toMatchObject({ kind: 'event', cond: '↑a' });
+  });
+});
+
+describe('transition source', () => {
+  it('survit à un aller-retour natif et SFCEdit sans erreur de structure', () => {
+    const project = importSfcEditXml(xml, { projectName: 'p' }).model;
+    const g = project.grafcets[0]!;
+    g.items = [
+      { id: 'q1', kind: 'trans', num: 1, recept: 'a' },
+      { id: 'q2', kind: 'step', num: '1', name: '', initial: false, actions: [] },
+      { id: 'q3', kind: 'trans', num: 2, recept: 'b' },
+    ];
+    const r = importSfcEditXml(exportSfcEditXml(project).output, { projectName: 'p' });
+    expect(r.report.entries.filter((e) => e.level === 'error')).toEqual([]);
+    expect(shape(r.model.grafcets[0]!.items)).toEqual(['T:a', 'S1:', 'T:b']);
+  });
+});

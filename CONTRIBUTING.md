@@ -1,4 +1,4 @@
-# Contribuer à GRAFCET Studio
+# Contribuer à SFC Editor
 
 Merci de votre intérêt ! Les contributions (code, tests, traductions, exemples de fichiers, retours d'usage) sont bienvenues, en français ou en anglais.
 

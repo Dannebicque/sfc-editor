@@ -27,13 +27,14 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump'] as const)
           <rect v-if="activeRegion" class="region" :x="activeRegion.x1 - 8" :y="activeRegion.y1" :width="activeRegion.x2 - activeRegion.x1 + 16" :height="activeRegion.y2 - activeRegion.y1" rx="8" />
           <line v-for="(l, i) in layout.lines" :key="'l' + i" class="lk" :x1="l.x1" :y1="l.y1" :x2="l.x2" :y2="l.y2" />
           <template v-for="v in shapes" :key="v.id + (v.kind === 'bar' ? v.part : '')">
-            <g v-if="v.kind === 'step'" class="el" :class="{ active: simActive.has(v.id), linked: sharedNum !== null && v.num === sharedNum, cites: citingActive.has(v.id) }" @pointerdown.stop="ui.pick(v.id)">
+            <g v-if="v.kind === 'step'" class="el" :class="{ active: simActive.has(v.id), linked: sharedNum !== null && v.num === sharedNum, cites: citingActive.has(v.id) }" @pointerdown.stop="ui.pick(v.id)" @dblclick.stop="v.macro && ui.openExpansion(v.id)">
               <rect class="hit" :x="v.x - v.l" :y="v.ay" :width="v.l + v.r" :height="v.h + v.y - v.ay" />
               <g v-if="v.arrivals.length" class="arrival">
                 <text class="jtxt" :x="v.x" :y="v.ay + 11" text-anchor="middle">{{ v.arrivals.join(', ') }}</text>
                 <polygon class="arrow" :points="(v.x - 5) + ',' + (v.ay + 13) + ' ' + (v.x + 5) + ',' + (v.ay + 13) + ' ' + v.x + ',' + (v.ay + 22)" />
               </g>
               <rect class="st-box" :x="v.x - v.w / 2" :y="v.y" :width="v.w" height="40" />
+              <g v-if="v.macro" class="macro"><line :x1="v.x - v.w / 2" :x2="v.x + v.w / 2" :y1="v.y + 8" :y2="v.y + 8" /><line :x1="v.x - v.w / 2" :x2="v.x + v.w / 2" :y1="v.y + 32" :y2="v.y + 32" /></g>
               <rect v-if="v.initial" class="st-in" :x="v.x - v.w / 2 + 4" :y="v.y + 4" :width="v.w - 8" height="32" />
               <text class="st-num" :x="v.x" :y="v.y + 25" text-anchor="middle">{{ v.num }}</text>
               <text v-if="v.name" class="st-name" :x="v.x - v.w / 2 - 8" :y="v.y + 24" text-anchor="end">{{ v.name }}</text>

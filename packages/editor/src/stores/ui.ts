@@ -5,9 +5,9 @@ import {
   locate, moveBranch as moveBranchCmd, parseRecept, removeBranch, removeItem, renumber, unwrapBlock, walkAll,
   wrapInBlock, type BlockKind, type InsertWhere, type ItemKind,
 } from '@grafcet/core';
-import { referencesTo } from '@grafcet/core';
+import { createExpansion, macrosOf, referencesTo, setMacro } from '@grafcet/core';
 import { exportArchive, exportFolder, importArchive, importFolder, looksLikeZip, type FolderFile, exportNative, exportSfcEditXml, FORMAT_ID, importJson, importNative, importSfcEditXml, looksLikeSfcEditXml, exportPlcopenXml, importPlcopenXml, looksLikePlcopenXml, ImportError, type ReportEntry } from '@grafcet/io';
-import { enabledTransitions, fire, initialMarking } from '@grafcet/simulation';
+import { buildSimulation, enabledTransitions, fire, macroActive } from '@grafcet/simulation';
 import { describeText, renderMessage } from '../format';
 import { isLegalDocId, type LegalDocId } from '../legal';
 import { applyLang, kindLabel, KEYMAP, LS_PREFIX, T, lang, type Lang } from '../i18n';
@@ -29,7 +29,7 @@ export const useUiStore = defineStore('ui', () => {
   const dataView = ref<'json' | 'graph' | 'native' | 'sfcedit' | 'plcopen'>('json');
   /** Côté d'insertion choisi pour les éléments simples (les blocs imposent le leur : barre = avant, convergence = après). */
   const insertWhere = ref<InsertWhere>('after');
-  const sim = reactive({ on: false, active: [] as string[] });
+  const sim = reactive({ on: false, active: [] as string[], root: '' });
 
   /* ----- annonces pour lecteurs d'écran ----- */
   const liveMsg = ref('');
@@ -232,11 +232,48 @@ export const useUiStore = defineStore('ui', () => {
   function doRenumber(): void { project.mutate((g) => renumber(g)); announce(T('a_renumbered')); }
 
   /* ----- GRAFCET du projet ----- */
+  /* ----- macro-étapes ----- */
+  function toggleMacro(on: boolean): void {
+    const id = selBase.value;
+    if (id) project.mutate((g) => { setMacro(g, id, on); });
+  }
+  function setExpansion(gid: string | null): void {
+    const id = selBase.value;
+    if (id) project.mutate((g) => { const it = findItem(g.items, id); if (it && it.kind === 'step' && it.expansion !== undefined) it.expansion = gid; });
+  }
+  function makeExpansion(): void {
+    const id = selBase.value;
+    if (!id) return;
+    const gid = project.mutate((g, P) => {
+      const it = findItem(g.items, id);
+      return it && it.kind === 'step' ? createExpansion(P, g, id, T('expansion_name', { n: it.num }))?.id ?? null : null;
+    });
+    if (gid) { announce(T('a_expansion_created')); openG(gid); }
+  }
+  function setRole(role: string): void {
+    const id = selBase.value;
+    if (!id) return;
+    project.mutate((g) => {
+      const it = findItem(g.items, id);
+      if (!it || it.kind !== 'step') return;
+      if (role === 'entry' || role === 'exit') it.role = role; else delete it.role;
+    });
+  }
+  /** Ouvre l'expansion de la macro-étape sélectionnée (ou de celle dont l'id est donné). */
+  function openExpansion(id?: string): void {
+    const it = findItem(activeG.value.items, id ?? selBase.value ?? '');
+    if (it && it.kind === 'step' && typeof it.expansion === 'string') openG(it.expansion);
+  }
+  /** Macro-étapes (dans tout le projet) dont ce GRAFCET est l'expansion. */
+  const parentsOfActive = computed(() => {
+    const out: { gid: string; name: string; itemId: string; num: string }[] = [];
+    for (const g of projectRef.value.grafcets) for (const m of macrosOf(g)) if (m.expansion === project.activeId) out.push({ gid: g.id, name: g.name, itemId: m.id, num: m.num });
+    return out;
+  });
   function openG(id: string, selectId?: string): void {
     project.activeId = id;
     sel.value = null;
-    sim.on = false;
-    sim.active = [];
+    if (!(sim.on && simGraph.value?.grafcets.has(id))) { sim.on = false; sim.active = []; }
     nextTick(() => {
       viewStore.fit(false);
       let want = selectId ?? null;
@@ -299,13 +336,22 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   /* ----- simulation (jeu de jetons, sans évaluation des réceptivités) ----- */
-  const simActive = computed(() => (sim.on ? new Set(sim.active) : new Set<string>()));
-  const simEnabled = computed(() => (sim.on ? enabledTransitions(flat.value, new Set(sim.active)) : new Set<string>()));
-  function simReset(): void { sim.active = [...initialMarking(activeG.value)]; }
-  function simFire(tid: string): void { sim.active = [...fire(flat.value, new Set(sim.active), tid)]; announce(T('a_fired')); }
+  /** Graphe de simulation : le GRAFCET où elle a démarré, avec les expansions de ses macro-étapes. */
+  const simGraph = computed(() => (sim.on ? buildSimulation(projectRef.value, sim.root) : null));
+  const simActive = computed(() => {
+    const g = simGraph.value;
+    if (!g) return new Set<string>();
+    const marking = new Set(sim.active);
+    const out = new Set(marking);
+    for (const id of g.members.keys()) if (macroActive(g, marking, id)) out.add(id);
+    return out;
+  });
+  const simEnabled = computed(() => (simGraph.value ? enabledTransitions(simGraph.value.flat, new Set(sim.active)) : new Set<string>()));
+  function simReset(): void { if (simGraph.value) sim.active = [...simGraph.value.initial]; }
+  function simFire(tid: string): void { if (!simGraph.value) return; sim.active = [...fire(simGraph.value.flat, new Set(sim.active), tid)]; announce(T('a_fired')); }
   function toggleSim(): void {
     sim.on = !sim.on;
-    if (sim.on) { simReset(); announce(T('a_sim_on')); } else announce(T('a_sim_off'));
+    if (sim.on) { sim.root = project.activeId; simReset(); announce(T('a_sim_on')); } else announce(T('a_sim_off'));
   }
 
   /* ----- données : vue, copie, import ----- */
@@ -510,7 +556,7 @@ export const useUiStore = defineStore('ui', () => {
     insertKind, removeSel, setField, setAction, addAction, delAction, addToken, addBranch, delBranch, doRenumber,
     openG, addGrafcet, dupGrafcet, delGrafcet,
     pick, pickFromText, focusHost, onHostFocus, goIssue, onKey,
-    simActive, simEnabled, simReset, simFire, toggleSim,
+    simActive, simEnabled, simReset, simFire, toggleSim, toggleMacro, setExpansion, makeExpansion, setRole, openExpansion, parentsOfActive,
     dataText, importReport, exportReport, downloadSfcEdit, downloadPlcopen, downloadArchive, canFolder, saveFolder, openFolder, copyMsg, importMsg, importText, copyData, downloadNative, applyImport, onFile,
     legalDoc, openLegal, closeLegal, syncLegalFromHash,
     cycleTheme, setLang, init,

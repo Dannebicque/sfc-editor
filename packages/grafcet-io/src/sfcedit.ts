@@ -10,7 +10,7 @@ import { elements, esc, parseXml, textOf, type XNode } from './xml';
  * liens de convergence `conv and|or` : `seqid` = séquence qui suit, `node` = branches qui convergent) et des `jump`
  * (renvoi de la fin d'une séquence vers le début d'une autre). Une négation s'écrit `<cpl>…</cpl>` (barre de complément).
  *
- * Extensions propres à GRAFCET Studio, ignorées par SFCEdit : attributs `x-label` (nom de l'étape) et `x-kind`
+ * Extensions propres à SFC Editor, ignorées par SFCEdit : attributs `x-label` (nom de l'étape) et `x-kind`
  * (type d'action) pour que l'aller-retour ne perde rien.
  */
 
@@ -25,7 +25,7 @@ export const looksLikeSfcEditXml = (text: string): boolean => /<project[\s>]/.te
 
 const ATOM = /^(?:[A-Za-zÀ-ÿ_][A-Za-z0-9À-ÿ_]*|\d+)$/;
 
-/** Contenu d'une condition SFCEdit → syntaxe de réceptivité de GRAFCET Studio (`<cpl>x</cpl>` devient `/x`). */
+/** Contenu d'une condition SFCEdit → syntaxe de réceptivité de SFC Editor (`<cpl>x</cpl>` devient `/x`). */
 function convertCondition(node: XNode, report: ReportEntry[]): string {
   const render = (n: XNode): string =>
     n.children.map((c) => {
@@ -158,7 +158,7 @@ function importAction(a: XNode, gname: string, report: ReportEntry[]): Action {
   const cond = condNode ? convertCondition(condNode, report) : '';
   let kind: Action['kind'] = 'continue';
   const ext = a.attrs['x-kind'];
-  if (ext === 'activation' || ext === 'deactivation' || ext === 'conditional') kind = ext;
+  if (ext === 'activation' || ext === 'deactivation' || ext === 'conditional' || ext === 'event') kind = ext;
   else if (type === 'conditional' || condNode) kind = 'conditional';
   else if (type !== 'normal') report.push(warn('rep_action_type', { g: gname, type }));
   return { kind, label, cond };
@@ -169,7 +169,7 @@ export interface SfcEditImportOptions {
   projectName: string;
 }
 
-/** Importe un export XML de SFCEdit : un projet GRAFCET Studio et un rapport de conversion. */
+/** Importe un export XML de SFCEdit : un projet SFC Editor et un rapport de conversion. */
 export function importSfcEditXml(text: string, opts: SfcEditImportOptions): ImportResult<Project> {
   let root: XNode;
   try { root = parseXml(text); } catch (e) { throw new ImportError({ key: 'imp_sfcedit', params: { m: String((e as Error).message) } }); }
@@ -192,7 +192,7 @@ const TIMER = /^(?:t\d*\/X\d+\/\d+(?:[.,]\d+)?\s?(?:ms|s|min)|\d+(?:[.,]\d+)?\s?
 const IDENT = /^[A-Za-zÀ-ÿ_][A-Za-z0-9À-ÿ_]*/;
 const COMPARE = /^\s*(?:<=|>=|==|!=|=|<|>)\s*(?:-?\d+(?:[.,]\d+)?|[A-Za-zÀ-ÿ_][A-Za-z0-9À-ÿ_]*)/;
 
-/** Réceptivité GRAFCET Studio → contenu de `<condition>` SFCEdit (`/x` devient `<cpl>x</cpl>`). */
+/** Réceptivité SFC Editor → contenu de `<condition>` SFCEdit (`/x` devient `<cpl>x</cpl>`). */
 function toSfcCondition(src: string, notes: { edge: boolean; timer: boolean }): string {
   function operand(s: string, i: number): [string, number] {
     while (s[i] === ' ') i++;
@@ -237,18 +237,20 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
   const jumps: { from: number; target: string | null }[] = [];
   const placement = new Map<string, { seq: number; idx: number }>();
   const notes = { edge: false, timer: false };
-  let actionKinds = false;
+  let actionKinds = false, macroFlag = false;
   const newSeq = (): OutSeq => { const s = { id: seqs.length + 1, nodes: [] as string[] }; seqs.push(s); return s; };
 
   function stepXml(it: Extract<Item, { kind: 'step' }>): string {
     const attrs = `type="${it.initial ? 'initial' : 'normal'}" name="${/^\d+$/.test(it.num) ? 'X' + it.num : esc(it.num)}"` + (it.name ? ` x-label="${esc(it.name)}"` : '');
     if (it.name) flags.labels = true;
+    if (it.expansion !== undefined) macroFlag = true;
     if (!it.actions.length) return `\t\t\t<step ${attrs} />`;
     const acts = it.actions.map((a) => {
       if (a.kind !== 'continue') actionKinds = true;
-      const type = a.kind === 'conditional' ? 'conditional' : 'normal';
-      const ext = a.kind === 'activation' || a.kind === 'deactivation' ? ` x-kind="${a.kind}"` : '';
-      const cond = a.kind === 'conditional' ? `<condition>${toSfcCondition(a.cond, notes)}</condition>` : '';
+      const hasCond = a.kind === 'conditional' || a.kind === 'event';
+      const type = hasCond ? 'conditional' : 'normal';
+      const ext = a.kind === 'activation' || a.kind === 'deactivation' || a.kind === 'event' ? ` x-kind="${a.kind}"` : '';
+      const cond = hasCond ? `<condition>${toSfcCondition(a.cond, notes)}</condition>` : '';
       return `\t\t\t\t<action type="${type}"${ext}>${cond}<text>${esc(a.label)}</text></action>`;
     });
     return `\t\t\t<step ${attrs}>\n${acts.join('\n')}\n\t\t\t</step>`;
@@ -292,6 +294,7 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
   if (notes.edge) report.push(warn('rep_x_edge', { g: g.name }));
   if (notes.timer) report.push(warn('rep_x_timer', { g: g.name }));
   if (actionKinds) report.push(warn('rep_x_actions', { g: g.name }));
+  if (macroFlag) report.push(warn('rep_x_macro', { g: g.name }));
 
   const head = `\t<grafcet type="normal" owner="" name="${esc(g.name)}" comment="${esc(g.comment ?? '')}">`;
   const body = seqs.map((s) => `\t\t<sequence id="${s.id}">\n${s.nodes.join('\n')}\n\t\t</sequence>`);

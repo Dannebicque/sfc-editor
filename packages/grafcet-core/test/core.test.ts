@@ -2,7 +2,7 @@ import { describe as suite, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
   addBranch, allowedInsertions, checkSeq, describeId, flatten, insertAfter, newGrafcet, parseRecept,
-  provablyExclusive, referencesTo, removeBranch, removeItem, renumber, stats, validateGrafcet, walkAll, duplicateGrafcet, INSERT_KINDS,
+  createExpansion, provablyExclusive, referencesTo, syncLinks, setMacro, removeBranch, removeItem, renumber, stats, validateGrafcet, walkAll, duplicateGrafcet, INSERT_KINDS,
   type Grafcet, type Project,
 } from '../src';
 import { demoProject } from './helpers';
@@ -225,5 +225,102 @@ suite('références à une étape', () => {
     trans.recept = 'a.X3+/b';
     expect(referencesTo(g, '3', known)).toContain(trans.id);
     expect(referencesTo(g, '4', known)).not.toContain(trans.id);
+  });
+});
+
+suite('macro-étapes', () => {
+  const mk = () => {
+    const P = demoProject();
+    const g = P.grafcets[0]!;
+    const step = g.items.find((i) => i.kind === 'step' && !i.initial)!;
+    return { P, g, step };
+  };
+  it('une macro sans expansion est une erreur ; l’expansion créée est valide', () => {
+    const { P, g, step } = mk();
+    expect(setMacro(g, step.id, true)).toBe(true);
+    expect(validateGrafcet(g, { project: P }).map((i) => i.key)).toContain('v_macro_no_expansion');
+    const x = createExpansion(P, g, step.id, 'Expansion')!;
+    expect(x.items.map((i) => i.kind)).toEqual(['step', 'trans', 'step']);
+    expect(validateGrafcet(g, { project: P }).map((i) => i.key)).not.toContain('v_macro_no_expansion');
+    const k = validateGrafcet(x, { project: P }).map((i) => i.key);
+    expect(k).not.toContain('v_noinit');
+    expect(k).not.toContain('v_dead_end');
+    expect(k).not.toContain('v_unreachable');
+    expect(k).not.toContain('v_expansion_entry');
+  });
+  it('détecte une expansion sans sortie et une macro qui se contient elle-même', () => {
+    const { P, g, step } = mk();
+    setMacro(g, step.id, true);
+    const x = createExpansion(P, g, step.id, 'Expansion')!;
+    (x.items[2] as { role?: string }).role = undefined;
+    expect(validateGrafcet(x, { project: P }).map((i) => i.key)).toContain('v_expansion_exit');
+    // l'expansion contient une macro qui renvoie au GRAFCET de départ
+    (x.items[2] as { role?: string }).role = 'exit';
+    const inner = x.items[2] as { expansion?: string | null };
+    inner.expansion = g.id;
+    expect(validateGrafcet(g, { project: P }).map((i) => i.key)).toContain('v_macro_cycle');
+  });
+});
+
+suite('actions sur événement', () => {
+  const mk = (kind: 'event' | 'continue', cond: string, label: string) => {
+    const P = demoProject();
+    const g = P.grafcets[0]!;
+    const s = g.items.find((i) => i.kind === 'step')! as { actions: unknown[] };
+    s.actions = [{ kind, label, cond }];
+    return { P, g };
+  };
+  it('avertit si l’événement n’a pas de front', () => {
+    const { g } = mk('event', 'a', 'B:=1');
+    expect(validateGrafcet(g).map((i) => i.key)).toContain('v_event_no_edge');
+  });
+  it('accepte un front et signale une affectation continue', () => {
+    const ok = mk('event', '↑a', 'B:=1');
+    expect(validateGrafcet(ok.g).map((i) => i.key)).not.toContain('v_event_no_edge');
+    const bad = mk('continue', '', 'B:=1');
+    expect(validateGrafcet(bad.g).map((i) => i.key)).toContain('v_assign_continuous');
+  });
+});
+
+suite('transitions source et puits', () => {
+  it('accepte une séquence commençant ou finissant par une transition', () => {
+    const t = (id: string, n: number) => ({ id, kind: 'trans' as const, num: n, recept: 'a' });
+    const s = (id: string, n: string, initial = false) => ({ id, kind: 'step' as const, num: n, name: '', initial, actions: [] });
+    expect(checkSeq([t('t1', 1), s('s1', '1'), t('t2', 2)], 'root')).toBeNull();
+    expect(checkSeq([t('t1', 1), s('s1', '1')], 'or')).not.toBeNull();
+  });
+  it('ne signale ni absence d’étape initiale ni bout de ligne', () => {
+    const P = demoProject();
+    const g = newGrafcet(P, 'src');
+    g.items = [
+      { id: 'a', kind: 'trans', num: 1, recept: 'a' },
+      { id: 'b', kind: 'step', num: '1', name: '', initial: false, actions: [] },
+      { id: 'c', kind: 'trans', num: 2, recept: 'b' },
+    ];
+    const keys = validateGrafcet(g).map((i) => i.key);
+    expect(keys).not.toContain('v_noinit');
+    expect(keys).not.toContain('v_dead_end');
+    expect(keys).not.toContain('v_unreachable');
+  });
+  it('propose l’insertion d’une transition avant la première étape', () => {
+    const P = demoProject();
+    const g = P.grafcets[0]!;
+    const first = g.items[0]!;
+    expect(allowedInsertions(g, first.id, 'before').map((i) => i.kind)).toContain('trans');
+  });
+});
+
+suite('synchronisations', () => {
+  it('liste les étapes testées dans un autre GRAFCET, pas celles du même', () => {
+    const P = demoProject();
+    const a = P.grafcets[0]!, b = P.grafcets[1]!;
+    const stepB = b.items.find((i) => i.kind === 'step')! as { num: string };
+    stepB.num = 'SYNC';
+    const tA = a.items.find((i) => i.kind === 'trans')! as { recept: string };
+    tA.recept = 'X' + stepB.num;
+    const known = new Set<string>();
+    for (const g of P.grafcets) walkAll(g.items, (it) => { if (it.kind === 'step') known.add(it.num); });
+    const links = syncLinks(P, known);
+    expect(links.some((l) => l.from === a.id && l.num === stepB.num && l.in.includes(b.id))).toBe(true);
   });
 });

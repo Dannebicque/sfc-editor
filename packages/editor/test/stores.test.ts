@@ -209,3 +209,21 @@ describe('étape citée dans des réceptivités', () => {
     expect(ui.citedIn.map((c) => c.gid)).toEqual([g2!.id]);
   });
 });
+
+describe('macro-étapes', () => {
+  it('transforme une étape en macro-étape, crée puis ouvre son expansion, avec annulation', () => {
+    const ui = useUiStore();
+    const project = useProjectStore();
+    const g = project.activeG;
+    const step = g.items.find((i) => i.kind === 'step' && !i.initial) ?? g.items[0]!;
+    ui.sel = step.id;
+    const n = project.project.grafcets.length;
+    ui.toggleMacro(true);
+    ui.makeExpansion();
+    expect(project.project.grafcets).toHaveLength(n + 1);
+    expect(project.activeG.name).toMatch(/Expansion|expansion/i);
+    expect(project.issues.map((i) => i.key)).not.toContain('v_expansion_entry');
+    project.undo();
+    expect(project.project.grafcets).toHaveLength(n);
+  });
+});

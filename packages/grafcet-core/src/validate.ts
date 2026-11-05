@@ -2,7 +2,8 @@ import { checkSeq } from './grammar';
 import { flatten } from './flatten';
 import { parseRecept } from './recept';
 import { walkAll } from './tree';
-import type { Grafcet, Message } from './types';
+import type { Grafcet, Message, Project } from './types';
+import { expansionReaches, macrosOf } from './macro';
 import { DEFAULT_PROFILE, profileIssues, type ValidationProfile } from './profiles';
 
 export type IssueLevel = 'error' | 'warning';
@@ -24,6 +25,8 @@ export interface ValidateOptions {
   knownSteps?: Iterable<string>;
   /** Profil de vérification (défaut : `grafcet`). */
   profile?: ValidationProfile;
+  /** Projet complet : permet de contrôler les macro-étapes et leurs expansions (inter-GRAFCET). */
+  project?: Project;
 }
 
 export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[] {
@@ -37,7 +40,24 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
     else if (it.kind === 'trans') transitions.push(it);
     else if (it.kind === 'jump') jumps.push(it);
   });
-  if (!steps.some((s) => s.initial)) issues.push({ level: 'error', key: 'v_noinit', id: null });
+  const entries = steps.filter((s) => s.role === 'entry'), exits = steps.filter((s) => s.role === 'exit');
+  const isExpansion = !!opts.project && opts.project.grafcets.some((x) => x.id !== g.id && macrosOf(x).some((m) => m.expansion === g.id));
+  const hasSource = transitions.some((t) => g.items[0] === t);
+  if (!steps.some((s) => s.initial) && !entries.length && !hasSource) issues.push({ level: 'error', key: 'v_noinit', id: null });
+  if (isExpansion || entries.length || exits.length) {
+    if (entries.length !== 1) issues.push({ level: 'error', key: 'v_expansion_entry', params: { n: entries.length }, id: entries[1]?.id ?? null });
+    if (exits.length !== 1) issues.push({ level: 'error', key: 'v_expansion_exit', params: { n: exits.length }, id: exits[1]?.id ?? null });
+  }
+  for (const m of macrosOf(g)) {
+    if (m.actions.length) issues.push({ level: 'warning', key: 'v_macro_actions', params: { n: m.num }, id: m.id });
+    if (m.expansion == null) { issues.push({ level: 'error', key: 'v_macro_no_expansion', params: { n: m.num }, id: m.id }); continue; }
+    if (!opts.project) continue;
+    if (!opts.project.grafcets.some((x) => x.id === m.expansion)) issues.push({ level: 'error', key: 'v_macro_expansion_missing', params: { n: m.num }, id: m.id });
+    else if (expansionReaches(opts.project, m.expansion, g.id)) issues.push({ level: 'error', key: 'v_macro_cycle', params: { n: m.num }, id: m.id });
+    else if (opts.project.grafcets.some((x) => x.id !== g.id && macrosOf(x).some((o) => o.expansion === m.expansion)) || macrosOf(g).some((o) => o !== m && o.expansion === m.expansion)) {
+      issues.push({ level: 'warning', key: 'v_macro_shared', params: { n: m.num }, id: m.id });
+    }
+  }
   const seen = new Map<string, string>();
   for (const s of steps) {
     if (!/^[\p{L}\p{N}_]+$/u.test(s.num)) issues.push({ level: 'error', key: 'v_num_bad', params: { n: s.num }, id: s.id });
@@ -45,7 +65,10 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
     seen.set(s.num, s.id);
     for (const a of s.actions) {
       if (!a.label.trim()) issues.push({ level: 'warning', key: 'v_act_label', params: { n: s.num }, id: s.id });
-      if (a.kind === 'conditional' && !(a.cond || '').trim()) issues.push({ level: 'warning', key: 'v_act_cond', params: { n: s.num }, id: s.id });
+      const withCond = a.kind === 'conditional' || a.kind === 'event';
+      if (withCond && !(a.cond || '').trim()) issues.push({ level: 'warning', key: 'v_act_cond', params: { n: s.num }, id: s.id });
+      if (a.kind === 'event' && (a.cond || '').trim() && !/[↑↓^]/.test(a.cond)) issues.push({ level: 'warning', key: 'v_event_no_edge', params: { n: s.num }, id: s.id });
+      if ((a.kind === 'continue' || a.kind === 'conditional') && /:=|←/.test(a.label)) issues.push({ level: 'warning', key: 'v_assign_continuous', params: { n: s.num }, id: s.id });
     }
   }
   const known = new Set<string>([...external, ...steps.map((x) => x.num)]);
@@ -62,11 +85,14 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
   const nodeName = (n: { kind: string; num: string | number }): Message => ({ key: n.kind === 'step' ? 'd_step' : 'd_trans', params: { n: n.num } });
   const out = new Map<string, number>();
   for (const l of fg.links) out.set(l.from, (out.get(l.from) || 0) + 1);
-  for (const n of fg.nodes) if (!out.has(n.id)) issues.push({ level: 'warning', key: 'v_dead_end', params: { x: nodeName(n) }, id: n.id });
+  const exitIds = new Set(exits.map((x) => x.id));
+  // Une transition sans étape aval est une transition puits : légitime.
+  for (const n of fg.nodes) if (n.kind === 'step' && !out.has(n.id) && !exitIds.has(n.id)) issues.push({ level: 'warning', key: 'v_dead_end', params: { x: nodeName(n) }, id: n.id });
   const adj = new Map<string, string[]>();
   for (const l of fg.links) { if (!adj.has(l.from)) adj.set(l.from, []); adj.get(l.from)!.push(l.to); }
   const reach = new Set<string>();
-  const queue = steps.filter((s) => s.initial).map((s) => s.id);
+  const queue = steps.filter((s) => s.initial || s.role === 'entry').map((s) => s.id);
+  if (g.items[0]?.kind === 'trans') queue.push(g.items[0].id);
   while (queue.length) {
     const x = queue.pop()!;
     if (reach.has(x)) continue;

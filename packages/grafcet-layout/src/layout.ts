@@ -9,7 +9,7 @@ export interface Line { x1: number; y1: number; x2: number; y2: number }
 export interface ActionView { i: number; x: number; y: number; condW: number; labW: number; cond: string; text: string; cell: boolean }
 interface BoxBase { id: string; x: number; y: number; l: number; r: number; h: number }
 /** `arrivals` : numéros des étapes d'où part un renvoi vers cet élément (affichés au-dessus, avec une flèche entrante). */
-export interface StepView extends BoxBase { kind: 'step'; num: string; w: number; name: string; initial: boolean; acts: ActionView[]; arrivals: string[]; ay: number }
+export interface StepView extends BoxBase { kind: 'step'; num: string; w: number; macro: boolean; role: 'entry' | 'exit' | null; name: string; initial: boolean; acts: ActionView[]; arrivals: string[]; ay: number }
 export interface TransView extends BoxBase { kind: 'trans'; num: number; recept: string; arrivals: string[]; ay: number }
 export interface JumpView extends BoxBase { kind: 'jump'; label: string; broken: boolean }
 export interface BarView { kind: 'bar'; id: string; part: 'd' | 'c'; ys: number[]; x1: number; x2: number }
@@ -78,8 +78,9 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
   const actGeom: ActGeomFn = (it) => {
     const acts = it.actions;
     if (!acts.length) return null;
-    const hasC = acts.some((a) => a.kind === 'conditional');
-    const condW = hasC ? Math.max(28, ...acts.map((a) => (a.kind === 'conditional' ? tw(a.cond || '?') + 14 : 0))) : 0;
+    const hasCond = (k: string) => k === 'conditional' || k === 'event';
+    const hasC = acts.some((a) => hasCond(a.kind));
+    const condW = hasC ? Math.max(28, ...acts.map((a) => (hasCond(a.kind) ? tw(a.cond || '?') + 14 : 0))) : 0;
     const labW = Math.max(44, ...acts.map((a) => tw(actText(a)) + 16));
     return { condW, labW, w: condW + labW };
   };
@@ -132,11 +133,11 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
       const acts: ActionView[] = [];
       if (m.ag) {
         const ax = x + sw(it) / 2 + GEO.actGap;
-        it.actions.forEach((a, i) => acts.push({ i, x: ax, y: y + 9 + i * GEO.actH, condW: m.ag!.condW, labW: m.ag!.labW, cond: a.cond || '', text: actText(a), cell: a.kind === 'conditional' }));
+        it.actions.forEach((a, i) => acts.push({ i, x: ax, y: y + 9 + i * GEO.actH, condW: m.ag!.condW, labW: m.ag!.labW, cond: a.cond || '', text: actText(a), cell: a.kind === 'conditional' || a.kind === 'event' }));
         L(x + sw(it) / 2, y + 20, ax, y + 20);
       }
       if (m.h > GEO.stepH) L(x, y + GEO.stepH, x, y + m.h);
-      views.push({ kind: 'step', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, w: sw(it), name: it.name, initial: it.initial, acts, arrivals: arrivals(it.id), ay });
+      views.push({ kind: 'step', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, w: sw(it), macro: it.expansion !== undefined, role: it.role ?? null, name: it.name, initial: it.initial, acts, arrivals: arrivals(it.id), ay });
       focus.push({ id: it.id, x, y: y + 20, slot: { x, y: y + GEO.stepH + 11 }, slotBefore: { x, y: y - 11 } });
     } else if (it.kind === 'trans') {
       L(x, y, x, y + m.h);

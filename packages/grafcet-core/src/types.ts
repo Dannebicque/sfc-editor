@@ -6,7 +6,8 @@
  * elles-mêmes des séquences. Les identifiants sont des chaînes opaques stables.
  * Voir docs/adr/0001-modele-graphe.md pour l'évolution vers un graphe canonique.
  */
-export type ActionKind = 'continue' | 'conditional' | 'activation' | 'deactivation';
+/** Types d'action : continue, conditionnelle (niveau), sur activation, sur désactivation, ou sur événement (`cond` = l'événement, ex. « ↑a »). */
+export type ActionKind = 'continue' | 'conditional' | 'activation' | 'deactivation' | 'event';
 
 export interface Action {
   kind: ActionKind;
@@ -23,6 +24,13 @@ export interface Step {
   name: string;
   initial: boolean;
   actions: Action[];
+  /**
+   * Macro-étape : identifiant du GRAFCET qui en est l'expansion (`null` tant qu'aucune expansion n'est choisie).
+   * Absent pour une étape ordinaire.
+   */
+  expansion?: string | null;
+  /** Rôle dans une expansion : étape d'entrée (E) ou de sortie (S). */
+  role?: 'entry' | 'exit';
 }
 
 export interface Transition {

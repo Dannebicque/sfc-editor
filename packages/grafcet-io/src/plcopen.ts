@@ -33,7 +33,7 @@ const COMPARE = /^\s*(<=|>=|==|!=|=|<|>)\s*(-?\d+(?:[.,]\d+)?|[A-Za-zÀ-ÿ_][A-Z
 
 interface Notes { edge: boolean; timer: boolean; vars: Map<string, 'BOOL' | 'INT'> }
 
-/** Réceptivité GRAFCET Studio → expression ST. */
+/** Réceptivité SFC Editor → expression ST. */
 function toST(src: string, known: ReadonlySet<string>, notes: Notes): string {
   const stepOf = (w: string): string | null => {
     if (known.has(w)) return w;
@@ -88,6 +88,8 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
   const outputs = new Set<string>();
   const idx = new Map<string, Item>();
   walkAll(g.items, (it) => idx.set(it.id, it));
+  if (g.items[0]?.kind === 'trans') report.push(warn('rep_p_source', { g: g.name }));
+  if (g.items.at(-1)?.kind === 'trans') report.push(warn('rep_p_sink', { g: g.name }));
   const pos = (x: number, y: number) => `<position x="${Math.round(x)}" y="${Math.round(y)}"/>`;
   const cpin = (preds: Pred[]) => (preds.length ? `<connectionPointIn>${preds.map((p) => `<connection refLocalId="${p.id}"${p.fp != null ? ` formalParameter="${p.fp}"` : ''}/>`).join('')}</connectionPointIn>` : '');
   const st = (text: string) => `<ST><xhtml:p><![CDATA[${text.replace(/]]>/g, ']] >')}]]></xhtml:p></ST>`;
@@ -99,8 +101,8 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
       const label = a.label.trim() || '_';
       if (!IDENT.test(label)) report.push(warn('rep_p_ident', { g: g.name, n: label }));
       else outputs.add(label);
-      if (a.kind === 'conditional') {
-        report.push(warn('rep_p_cond_action', { g: g.name }));
+      if (a.kind === 'conditional' || a.kind === 'event') {
+        report.push(warn(a.kind === 'event' ? 'rep_p_event_action' : 'rep_p_cond_action', { g: g.name }));
         return `<action localId="${id}" qualifier="N">${rel}<inline>${st(`${label} := ${toST(a.cond || 'TRUE', known, notes)};`)}</inline></action>`;
       }
       const q = a.kind === 'activation' ? 'P1' : a.kind === 'deactivation' ? 'P0' : 'N';
@@ -115,6 +117,7 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
   function walk(items: Item[], preds: Pred[], cx: number, y: number): { preds: Pred[]; y: number } {
     for (const it of items) {
       if (it.kind === 'step') {
+        if (it.expansion !== undefined) report.push(warn('rep_p_macro', { g: g.name }));
         const id = next++;
         nodes.push(`<step localId="${id}" name="${esc(stepName(it.num))}"${it.initial ? ' initialStep="true"' : ''}>${pos(cx, y)}${cpin(preds)}<connectionPointOut formalParameter="sfc"/>${it.actions.length ? '<connectionPointOutAction formalParameter="action"/>' : ''}</step>`);
         if (it.actions.length) actionBlock(it, id, cx, y);
@@ -201,7 +204,7 @@ export function exportPlcopenXml(project: Project, opts: PlcopenExportOptions = 
   const date = (opts.now ?? new Date()).toISOString().slice(0, 19);
   const scaling = '<scaling x="1" y="1"/>';
   const output = `<?xml version="1.0" encoding="UTF-8"?>\n<project xmlns="${PLCOPEN_NS}" xmlns:xhtml="${XHTML_NS}">\n`
-    + `<fileHeader companyName="" productName="GRAFCET Studio" productVersion="0.1.0" creationDateTime="${date}"/>\n`
+    + `<fileHeader companyName="" productName="SFC Editor" productVersion="0.1.0" creationDateTime="${date}"/>\n`
     + `<contentHeader name="${esc(project.name || 'projet')}"><coordinateInfo><fbd>${scaling}</fbd><ld>${scaling}</ld><sfc>${scaling}</sfc></coordinateInfo></contentHeader>\n`
     + `<types><dataTypes/><pous>\n${pous.join('\n')}\n</pous></types>\n<instances><configurations/></instances>\n</project>\n`;
   return { output, report: { entries: dedupe(report) } };
@@ -214,7 +217,7 @@ function dedupe(entries: ReportEntry[]): ReportEntry[] {
 
 /* ------------------------------------------------------------------ import */
 
-/** Expression ST d'une condition → réceptivité GRAFCET Studio. */
+/** Expression ST d'une condition → réceptivité SFC Editor. */
 function fromST(src: string): { text: string; lossy: boolean } {
   let lossy = false;
   const text = src

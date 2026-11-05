@@ -1,10 +1,12 @@
-# GRAFCET Studio
+# SFC Editor
 
 Éditeur et validateur de GRAFCET (IEC 60848) pour le web, **local-first**, pensé pour remplacer SFCEdit :
 construction guidée (le curseur ne propose que ce qui est valide), validation continue, simulation à jetons,
 interface fr/en, accessibilité clavier et lecteur d'écran.
 
 > État : prototype découpé en paquets (jalon 1a). Voir [docs/decoupage.md](docs/decoupage.md) et la feuille de route ci-dessous.
+
+> **Nom.** L'application s'appelle **SFC Editor**. Les identifiants techniques historiques (`grafcet-studio-project` pour le format natif, clés de stockage `grafcet-studio-v1*`, paquets `@grafcet/*`) sont conservés pour ne pas casser les fichiers et les projets déjà enregistrés.
 
 ## Démarrer
 
@@ -38,7 +40,7 @@ Les paquets internes sont consommés **directement en TypeScript** (pas d'étape
 - **1a (fait)** noyau + mise en page + format natif JSON + éditeur web, tests de propriétés.
 - **1b (fait)** insertion avant/après (Maj + lettre pour le côté opposé), encadrer un élément dans une divergence OU/ET, dissoudre une divergence en gardant une branche, déplacer une branche.
 - **1c (en grande partie fait)** PWA hors ligne, format dossier (un fichier par GRAFCET, adapté à Git) et archive ZIP déterministe. Reste : shell Electron minimal.
-- **2** macro-étapes, GRAFCETs partiels, forçages, validation IEC 60848 complète.
+- **2** ✅ macro-étapes (expansion dans le même projet), actions sur événement, transitions source/puits, vue des synchronisations entre GRAFCET. Reste : GRAFCETs partiels, étapes englobantes, forçages.
 - **3 (fait)** import/export SFCEdit (XML) et PLCopen XML TC6 v2.01 (partie SFC), validés contre le schéma officiel ; voir `fixtures/plcopen/README.md`.
 - **4+** serveur (comptes, partage), puis co-édition temps réel si le besoin est avéré.
 

@@ -1,6 +1,6 @@
 # Notices des composants tiers
 
-GRAFCET Studio est distribué sous licence [MPL-2.0](LICENSE). Ci-dessous : les dépendances de production de l'application web (certaines ne sont utilisées qu'à la compilation et ne figurent pas dans le code livré) ;
+SFC Editor est distribué sous licence [MPL-2.0](LICENSE). Ci-dessous : les dépendances de production de l'application web (certaines ne sont utilisées qu'à la compilation et ne figurent pas dans le code livré) ;
 chacune reste soumise à sa propre licence. Ce fichier est généré par `node scripts/generate-third-party.mjs` : ne pas le modifier à la main.
 
 ## Polices
