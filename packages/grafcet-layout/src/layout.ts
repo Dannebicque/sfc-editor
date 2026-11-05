@@ -15,7 +15,13 @@ export interface BarView { kind: 'bar'; id: string; part: 'd' | 'c'; ys: number[
 export interface RegionView { kind: 'region'; id: string; x1: number; x2: number; y1: number; y2: number }
 export type View = StepView | TransView | JumpView | BarView | RegionView;
 /** Point d'ancrage du curseur : position de l'élément et de l'emplacement d'insertion (slot). */
-export interface Focus { id: string; x: number; y: number; slot: { x: number; y: number } | null }
+export interface Focus {
+  id: string; x: number; y: number;
+  /** Emplacement d'insertion APRÈS l'élément. */
+  slot: { x: number; y: number } | null;
+  /** Emplacement d'insertion AVANT l'élément (ou le bloc, pour la barre de divergence). */
+  slotBefore: { x: number; y: number } | null;
+}
 export interface Layout { lines: Line[]; views: View[]; focus: Focus[]; bounds: { x: number; y: number; w: number; h: number } }
 
 interface Measure { l: number; r: number; h: number; ag?: ReturnType<ActGeomFn>; xs?: number[]; mx?: number; maxH?: number; bm?: Measure[] }
@@ -89,15 +95,15 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
       }
       if (m.h > GEO.stepH) L(x, y + GEO.stepH, x, y + m.h);
       views.push({ kind: 'step', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, name: it.name, initial: it.initial, acts });
-      focus.push({ id: it.id, x, y: y + 20, slot: { x, y: y + GEO.stepH + 11 } });
+      focus.push({ id: it.id, x, y: y + 20, slot: { x, y: y + GEO.stepH + 11 }, slotBefore: { x, y: y - 11 } });
     } else if (it.kind === 'trans') {
       L(x, y, x, y + m.h);
       views.push({ kind: 'trans', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, recept: it.recept });
-      focus.push({ id: it.id, x, y: y + 20, slot: { x, y: y + 31 } });
+      focus.push({ id: it.id, x, y: y + 20, slot: { x, y: y + 31 }, slotBefore: { x, y: y - 11 } });
     } else if (it.kind === 'jump') {
       L(x, y, x, y + 24);
       views.push({ kind: 'jump', id: it.id, x, y, l: m.l, r: m.r, h: m.h, label: jumpLabel(it), broken: !it.target || !idx.has(it.target) });
-      focus.push({ id: it.id, x, y: y + 16, slot: null });
+      focus.push({ id: it.id, x, y: y + 16, slot: null, slotBefore: null });
     } else {
       blockItem(it, x, y, m);
     }
@@ -114,7 +120,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
       const yb1 = y + GEO.orPad, yb2 = yb1 + maxH;
       L(x, y, x, yb1);
       views.push({ kind: 'bar', id: it.id, part: 'd', ys: [yb1], x1: bxs[0]! - GEO.ov, x2: bxs[lastK]! + GEO.ov });
-      focus.push({ id: it.id + ':d', x, y: yb1, slot: null });
+      focus.push({ id: it.id + ':d', x, y: yb1, slot: null, slotBefore: { x, y: y - 11 } });
       it.branches.forEach((b, k) => {
         dSeq(b, bxs[k]!, yb1);
         if (conv[k] && bm[k]!.h < maxH) L(bxs[k]!, yb1 + bm[k]!.h, bxs[k]!, yb2);
@@ -124,18 +130,18 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
         views.push({ kind: 'bar', id: it.id, part: 'c', ys: [yb2], x1: Math.min(...cx, x) - GEO.ov, x2: Math.max(...cx, x) + GEO.ov });
         L(x, yb2, x, yb2 + GEO.orPad);
       }
-      focus.push({ id: it.id, x, y: yb2, slot: { x, y: yb2 + 11 } });
+      focus.push({ id: it.id, x, y: yb2, slot: { x, y: yb2 + 11 }, slotBefore: null });
     } else {
       const yB = y + GEO.bar + GEO.andPad, yb2 = yB + maxH + GEO.andPad;
       views.push({ kind: 'bar', id: it.id, part: 'd', ys: [y + 1, y + GEO.bar - 1], x1: bxs[0]! - GEO.ov, x2: bxs[lastK]! + GEO.ov });
-      focus.push({ id: it.id + ':d', x, y: y + 3, slot: null });
+      focus.push({ id: it.id + ':d', x, y: y + 3, slot: null, slotBefore: { x, y: y - 11 } });
       it.branches.forEach((b, k) => {
         L(bxs[k]!, y + GEO.bar, bxs[k]!, yB);
         dSeq(b, bxs[k]!, yB);
         L(bxs[k]!, yB + bm[k]!.h, bxs[k]!, yb2);
       });
       views.push({ kind: 'bar', id: it.id, part: 'c', ys: [yb2 + 1, yb2 + GEO.bar - 1], x1: bxs[0]! - GEO.ov, x2: bxs[lastK]! + GEO.ov });
-      focus.push({ id: it.id, x, y: yb2 + 3, slot: { x, y: yb2 + GEO.bar + 11 } });
+      focus.push({ id: it.id, x, y: yb2 + 3, slot: { x, y: yb2 + GEO.bar + 11 }, slotBefore: null });
     }
   }
   function dSeq(seq: Item[], x: number, y: number): void {
