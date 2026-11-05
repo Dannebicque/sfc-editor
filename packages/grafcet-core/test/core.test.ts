@@ -127,7 +127,7 @@ suite('réceptivités', () => {
   it('extrait variables et références', () => {
     const r = parseRecept('a . X3 + t1/X5/2s');
     expect([...r.vars]).toEqual(['a']);
-    expect(r.refs).toEqual([3, 5]);
+    expect(r.refs).toEqual(['3', '5']);
   });
 });
 
@@ -157,5 +157,20 @@ suite('validation, graphe plat, description', () => {
     expect(describeId(g, or.id + ':d')).toMatchObject({ key: 'div_or', branches: 2 });
     expect(describeId(g, g.items[0]!.id)).toMatchObject({ key: 'd_step', initial: true });
     expect(stats(g)).toMatchObject({ blocks: 2, jumps: 1 });
+  });
+});
+
+suite('identifiants d’étapes textuels', () => {
+  const known = new Set(['INIT', 'X7', '12']);
+  it('reconnaît un identifiant connu, avec ou sans préfixe X', () => {
+    const r = parseRecept('INIT.X12./Auto+X7', known);
+    expect(r.ok).toBe(true);
+    expect(r.refs).toEqual(['INIT', '12', 'X7']);
+    expect([...r.vars]).toEqual(['Auto']);
+  });
+  it('sans contexte, seuls les Xn entiers sont des références', () => {
+    const r = parseRecept('INIT.X12');
+    expect(r.refs).toEqual(['12']);
+    expect([...r.vars]).toEqual(['INIT']);
   });
 });

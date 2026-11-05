@@ -18,7 +18,13 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
     <template v-if="selItem && selItem.kind === 'step'">
       <h2>{{ T('d_step', { n: selItem.num }) }}</h2>
       <div class="field"><label for="f-name">{{ T('f_name') }}</label><input id="f-name" type="text" data-main-field :value="selItem.name" @input="ui.setField('name', val($event), true)" /></div>
-      <div class="field"><label for="f-num">{{ T('f_num') }}</label><input id="f-num" type="number" min="0" step="1" :value="selItem.num" @input="ui.setField('num', Math.max(0, Math.floor(+val($event) || 0)), true)" /></div>
+      <div class="field"><label for="f-num">{{ T('f_num') }}</label><input id="f-num" type="text" spellcheck="false" autocomplete="off" :value="selItem.num" @input="ui.setField('num', val($event).trim(), true)" /></div>
+      <div v-if="ui.linkedIn.length" class="shared-box">
+        <h3>{{ T('h_shared') }}</h3>
+        <ul class="shared-list">
+          <li v-for="l in ui.linkedIn" :key="l.gid"><button class="btn solid" @click="ui.openG(l.gid, l.itemId)">{{ T('shared_go', { g: l.name || '?' }) }}</button></li>
+        </ul>
+      </div>
       <label class="check"><input type="checkbox" :checked="selItem.initial" @change="ui.setField('initial', checked($event))" /> {{ T('f_initial') }}</label>
       <h3>{{ T('h_actions') }}</h3>
       <ul v-if="selItem.actions.length" class="acts">

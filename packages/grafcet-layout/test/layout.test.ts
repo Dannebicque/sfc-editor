@@ -43,11 +43,11 @@ describe('arrivée des renvois', () => {
     const g: Grafcet = {
       id: 'g1', name: 'g', nextStep: 3, nextTrans: 2,
       items: [
-        { id: 's0', kind: 'step', num: 0, name: '', initial: true, actions: [] },
+        { id: 's0', kind: 'step', num: '0', name: '', initial: true, actions: [] },
         { id: 't1', kind: 'trans', num: 1, recept: 'a' },
-        { id: 's1', kind: 'step', num: 1, name: '', initial: false, actions: [] },
+        { id: 's1', kind: 'step', num: '1', name: '', initial: false, actions: [] },
         { id: 't2', kind: 'trans', num: 2, recept: 'b' },
-        { id: 's2', kind: 'step', num: 2, name: '', initial: false, actions: [] },
+        { id: 's2', kind: 'step', num: '2', name: '', initial: false, actions: [] },
         { id: 't3', kind: 'trans', num: 3, recept: 'c' },
         { id: 'j', kind: 'jump', target: 's0' },
       ],

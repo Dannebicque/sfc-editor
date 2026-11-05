@@ -18,7 +18,8 @@ export interface Action {
 export interface Step {
   id: string;
   kind: 'step';
-  num: number;
+  /** Identifiant (numéro) de l'étape : un texte libre sans espace (« 12 », « X12 », « INIT »…), unique dans le GRAFCET. */
+  num: string;
   name: string;
   initial: boolean;
   actions: Action[];

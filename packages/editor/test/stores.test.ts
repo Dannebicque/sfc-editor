@@ -142,3 +142,31 @@ describe('import SFCEdit', () => {
     expect(project.issues.filter((i) => i.key === 'v_step_missing')).toEqual([]);
   });
 });
+
+describe('étape présente dans plusieurs GRAFCET', () => {
+  it('retrouve l’étape de même identifiant dans les autres GRAFCET et la sélectionne à l’ouverture', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const xml = readFileSync(resolve(process.cwd(), '../../fixtures/sfcedit/convergence-et-renvoi.xml'), 'utf8');
+    const ui = useUiStore();
+    const project = useProjectStore();
+    ui.importText = xml;
+    ui.applyImport('x.xml');
+    const [g1, g2] = project.project.grafcets;
+    // « 15 » n'existe que dans Grafcet1 : aucune liaison depuis Grafcet
+    ui.sel = g1!.items[0]!.id;
+    await Promise.resolve();
+    expect(ui.linkedIn).toEqual([]);
+    // une étape de même identifiant dans les deux GRAFCET
+    project.mutate((g) => { const s = g.items[0]; if (s && s.kind === 'step') s.num = '15'; });
+    ui.sel = null; ui.sel = g1!.items[0]!.id;
+    await new Promise((r) => setTimeout(r, 0));
+    expect(ui.linkedNum).toBe('15');
+    expect(ui.linkedIn.map((l) => l.gid)).toEqual([g2!.id]);
+    expect(ui.sharedNum).toBe('15');
+    ui.openG(g2!.id);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(g2!.items.find((i) => i.id === ui.sel)).toMatchObject({ kind: 'step', num: '15' });
+    expect(project.activeId).toBe(g2!.id);
+  });
+});

@@ -21,7 +21,7 @@ export function describe(it: Item, g: Grafcet): Description {
     case 'jump': {
       const t = it.target ? findItem(g.items, it.target) : null;
       if (!t) return { key: 'd_jump_none' };
-      return { key: t.kind === 'step' ? 'd_jump_step' : 'd_jump_trans', params: { n: (t as { num: number }).num } };
+      return { key: t.kind === 'step' ? 'd_jump_step' : 'd_jump_trans', params: { n: (t as { num: string | number }).num } };
     }
     default: return { key: it.kind === 'or' ? 'd_block_or' : 'd_block_and' };
   }

@@ -57,7 +57,7 @@
   "tab_text": "Text",
   "tab_data": "Data",
   "f_name": "Name (comment)",
-  "f_num": "Number",
+  "f_num": "Number / identifier",
   "f_initial": "Initial step",
   "h_actions": "Associated actions",
   "act_label_aria": "Label of action {n}",
@@ -273,5 +273,10 @@
   "rep_x_edge": "“{g}”: edges (↑ ↓) are written as plain text in conditions; SFCEdit does not interpret them.",
   "rep_x_timer": "“{g}”: timers are written as plain text in conditions.",
   "rep_x_actions": "“{g}”: action types (activation, deactivation) are kept in attributes SFCEdit ignores.",
-  "rep_x_labels": "Step names are kept in an attribute SFCEdit ignores."
+  "rep_x_labels": "Step names are kept in an attribute SFCEdit ignores.",
+  "v_num_bad": "Step identifier “{n}” is invalid: letters, digits and _ only.",
+  "shared_badge": "has {n}",
+  "shared_title": "This GRAFCET also contains step {n}",
+  "h_shared": "Also in",
+  "shared_go": "Go to “{g}”"
 }

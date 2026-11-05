@@ -40,6 +40,26 @@ export const useUiStore = defineStore('ui', () => {
   const selLoc = computed(() => (selBase.value ? locate(activeG.value.items, selBase.value) : null));
   const selItem = computed(() => selLoc.value?.item ?? null);
   const isDivBar = computed(() => !!sel.value && sel.value.endsWith(':d'));
+  /**
+   * Identifiant de la dernière étape sélectionnée. Il survit au changement de GRAFCET pour que l'étape de même identifiant
+   * soit retrouvée (et mise en valeur) dans les autres GRAFCET du projet.
+   */
+  const linkedNum = ref<string | null>(null);
+  watch(selItem, (it) => { if (it && it.kind === 'step') linkedNum.value = it.num; });
+  /** Autres GRAFCET du projet qui contiennent une étape de même identifiant : [{ gid, name, itemId }]. */
+  const linkedIn = computed(() => {
+    const out: { gid: string; name: string; itemId: string }[] = [];
+    if (linkedNum.value == null) return out;
+    for (const g of projectRef.value.grafcets) {
+      if (g.id === project.activeId) continue;
+      let hit: string | null = null;
+      walkAll(g.items, (it) => { if (!hit && it.kind === 'step' && it.num === linkedNum.value) hit = it.id; });
+      if (hit) out.push({ gid: g.id, name: g.name, itemId: hit });
+    }
+    return out;
+  });
+  /** Identifiant à mettre en valeur dans le canevas : seulement s'il existe dans plusieurs GRAFCET. */
+  const sharedNum = computed(() => (linkedIn.value.length ? linkedNum.value : null));
   const selText = computed(() => describeText(describeId(activeG.value, sel.value)));
   const selShort = computed(() => { const t = selText.value; return t.length > 46 ? t.slice(0, 45) + '…' : t; });
 
@@ -195,14 +215,20 @@ export const useUiStore = defineStore('ui', () => {
   function doRenumber(): void { project.mutate((g) => renumber(g)); announce(T('a_renumbered')); }
 
   /* ----- GRAFCET du projet ----- */
-  function openG(id: string): void {
+  function openG(id: string, selectId?: string): void {
     project.activeId = id;
     sel.value = null;
     sim.on = false;
     sim.active = [];
     nextTick(() => {
       viewStore.fit(false);
-      sel.value = viewStore.layout.focus[0]?.id ?? null;
+      let want = selectId ?? null;
+      if (!want && linkedNum.value != null) {
+        const g = projectRef.value.grafcets.find((x) => x.id === id);
+        if (g) walkAll(g.items, (it) => { if (!want && it.kind === 'step' && it.num === linkedNum.value) want = it.id; });
+      }
+      sel.value = want ?? viewStore.layout.focus[0]?.id ?? null;
+      if (want) { const w = want; nextTick(() => viewStore.reveal(w)); }
       project.persist();
     });
   }
@@ -382,7 +408,7 @@ export const useUiStore = defineStore('ui', () => {
     nextTick(() => {
       viewStore.fit(false);
       let s1: string | null = null;
-      walkAll(activeG.value.items, (it) => { if (!s1 && it.kind === 'step' && it.num === 1) s1 = it.id; });
+      walkAll(activeG.value.items, (it) => { if (!s1 && it.kind === 'step' && it.num === '1') s1 = it.id; });
       sel.value = s1 ?? viewStore.layout.focus[0]?.id ?? null;
       if (sel.value) { const id = sel.value; nextTick(() => viewStore.reveal(id)); }
     });
@@ -392,7 +418,7 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   return {
-    sel, tab, tabs, theme, themeLabel, dataView, sim, liveMsg, announce, insertWhere, whereNow, whereFixed,
+    sel, tab, tabs, linkedNum, linkedIn, sharedNum, theme, themeLabel, dataView, sim, liveMsg, announce, insertWhere, whereNow, whereFixed,
     selBase, selLoc, selItem, isDivBar, selText, selShort, allowed, slotPos, activeRegion, jumpTargets, recFb, tokens,
     wrap, canWrap, unwrap, canUnwrap, moveBranch, canMoveBranch,
     insertKind, removeSel, setField, setAction, addAction, delAction, addToken, addBranch, delBranch, doRenumber,

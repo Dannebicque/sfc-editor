@@ -14,7 +14,7 @@ export function buildDemoProject(d: DemoTexts): Project {
   const P: Project = { name: d.proj, counter: 1, gcount: 1, grafcets: [] };
   const mk = (name: string, first: number): Grafcet => ({ id: 'g' + P.gcount++, name, nextStep: first, nextTrans: 1, items: [] });
   const S = (g: Grafcet, name: string, acts: (string | Action)[] = [], initial = false): Step => ({
-    id: nextId(P), kind: 'step', num: g.nextStep++, name, initial,
+    id: nextId(P), kind: 'step', num: String(g.nextStep++), name, initial,
     actions: acts.map((a) => (typeof a === 'string' ? { kind: 'continue', label: a, cond: '' } : a)),
   });
   const T = (g: Grafcet, recept: string): Transition => ({ id: nextId(P), kind: 'trans', num: g.nextTrans++, recept });

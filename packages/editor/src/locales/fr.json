@@ -57,7 +57,7 @@
   "tab_text": "Texte",
   "tab_data": "Données",
   "f_name": "Nom (commentaire)",
-  "f_num": "Numéro",
+  "f_num": "Numéro / identifiant",
   "f_initial": "Étape initiale",
   "h_actions": "Actions associées",
   "act_label_aria": "Libellé de l’action {n}",
@@ -273,5 +273,10 @@
   "rep_x_edge": "« {g} » : les fronts (↑ ↓) sont écrits tels quels dans les conditions ; SFCEdit ne les interprète pas.",
   "rep_x_timer": "« {g} » : les temporisations sont écrites en texte dans les conditions.",
   "rep_x_actions": "« {g} » : les types d'action (activation, désactivation) sont conservés par des attributs ignorés de SFCEdit.",
-  "rep_x_labels": "Les noms d'étapes sont conservés dans un attribut ignoré de SFCEdit."
+  "rep_x_labels": "Les noms d'étapes sont conservés dans un attribut ignoré de SFCEdit.",
+  "v_num_bad": "Identifiant d’étape « {n} » invalide : lettres, chiffres et _ uniquement.",
+  "shared_badge": "contient {n}",
+  "shared_title": "Ce GRAFCET contient aussi l’étape {n}",
+  "h_shared": "Présente aussi dans",
+  "shared_go": "Aller à « {g} »"
 }
