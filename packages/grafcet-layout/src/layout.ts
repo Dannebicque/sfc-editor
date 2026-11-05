@@ -1,6 +1,6 @@
 import { walkAll, type Grafcet, type Item, type Block } from '@grafcet/core';
 
-export const GEO = { stepW: 44, stepH: 40, transH: 40, tick: 9, actH: 22, actGap: 14, orPad: 18, andPad: 18, bar: 6, branchGap: 40, ov: 6, jumpH: 46 } as const;
+export const GEO = { stepW: 44, stepH: 40, transH: 40, tick: 9, actH: 22, actGap: 14, orPad: 18, andPad: 18, bar: 6, branchGap: 40, ov: 6, jumpH: 46, arrivalH: 28 } as const;
 
 /** Mesure de la largeur d'un texte en pixels (fournie par le moteur de rendu). */
 export type TextWidth = (s: string) => number;
@@ -8,8 +8,9 @@ export type TextWidth = (s: string) => number;
 export interface Line { x1: number; y1: number; x2: number; y2: number }
 export interface ActionView { i: number; x: number; y: number; condW: number; labW: number; cond: string; text: string; cell: boolean }
 interface BoxBase { id: string; x: number; y: number; l: number; r: number; h: number }
-export interface StepView extends BoxBase { kind: 'step'; num: number; name: string; initial: boolean; acts: ActionView[] }
-export interface TransView extends BoxBase { kind: 'trans'; num: number; recept: string }
+/** `arrivals` : numéros des étapes d'où part un renvoi vers cet élément (affichés au-dessus, avec une flèche entrante). */
+export interface StepView extends BoxBase { kind: 'step'; num: number; name: string; initial: boolean; acts: ActionView[]; arrivals: string[]; ay: number }
+export interface TransView extends BoxBase { kind: 'trans'; num: number; recept: string; arrivals: string[]; ay: number }
 export interface JumpView extends BoxBase { kind: 'jump'; label: string; broken: boolean }
 export interface BarView { kind: 'bar'; id: string; part: 'd' | 'c'; ys: number[]; x1: number; x2: number }
 export interface RegionView { kind: 'region'; id: string; x1: number; x2: number; y1: number; y2: number }
@@ -35,6 +36,38 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
   const idx = new Map<string, Item>();
   walkAll(g.items, (it) => idx.set(it.id, it));
   const memo = new Map<Item, Measure>();
+
+  /** Dernière étape avant l'index i d'une séquence (en traversant les blocs par leur première branche qui converge). */
+  function stepBefore(seq: Item[], i: number): number | null {
+    for (let j = i - 1; j >= 0; j--) {
+      const it = seq[j]!;
+      if (it.kind === 'step') return it.num;
+      if (it.kind === 'trans' || it.kind === 'jump') continue;
+      for (const b of it.branches) {
+        if (!b.length || b[b.length - 1]!.kind === 'jump') continue;
+        const n = stepBefore(b, b.length);
+        if (n != null) return n;
+      }
+    }
+    return null;
+  }
+  /** Pour chaque cible de renvoi : les numéros des étapes d'où l'on arrive. */
+  const arrivalsOf = new Map<string, string[]>();
+  (function collect(seq: Item[]): void {
+    seq.forEach((it, i) => {
+      if (it.kind === 'jump') {
+        const n = it.target ? stepBefore(seq, i) : null;
+        if (it.target && n != null) {
+          const a = arrivalsOf.get(it.target) ?? [];
+          if (!a.includes(String(n))) a.push(String(n));
+          arrivalsOf.set(it.target, a);
+        }
+      } else if (it.kind === 'or' || it.kind === 'and') it.branches.forEach(collect);
+    });
+  })(g.items);
+  const arrivals = (id: string): string[] => arrivalsOf.get(id) ?? [];
+  const arrTop = (id: string): number => (arrivals(id).length ? GEO.arrivalH : 0);
+  const arrHalf = (id: string): number => (arrivals(id).length ? tw(arrivals(id).join(', ')) / 2 + 4 : 0);
   const actText = (a: { kind: string; label: string }) => (a.kind === 'activation' ? '↑ ' : a.kind === 'deactivation' ? '↓ ' : '') + (a.label || '?');
   const jumpLabel = (it: Extract<Item, { kind: 'jump' }>) => {
     const t = it.target ? idx.get(it.target) : undefined;
@@ -55,9 +88,12 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
     let m: Measure;
     if (it.kind === 'step') {
       const ag = actGeom(it), nameW = it.name ? tw(it.name) + 10 : 0;
-      m = { l: GEO.stepW / 2 + nameW, r: GEO.stepW / 2 + (ag ? GEO.actGap + ag.w : 0), h: Math.max(GEO.stepH, it.actions.length * GEO.actH + 10), ag };
+      m = {
+        l: Math.max(GEO.stepW / 2 + nameW, arrHalf(it.id)), r: Math.max(GEO.stepW / 2 + (ag ? GEO.actGap + ag.w : 0), arrHalf(it.id)),
+        h: arrTop(it.id) + Math.max(GEO.stepH, it.actions.length * GEO.actH + 10), ag,
+      };
     } else if (it.kind === 'trans') {
-      m = { l: GEO.tick + 8 + tw('(' + it.num + ')'), r: GEO.tick + 8 + tw(it.recept || '?'), h: GEO.transH };
+      m = { l: Math.max(GEO.tick + 8 + tw('(' + it.num + ')'), arrHalf(it.id)), r: Math.max(GEO.tick + 8 + tw(it.recept || '?'), arrHalf(it.id)), h: arrTop(it.id) + GEO.transH };
     } else if (it.kind === 'jump') {
       const half = Math.max(14, tw(jumpLabel(it)) / 2 + 4);
       m = { l: half, r: half, h: GEO.jumpH };
@@ -85,7 +121,11 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
   const L = (x1: number, y1: number, x2: number, y2: number) => lines.push({ x1, y1, x2, y2 });
 
   function dItem(it: Item, x: number, y: number): void {
-    const m = mItem(it);
+    const m0 = mItem(it);
+    const top = it.kind === 'step' || it.kind === 'trans' ? arrTop(it.id) : 0;
+    const ay = y;
+    if (top) { L(x, y + 13, x, y + top); y += top; }
+    const m = top ? { ...m0, h: m0.h - top } : m0;
     if (it.kind === 'step') {
       const acts: ActionView[] = [];
       if (m.ag) {
@@ -94,11 +134,11 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
         L(x + GEO.stepW / 2, y + 20, ax, y + 20);
       }
       if (m.h > GEO.stepH) L(x, y + GEO.stepH, x, y + m.h);
-      views.push({ kind: 'step', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, name: it.name, initial: it.initial, acts });
+      views.push({ kind: 'step', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, name: it.name, initial: it.initial, acts, arrivals: arrivals(it.id), ay });
       focus.push({ id: it.id, x, y: y + 20, slot: { x, y: y + GEO.stepH + 11 }, slotBefore: { x, y: y - 11 } });
     } else if (it.kind === 'trans') {
       L(x, y, x, y + m.h);
-      views.push({ kind: 'trans', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, recept: it.recept });
+      views.push({ kind: 'trans', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, recept: it.recept, arrivals: arrivals(it.id), ay });
       focus.push({ id: it.id, x, y: y + 20, slot: { x, y: y + 31 }, slotBefore: { x, y: y - 11 } });
     } else if (it.kind === 'jump') {
       L(x, y, x, y + 24);
