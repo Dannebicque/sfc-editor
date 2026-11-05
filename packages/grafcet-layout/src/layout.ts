@@ -139,6 +139,14 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
     let y = 0;
     const su = ix.startUse.get(s.id);
     if (su && depth < 500) { depth++; y = barOf(su.link, depth) + barH(su.link) + GEO.pad; depth--; }
+    else if (!su && depth < 500) {
+      // Branche libre d'une convergence (ex. « X » ajouté à côté) : son pied rejoint la barre, à la hauteur de ses voisines ancrées.
+      const eu = ix.endUse.get(s.id);
+      if (eu && 'link' in eu && eu.role === 'node' && eu.link.kind === 'conv') {
+        const anchored = eu.link.nodes.filter((n) => n !== s.id && ix.startUse.has(n)).map((n) => ix.seq.get(n)!);
+        if (anchored.length) { depth++; y = Math.max(0, Math.max(...anchored.map(bottom)) - seqM.get(s.id)!.h); depth--; }
+      }
+    }
     top.set(s.id, y);
     return y;
   }
@@ -179,7 +187,12 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
   }
   const isBase = (s: Seq) => ix.startUse.get(s.id)?.role === 'base';
   /** Séquences qui ouvrent un arbre : début libre (hors bases de convergence). */
-  const roots = seqs.filter((s) => !ix.startUse.has(s.id) || (ix.startUse.get(s.id)!.role === 'child' && !ix.startUse.get(s.id)!.link.base));
+  const freeConv = (s: Seq): boolean => {
+    if (ix.startUse.has(s.id)) return false;
+    const eu = ix.endUse.get(s.id);
+    return !!eu && 'link' in eu && eu.role === 'node' && eu.link.kind === 'conv' && eu.link.nodes.some((n) => n !== s.id && ix.startUse.has(n));
+  };
+  const roots = seqs.filter((s) => !freeConv(s)).filter((s) => !ix.startUse.has(s.id) || (ix.startUse.get(s.id)!.role === 'child' && !ix.startUse.get(s.id)!.link.base));
   void shiftSet;
   // Les branches d'une divergence ouverte forment un arbre fictif : on les range côte à côte.
   let cursor = 0;
@@ -195,6 +208,17 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
     cursor = at + e.r + GEO.seqGap;
   };
   for (const s of roots) placeRoot(s);
+  // Branches libres d'une convergence : posées juste à côté de leur voisine, du côté de leur rang.
+  for (const s of seqs) {
+    if (placed.has(s.id) || !freeConv(s)) continue;
+    const lk = (ix.endUse.get(s.id) as { link: HLink }).link;
+    const i = lk.nodes.indexOf(s.id), m = seqM.get(s.id)!;
+    let at: number | null = null;
+    for (let k = i - 1; k >= 0 && at === null; k--) { const p = ix.seq.get(lk.nodes[k]!)!; if (x.has(p.id)) at = x.get(p.id)! + seqM.get(p.id)!.r + GEO.seqGap + m.l; }
+    for (let k = i + 1; k < lk.nodes.length && at === null; k++) { const p = ix.seq.get(lk.nodes[k]!)!; if (x.has(p.id)) at = x.get(p.id)! - seqM.get(p.id)!.l - GEO.seqGap - m.r; }
+    tree(s, at ?? cursor);
+    shift(s, (at ?? cursor) - x.get(s.id)!);
+  }
   // Séquences aval de convergence : centrées sous leurs branches, avec leur propre arbre.
   const bases = seqs.filter((s) => isBase(s));
   for (let guard = 0; guard < bases.length + 5; guard++) {
