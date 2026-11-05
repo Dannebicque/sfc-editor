@@ -11,7 +11,7 @@ const ui = useUiStore();
 const view = useViewStore();
 const { host } = storeToRefs(view);
 const { shapes, layout, gTransform, gridStyle } = storeToRefs(view);
-const { sel, sim, simActive, simEnabled, slotPos, activeRegion, sharedNum } = storeToRefs(ui);
+const { sel, sim, simActive, simEnabled, slotPos, activeRegion, sharedNum, citingActive } = storeToRefs(ui);
 const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump'] as const).map((k) => K.value[k]).join(', '));
 </script>
 
@@ -27,7 +27,7 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump'] as const)
           <rect v-if="activeRegion" class="region" :x="activeRegion.x1 - 8" :y="activeRegion.y1" :width="activeRegion.x2 - activeRegion.x1 + 16" :height="activeRegion.y2 - activeRegion.y1" rx="8" />
           <line v-for="(l, i) in layout.lines" :key="'l' + i" class="lk" :x1="l.x1" :y1="l.y1" :x2="l.x2" :y2="l.y2" />
           <template v-for="v in shapes" :key="v.id + (v.kind === 'bar' ? v.part : '')">
-            <g v-if="v.kind === 'step'" class="el" :class="{ active: simActive.has(v.id), linked: sharedNum !== null && v.num === sharedNum }" @pointerdown.stop="ui.pick(v.id)">
+            <g v-if="v.kind === 'step'" class="el" :class="{ active: simActive.has(v.id), linked: sharedNum !== null && v.num === sharedNum, cites: citingActive.has(v.id) }" @pointerdown.stop="ui.pick(v.id)">
               <rect class="hit" :x="v.x - v.l" :y="v.ay" :width="v.l + v.r" :height="v.h + v.y - v.ay" />
               <g v-if="v.arrivals.length" class="arrival">
                 <text class="jtxt" :x="v.x" :y="v.ay + 11" text-anchor="middle">{{ v.arrivals.join(', ') }}</text>
@@ -46,7 +46,7 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump'] as const)
               </g>
               <rect v-if="sel === v.id" class="ring" :x="v.x - v.w / 2 - 5" :y="v.y - 5" :width="v.w + 10" height="50" rx="5" />
             </g>
-            <g v-else-if="v.kind === 'trans'" class="el" :class="{ enabled: simEnabled.has(v.id) }" @pointerdown.stop="ui.pick(v.id)">
+            <g v-else-if="v.kind === 'trans'" class="el" :class="{ enabled: simEnabled.has(v.id), cites: citingActive.has(v.id) }" @pointerdown.stop="ui.pick(v.id)">
               <rect class="hit" :x="v.x - v.l" :y="v.ay" :width="v.l + v.r" :height="v.h + v.y - v.ay" />
               <g v-if="v.arrivals.length" class="arrival">
                 <text class="jtxt" :x="v.x" :y="v.ay + 11" text-anchor="middle">{{ v.arrivals.join(', ') }}</text>

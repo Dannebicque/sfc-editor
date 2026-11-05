@@ -322,5 +322,10 @@
   "v_sfc_jump_trans": "A jump to a transition does not exist in SFC: a jump targets a step.",
   "v_sfc_edge": "Transition ({n}): an edge (↑ ↓) is not a direct SFC condition; an edge detector is needed.",
   "v_sfc_ident": "Step {n}: “{v}” is not a valid IEC identifier (unaccented letters, digits and _).",
-  "v_plc_cond_action": "Step {n}: the conditional action will be exported as an ST assignment."
+  "v_plc_cond_action": "Step {n}: the conditional action will be exported as an ST assignment.",
+  "h_cited": "Cited in receptivities",
+  "cited_here": "Cited by {n} element of this GRAFCET (highlighted). | Cited by {n} elements of this GRAFCET (highlighted).",
+  "cited_go": "Go to “{g}” ({c})",
+  "cite_badge": "cites {n} ×{c}",
+  "cite_title": "A receptivity or action in this GRAFCET cites step {n}"
 }

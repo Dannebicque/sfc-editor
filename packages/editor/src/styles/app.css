@@ -255,3 +255,7 @@ mark.todo{background:var(--warn-soft);color:var(--warn);padding:0 4px;border-rad
 .gitem .shared{font:600 11px var(--font-mono);color:var(--accent);margin-left:auto}
 .shared-box{margin:4px 0 8px}
 .shared-list{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+
+.cv .cites .rec{fill:var(--accent);font-weight:600;text-decoration:underline}
+.cv .cites .tick{stroke:var(--accent);stroke-width:3}
+.cv .cites .act-box{stroke:var(--accent);stroke-width:2}

@@ -322,5 +322,10 @@
   "v_sfc_jump_trans": "Un renvoi vers une transition n’existe pas en SFC : un renvoi cible une étape.",
   "v_sfc_edge": "Transition ({n}) : un front (↑ ↓) n’est pas une condition SFC directe ; il faut un détecteur de front.",
   "v_sfc_ident": "Étape {n} : « {v} » n’est pas un identifiant IEC valide (lettres sans accent, chiffres et _).",
-  "v_plc_cond_action": "Étape {n} : l’action conditionnelle sera exportée comme affectation ST."
+  "v_plc_cond_action": "Étape {n} : l’action conditionnelle sera exportée comme affectation ST.",
+  "h_cited": "Citée dans des réceptivités",
+  "cited_here": "Citée par {n} élément de ce GRAFCET (surligné). | Citée par {n} éléments de ce GRAFCET (surlignés).",
+  "cited_go": "Aller à « {g} » ({c})",
+  "cite_badge": "cite {n} ×{c}",
+  "cite_title": "Une réceptivité ou une action de ce GRAFCET cite l’étape {n}"
 }
