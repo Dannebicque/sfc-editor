@@ -310,5 +310,17 @@
   "rep_p_conv_mixed": "“{g}”: the branches of a divergence do not converge at the same point.",
   "rep_p_implicit_div": "“{g}”: several successors without an explicit divergence; only the first is kept.",
   "rep_p_no_initial": "“{g}”: no initial step declared; the first step without predecessor is used.",
-  "rep_p_orphan": "“{g}”: elements not connected to the initial step were not imported."
+  "rep_p_orphan": "“{g}”: elements not connected to the initial step were not imported.",
+  "profile_label": "Checking profile",
+  "profile_grafcet": "GRAFCET (IEC 60848)",
+  "profile_sfc": "PLC SFC (IEC 61131-3)",
+  "profile_plcopen": "PLCopen export",
+  "profile_help_grafcet": "GRAFCET as a specification language: common checks, plus exclusivity of OR divergences.",
+  "profile_help_sfc": "SFC for a programmable controller: common checks, plus IEC-compatible jumps, edges and identifiers.",
+  "profile_help_plcopen": "SFC intended for PLCopen XML export: SFC rules, plus the limits of the export.",
+  "v_or_exclusive": "OR divergence: exclusivity of transitions ({a}) and ({b}) is not proven; both may fire together.",
+  "v_sfc_jump_trans": "A jump to a transition does not exist in SFC: a jump targets a step.",
+  "v_sfc_edge": "Transition ({n}): an edge (↑ ↓) is not a direct SFC condition; an edge detector is needed.",
+  "v_sfc_ident": "Step {n}: “{v}” is not a valid IEC identifier (unaccented letters, digits and _).",
+  "v_plc_cond_action": "Step {n}: the conditional action will be exported as an ST assignment."
 }

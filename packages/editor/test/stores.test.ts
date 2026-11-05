@@ -170,3 +170,15 @@ describe('étape présente dans plusieurs GRAFCET', () => {
     expect(project.activeId).toBe(g2!.id);
   });
 });
+
+describe('profil de vérification', () => {
+  it('change les contrôles et mémorise le choix', () => {
+    const project = useProjectStore();
+    expect(project.profile).toBe('grafcet');
+    project.setProfile('sfc');
+    expect(project.profile).toBe('sfc');
+    expect(localStorage.getItem('grafcet-studio-v1-profile')).toBe('sfc');
+    setActivePinia(createPinia());
+    expect(useProjectStore().profile).toBe('sfc');
+  });
+});

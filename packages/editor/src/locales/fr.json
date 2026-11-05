@@ -310,5 +310,17 @@
   "rep_p_conv_mixed": "« {g} » : les branches d’une divergence ne convergent pas au même point.",
   "rep_p_implicit_div": "« {g} » : plusieurs successeurs sans divergence explicite ; seul le premier est conservé.",
   "rep_p_no_initial": "« {g} » : aucune étape initiale déclarée ; la première étape sans prédécesseur est prise.",
-  "rep_p_orphan": "« {g} » : des éléments non reliés à l’étape initiale n’ont pas été importés."
+  "rep_p_orphan": "« {g} » : des éléments non reliés à l’étape initiale n’ont pas été importés.",
+  "profile_label": "Profil de vérification",
+  "profile_grafcet": "GRAFCET (IEC 60848)",
+  "profile_sfc": "SFC d’automate (CEI 61131-3)",
+  "profile_plcopen": "Export PLCopen",
+  "profile_help_grafcet": "Le GRAFCET comme langage de spécification : contrôles communs, plus l’exclusivité des divergences en OU.",
+  "profile_help_sfc": "Le SFC d’un automate programmable : contrôles communs, plus renvois, fronts et identifiants compatibles IEC.",
+  "profile_help_plcopen": "Un SFC destiné à l’export PLCopen XML : règles du SFC, plus les limites de l’export.",
+  "v_or_exclusive": "Divergence en OU : l’exclusivité des transitions ({a}) et ({b}) n’est pas démontrée ; elles peuvent être franchies ensemble.",
+  "v_sfc_jump_trans": "Un renvoi vers une transition n’existe pas en SFC : un renvoi cible une étape.",
+  "v_sfc_edge": "Transition ({n}) : un front (↑ ↓) n’est pas une condition SFC directe ; il faut un détecteur de front.",
+  "v_sfc_ident": "Étape {n} : « {v} » n’est pas un identifiant IEC valide (lettres sans accent, chiffres et _).",
+  "v_plc_cond_action": "Étape {n} : l’action conditionnelle sera exportée comme affectation ST."
 }
