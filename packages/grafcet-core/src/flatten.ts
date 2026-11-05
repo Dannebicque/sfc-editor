@@ -2,7 +2,7 @@ import { walkAll } from './tree';
 import type { Grafcet, Item } from './types';
 
 export interface FlatNode { id: string; kind: 'step' | 'trans'; num: string | number }
-export interface FlatLink { from: string; to: string; jump?: true }
+export interface FlatLink { from: string; to: string; jump?: true; sync?: true }
 export interface FlatGraph { nodes: FlatNode[]; links: FlatLink[] }
 
 /** Graphe plat (étapes/transitions et liaisons) dérivé de l'arbre. */
@@ -15,6 +15,7 @@ export function flatten(g: Grafcet): FlatGraph {
       if (it.kind === 'step' || it.kind === 'trans') {
         nodes.set(it.id, { id: it.id, kind: it.kind, num: it.num });
         for (const p of tails) links.push({ from: p, to: it.id });
+        if (it.kind === 'trans') for (const s of it.sync ?? []) links.push({ from: s, to: it.id, sync: true });
         tails = [it.id];
       } else if (it.kind === 'or' || it.kind === 'and') {
         const nt: string[] = [];

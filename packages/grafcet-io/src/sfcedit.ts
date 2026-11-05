@@ -265,6 +265,7 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
       const it = items[i]!;
       if (it.kind === 'step' || it.kind === 'trans') {
         placement.set(it.id, { seq: cur.id, idx: cur.nodes.length });
+        if (it.kind === 'trans' && it.sync?.length) report.push(warn('rep_x_sync', { g: g.name, n: it.num }));
         if (it.kind === 'trans' && it.actions?.length) report.push(warn('rep_trans_action', { g: g.name, n: it.num }));
         cur.nodes.push(it.kind === 'step' ? stepXml(it)
           : `\t\t\t<transition>\n\t\t\t\t<condition>${toSfcCondition(it.recept, notes)}</condition>\n\t\t\t</transition>`);

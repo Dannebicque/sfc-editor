@@ -369,5 +369,12 @@
   "h_trans_actions": "Actions liées à la transition",
   "trans_act_help": "Exécutées au franchissement ; la condition (facultative) s’affiche au-dessus de l’action.",
   "rep_p_trans_action": "« {g} » : les actions liées à la transition ({n}) ne sont pas exportées.",
-  "rep_trans_action": "« {g} » : les actions liées à la transition ({n}) ne sont pas exportées en XML SFCEdit."
+  "rep_trans_action": "« {g} » : les actions liées à la transition ({n}) ne sont pas exportées en XML SFCEdit.",
+  "v_sync_missing": "Transition ({n}) : une étape attendue en synchronisation n’existe plus.",
+  "h_sync": "Synchronisation (convergence ET)",
+  "sync_hint": "Étapes attendues en plus de l’étape amont : la transition n’est validable que si elles sont toutes actives. S’affiche comme une barre double avec des flèches d’arrivée.",
+  "sync_add": "Attendre aussi l’étape",
+  "sync_choose": "Choisir une étape…",
+  "sync_del_aria": "Ne plus attendre l’étape {n}",
+  "rep_x_sync": "« {g} » : la synchronisation de la transition ({n}) n’est pas exportée en XML SFCEdit (les étapes attendues en plus sont ignorées)."
 }

@@ -369,5 +369,12 @@
   "h_trans_actions": "Actions linked to the transition",
   "trans_act_help": "Executed when the transition fires; the optional condition is shown above the action.",
   "rep_p_trans_action": "“{g}”: actions linked to transition ({n}) are not exported.",
-  "rep_trans_action": "“{g}”: actions linked to transition ({n}) are not exported to SFCEdit XML."
+  "rep_trans_action": "“{g}”: actions linked to transition ({n}) are not exported to SFCEdit XML.",
+  "v_sync_missing": "Transition ({n}): a step awaited by the synchronisation no longer exists.",
+  "h_sync": "Synchronisation (AND convergence)",
+  "sync_hint": "Steps awaited in addition to the upstream step: the transition can only fire when all of them are active. Shown as a double bar with arrival arrows.",
+  "sync_add": "Also wait for step",
+  "sync_choose": "Choose a step…",
+  "sync_del_aria": "Stop waiting for step {n}",
+  "rep_x_sync": "“{g}”: the synchronisation of transition ({n}) is not exported to SFCEdit XML (the extra awaited steps are ignored)."
 }

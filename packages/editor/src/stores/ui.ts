@@ -175,6 +175,16 @@ export const useUiStore = defineStore('ui', () => {
     const id = selBase.value;
     project.mutate((g) => { const it = findItem(g.items, id!); if (it && (it.kind === 'step' || it.kind === 'trans')) { it.actions?.splice(i, 1); if (it.kind === 'trans' && !it.actions?.length) delete it.actions; } });
   }
+  /** Synchronisation : la transition sélectionnée attend aussi l'étape `stepId`. */
+  function addSync(stepId: string): void {
+    const id = selBase.value;
+    if (!stepId) return;
+    project.mutate((g) => { const it = findItem(g.items, id!); if (it && it.kind === 'trans' && !(it.sync ?? []).includes(stepId)) (it.sync ??= []).push(stepId); });
+  }
+  function delSync(stepId: string): void {
+    const id = selBase.value;
+    project.mutate((g) => { const it = findItem(g.items, id!); if (it && it.kind === 'trans' && it.sync) { it.sync = it.sync.filter((s) => s !== stepId); if (!it.sync.length) delete it.sync; } });
+  }
   function addToken(t: string): void {
     const id = selBase.value;
     project.mutate((g) => { const it = findItem(g.items, id!); if (it && it.kind === 'trans') it.recept = it.recept + t; });
@@ -553,7 +563,7 @@ export const useUiStore = defineStore('ui', () => {
     sel, tab, tabs, linkedNum, linkedIn, sharedNum, citingActive, citedIn, theme, themeLabel, dataView, sim, liveMsg, announce, insertWhere, whereNow, whereFixed,
     selBase, selLoc, selItem, isDivBar, selText, selShort, allowed, slotPos, activeRegion, jumpTargets, recFb, tokens,
     wrap, canWrap, unwrap, canUnwrap, moveBranch, canMoveBranch,
-    insertKind, removeSel, setField, setAction, addAction, delAction, addToken, addBranch, delBranch, doRenumber,
+    insertKind, removeSel, setField, setAction, addAction, delAction, addSync, delSync, addToken, addBranch, delBranch, doRenumber,
     openG, addGrafcet, dupGrafcet, delGrafcet,
     pick, pickFromText, focusHost, onHostFocus, goIssue, onKey,
     simActive, simEnabled, simReset, simFire, toggleSim, toggleMacro, setExpansion, makeExpansion, setRole, openExpansion, parentsOfActive,

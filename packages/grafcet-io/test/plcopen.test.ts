@@ -63,3 +63,17 @@ describe('PLCopen XML (TC6 v2.01)', () => {
     }
   });
 });
+
+describe('synchronisation', () => {
+  it('relie la transition à toutes les étapes attendues', async () => {
+    const { exportPlcopenXml } = await import('../src');
+    const P = (await import('../../grafcet-core/test/helpers')).demoProject();
+    const g = P.grafcets[0]!;
+    const steps = g.items.filter((i) => i.kind === 'step') as { id: string }[];
+    const t = g.items.find((i) => i.kind === 'trans' && i.id !== undefined)! as { sync?: string[] };
+    t.sync = [steps[steps.length - 1]!.id];
+    const xml = exportPlcopenXml(P).output as string;
+    const m = /<transition localId="\d+">.*?<connectionPointIn>(.*?)<\/connectionPointIn>/.exec(xml);
+    expect((m![1]!.match(/<connection /g) ?? []).length).toBe(2);
+  });
+});

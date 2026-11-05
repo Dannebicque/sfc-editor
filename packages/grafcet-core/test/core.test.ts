@@ -465,3 +465,32 @@ suite('transition autour d’un ET en tête de branche OU', () => {
     expect(allowedInsertions(g(), 's9', 'before').map((i) => i.kind)).not.toContain('trans');
   });
 });
+
+suite('synchronisation (convergence ET libre)', () => {
+  const S = (id: string, n: string, initial = false) => ({ id, kind: 'step' as const, num: n, name: '', initial, actions: [] });
+  const T = (id: string, n: number, sync?: string[]) => ({ id, kind: 'trans' as const, num: n, recept: 'a', ...(sync ? { sync } : {}) });
+  const mk = () => {
+    const P = demoProject();
+    const g = newGrafcet(P, 'x');
+    g.items = [S('a', '1', true), T('t1', 1), S('b', '2'), T('t2', 2, ['a']), S('c', '3'), T('t3', 3)];
+    return { P, g };
+  };
+  it('ajoute une liaison depuis chaque étape attendue', () => {
+    const { g } = mk();
+    expect(flatten(g).links.filter((l) => l.to === 't2').map((l) => l.from).sort()).toEqual(['a', 'b']);
+  });
+  it('signale une étape attendue qui n’existe pas', () => {
+    const { g } = mk();
+    (g.items[3] as { sync?: string[] }).sync = ['zz'];
+    expect(validateGrafcet(g).map((i) => i.key)).toContain('v_sync_missing');
+  });
+  it('oublie une étape supprimée et suit la duplication', () => {
+    const { P, g } = mk();
+    const d = duplicateGrafcet(P, g, 'copie');
+    const ids = d.items.map((i) => i.id);
+    expect((d.items[3] as { sync?: string[] }).sync).toEqual([ids[0]]);
+    expect(removeItem(g, 'a').ok).toBe(true);
+    expect(g.items.find((i) => i.id === 't2')).toBeDefined();
+    expect((g.items.find((i) => i.id === 't2') as { sync?: string[] }).sync).toBeUndefined();
+  });
+});

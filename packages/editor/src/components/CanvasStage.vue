@@ -29,9 +29,15 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump'] as const)
           <template v-for="v in shapes" :key="v.id + (v.kind === 'bar' ? v.part : '')">
             <g v-if="v.kind === 'step'" class="el" :class="{ active: simActive.has(v.id), linked: sharedNum !== null && v.num === sharedNum, cites: citingActive.has(v.id) }" @pointerdown.stop="ui.pick(v.id)" @dblclick.stop="v.macro && ui.openExpansion(v.id)">
               <rect class="hit" :x="v.x - v.l" :y="v.ay" :width="v.l + v.r" :height="v.h + v.y - v.ay" />
-              <g v-if="v.arrivals.length" class="arrival">
-                <text class="jtxt" :x="v.x" :y="v.ay + 11" text-anchor="middle">{{ v.arrivals.join(', ') }}</text>
+              <g v-if="v.arrivals.length === 1" class="arrival">
+                <text class="jtxt" :x="v.x" :y="v.ay + 11" text-anchor="middle">{{ v.arrivals[0] }}</text>
                 <polygon class="arrow" :points="(v.x - 5) + ',' + (v.ay + 13) + ' ' + (v.x + 5) + ',' + (v.ay + 13) + ' ' + v.x + ',' + (v.ay + 22)" />
+              </g>
+              <g v-else-if="v.arrivals.length" class="arrival">
+                <template v-for="(lab, k) in v.arrivals" :key="k">
+                  <text class="jtxt" :x="v.x + v.arrXs[k]!" :y="v.ay + 11" text-anchor="middle">{{ lab }}</text>
+                  <polygon class="arrow" :points="(v.x + v.arrXs[k]! - 5) + ',' + (v.ay + 13) + ' ' + (v.x + v.arrXs[k]! + 5) + ',' + (v.ay + 13) + ' ' + (v.x + v.arrXs[k]!) + ',' + (v.ay + 22)" />
+                </template>
               </g>
               <rect class="st-box" :x="v.x - v.w / 2" :y="v.y" :width="v.w" height="40" />
               <g v-if="v.macro" class="macro"><line :x1="v.x - v.w / 2" :x2="v.x + v.w / 2" :y1="v.y + 8" :y2="v.y + 8" /><line :x1="v.x - v.w / 2" :x2="v.x + v.w / 2" :y1="v.y + 32" :y2="v.y + 32" /></g>
@@ -49,9 +55,15 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump'] as const)
             </g>
             <g v-else-if="v.kind === 'trans'" class="el" :class="{ enabled: simEnabled.has(v.id), cites: citingActive.has(v.id) }" @pointerdown.stop="ui.pick(v.id)">
               <rect class="hit" :x="v.x - v.l" :y="v.ay" :width="v.l + v.r" :height="v.h + v.y - v.ay" />
-              <g v-if="v.arrivals.length" class="arrival">
-                <text class="jtxt" :x="v.x" :y="v.ay + 11" text-anchor="middle">{{ v.arrivals.join(', ') }}</text>
+              <g v-if="v.arrivals.length === 1" class="arrival">
+                <text class="jtxt" :x="v.x" :y="v.ay + 11" text-anchor="middle">{{ v.arrivals[0] }}</text>
                 <polygon class="arrow" :points="(v.x - 5) + ',' + (v.ay + 13) + ' ' + (v.x + 5) + ',' + (v.ay + 13) + ' ' + v.x + ',' + (v.ay + 22)" />
+              </g>
+              <g v-else-if="v.arrivals.length" class="arrival">
+                <template v-for="(lab, k) in v.arrivals" :key="k">
+                  <text class="jtxt" :x="v.x + v.arrXs[k]!" :y="v.ay + 11" text-anchor="middle">{{ lab }}</text>
+                  <polygon class="arrow" :points="(v.x + v.arrXs[k]! - 5) + ',' + (v.ay + 13) + ' ' + (v.x + v.arrXs[k]! + 5) + ',' + (v.ay + 13) + ' ' + (v.x + v.arrXs[k]!) + ',' + (v.ay + 22)" />
+                </template>
               </g>
               <line class="tick" :x1="v.x - 9" :x2="v.x + 9" :y1="v.y + 20" :y2="v.y + 20" />
               <text class="tnum" :x="v.x - 17" :y="v.y + 24" text-anchor="end">({{ v.num }})</text>
