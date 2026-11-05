@@ -69,3 +69,42 @@ describe('transition source', () => {
     expect(shape(r.model.grafcets[0]!.items)).toEqual(['T:a', 'S1:', 'T:b']);
   });
 });
+
+describe('OU enchaîné directement sur un ET', () => {
+  const S = (id: string, n: string, initial = false): Item => ({ id, kind: 'step', num: n, name: '', initial, actions: [] });
+  const T = (id: string, n: number, r: string): Item => ({ id, kind: 'trans', num: n, recept: r });
+  const items = (): Item[] => [
+    S('s0', '0', true),
+    { id: 'o', kind: 'or', branches: [
+      [{ id: 'a', kind: 'and', branches: [[S('s1', '1')], [S('s2', '2')]] }, T('t9', 9, 'c')],
+      [T('t1', 1, 'a'), S('s3', '3'), T('t5', 5, 'b')],
+    ] },
+    S('s7', '7'), T('t0', 0, 'd'),
+  ];
+  it('survit à un aller-retour SFCEdit', () => {
+    const project = importSfcEditXml(xml, { projectName: 'p' }).model;
+    project.grafcets[0]!.items = items();
+    const r = importSfcEditXml(exportSfcEditXml(project).output, { projectName: 'p' });
+    expect(r.report.entries.filter((e) => e.level === 'error')).toEqual([]);
+    expect(shape(r.model.grafcets[0]!.items)).toEqual(shape(items()));
+  });
+});
+
+describe('renvoi dans une branche ET', () => {
+  it('aller-retour SFCEdit', () => {
+    const project = importSfcEditXml(xml, { projectName: 'p' }).model;
+    const items: Item[] = [
+      { id: 's0', kind: 'step', num: '0', name: '', initial: true, actions: [] },
+      { id: 't1', kind: 'trans', num: 1, recept: 'a' },
+      { id: 'a', kind: 'and', branches: [
+        [{ id: 's3', kind: 'step', num: '3', name: '', initial: false, actions: [] }],
+        [{ id: 'j', kind: 'jump', target: 's0' }],
+      ] },
+      { id: 't2', kind: 'trans', num: 2, recept: 'b' },
+    ];
+    project.grafcets[0]!.items = items;
+    const r = importSfcEditXml(exportSfcEditXml(project).output, { projectName: 'p' });
+    expect(r.report.entries.filter((e) => e.level === 'error')).toEqual([]);
+    expect(shape(r.model.grafcets[0]!.items)).toEqual(shape(items));
+  });
+});

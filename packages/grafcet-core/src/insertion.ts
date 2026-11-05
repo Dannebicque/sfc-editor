@@ -17,8 +17,8 @@ export const mkTrans = (P: Project, g: Grafcet): Item => ({
 const PATTERNS: Record<ItemKind, ItemKind[][]> = {
   step: [['step'], ['step', 'trans']],
   trans: [['trans'], ['trans', 'step']],
-  or: [['or', 'step']],
-  and: [['and', 'trans']],
+  or: [['or', 'step'], ['or']],
+  and: [['and', 'trans'], ['and']],
   jump: [['jump']],
 };
 
@@ -53,8 +53,8 @@ export interface Insertion {
 }
 
 function noteKeyFor(kind: ItemKind, pat: ItemKind[]): string | null {
-  if (kind === 'or') return 'note_or';
-  if (kind === 'and') return 'note_and';
+  if (kind === 'or') return pat.length > 1 ? 'note_or' : null;
+  if (kind === 'and') return pat.length > 1 ? 'note_and' : null;
   if (pat.length > 1) return pat[1] === 'step' ? 'note_step_ins' : 'note_trans_ins';
   return null;
 }
@@ -80,13 +80,30 @@ export function insertionSite(g: Grafcet, id: string | null, where: InsertWhere)
   return { loc, at: where === 'before' ? loc.idx : loc.idx + 1 };
 }
 
+/**
+ * Une branche ET réduite à une étape vide (ni initiale, ni citée par un renvoi) peut devenir un renvoi :
+ * l'étape est alors remplacée par le renvoi.
+ */
+function replaceableByJump(g: Grafcet, loc: NonNullable<ReturnType<typeof locate>>): boolean {
+  const s = loc.item;
+  if (loc.ctx !== 'and' || loc.seq.length !== 1 || s.kind !== 'step' || s.initial || s.actions.length || s.expansion !== undefined) return false;
+  let targeted = false;
+  walkAll(g.items, (it) => { if (it.kind === 'jump' && it.target === s.id) targeted = true; });
+  if (targeted || !loc.block || loc.block.branches.filter((b) => b[b.length - 1]!.kind !== 'jump').length < 2) return false;
+  let any = false;
+  walkAll(g.items, (it) => { if (it.kind === 'step' && it.id !== s.id) any = true; });
+  return any;
+}
+
 /** Insertions valides avant ou après l'élément sélectionné. */
 export function allowedInsertions(g: Grafcet, id: string | null, where: InsertWhere = 'after'): Insertion[] {
   const site = insertionSite(g, id, where);
   if (!site) return [];
   const { loc, at } = site;
   const out: Insertion[] = [];
+  if (replaceableByJump(g, loc)) out.push({ kind: 'jump', noteKey: 'note_jump_replace' });
   for (const kind of INSERT_KINDS) {
+    if (kind === 'jump' && out.some((o) => o.kind === 'jump')) continue;
     const pat = findPatternAt(loc.seq, loc.ctx, at, kind);
     if (!pat) continue;
     if (kind === 'jump') {
@@ -121,6 +138,14 @@ export function insertAt(P: Project, g: Grafcet, id: string, kind: ItemKind, whe
   const site = insertionSite(g, id, where);
   if (!site) throw new Error('élément introuvable ou non insérable : ' + id);
   const { loc, at } = site;
+  if (kind === 'jump' && replaceableByJump(g, loc)) {
+    let target: string | null = null;
+    walkAll(g.items, (it) => { if (!target && it.kind === 'step' && it.id !== loc.item.id && it.initial) target = it.id; });
+    walkAll(g.items, (it) => { if (!target && it.kind === 'step' && it.id !== loc.item.id) target = it.id; });
+    const j: Item = { id: nextId(P), kind: 'jump', target };
+    loc.seq.splice(0, 1, j);
+    return j.id;
+  }
   const pat = findPatternAt(loc.seq, loc.ctx, at, kind);
   if (!pat) throw new Error('insertion impossible : ' + kind);
   const made = pat.map((k) => mkItem(P, g, k, loc.seq[at - 1]));

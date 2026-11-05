@@ -363,5 +363,7 @@
   "sync_help": "Steps tested from another grafcet of the project (receptivities and action conditions).",
   "sync_ok": "Link",
   "sync_unknown": "Unknown",
-  "sync_line": "“{g}” tests step {n} (defined in: {d})"
+  "sync_line": "“{g}” tests step {n} (defined in: {d})",
+  "chk_and_all_jump": "an AND divergence must keep at least one converging branch (all of them end with a jump)",
+  "note_jump_replace": "the empty step of this branch is replaced by the jump"
 }

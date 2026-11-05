@@ -363,5 +363,7 @@
   "sync_help": "Étapes testées dans un autre GRAFCET du projet (réceptivités et conditions d’action).",
   "sync_ok": "Lien",
   "sync_unknown": "Inconnue",
-  "sync_line": "« {g} » teste l’étape {n} (définie dans : {d})"
+  "sync_line": "« {g} » teste l’étape {n} (définie dans : {d})",
+  "chk_and_all_jump": "une divergence ET doit garder au moins une branche qui converge (toutes finissent par un renvoi)",
+  "note_jump_replace": "l’étape vide de cette branche est remplacée par le renvoi"
 }

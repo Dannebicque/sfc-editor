@@ -181,9 +181,10 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
       it.branches.forEach((b, k) => {
         L(bxs[k]!, y + GEO.bar, bxs[k]!, yB);
         dSeq(b, bxs[k]!, yB);
-        L(bxs[k]!, yB + bm[k]!.h, bxs[k]!, yb2);
+        if (conv[k]) L(bxs[k]!, yB + bm[k]!.h, bxs[k]!, yb2);
       });
-      views.push({ kind: 'bar', id: it.id, part: 'c', ys: [yb2 + 1, yb2 + GEO.bar - 1], x1: bxs[0]! - GEO.ov, x2: bxs[lastK]! + GEO.ov });
+      const ax = bxs.filter((_, k) => conv[k]);
+      views.push({ kind: 'bar', id: it.id, part: 'c', ys: [yb2 + 1, yb2 + GEO.bar - 1], x1: Math.min(...ax, x) - GEO.ov, x2: Math.max(...ax, x) + GEO.ov });
       focus.push({ id: it.id, x, y: yb2 + 3, slot: { x, y: yb2 + GEO.bar + 11 }, slotBefore: null });
     }
   }

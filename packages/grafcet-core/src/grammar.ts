@@ -8,7 +8,10 @@ export function checkSeq(items: Item[], ctx: SeqContext): string | null {
   if (!items.length) return 'chk_empty';
   const want = ctx === 'or' ? 'trans' : 'step';
   // Au premier niveau, une séquence peut commencer par une transition source (sans étape amont, CEI 60848).
-  const startOk = items[0]!.kind === want || (ctx === 'root' && items[0]!.kind === 'trans');
+  // Une branche peut aussi commencer par un bloc de l'autre famille (OU suivi directement d'un ET, et inversement).
+  const first = items[0]!;
+  const startOk = first.kind === want || (ctx === 'root' && first.kind === 'trans')
+    || (ctx === 'or' && first.kind === 'and') || (ctx === 'and' && (first.kind === 'or' || first.kind === 'jump'));
   if (!startOk) return ctx === 'or' ? 'chk_start_or' : 'chk_start_and';
   let prev: Item | null = null;
   for (let i = 0; i < items.length; i++) {
@@ -21,22 +24,23 @@ export function checkSeq(items: Item[], ctx: SeqContext): string | null {
         else if (TYPE[prev.kind] === TYPE[it.kind]) return 'chk_alternation';
       }
     } else if (isBlock(it)) {
-      if (!prev || isBlock(prev) || prev.kind === 'jump' || TYPE[prev.kind] !== TYPE[it.kind]) return 'chk_block_place';
+      if (prev ? isBlock(prev) || prev.kind === 'jump' || TYPE[prev.kind] !== TYPE[it.kind] : ctx === 'root') return 'chk_block_place';
       if (it.branches.length < 2) return 'chk_min_branches';
       for (const b of it.branches) {
         const e = checkSeq(b, it.kind);
         if (e) return e;
       }
+      if (it.kind === 'and' && it.branches.every((b) => b[b.length - 1]!.kind === 'jump')) return 'chk_and_all_jump';
     } else if (it.kind === 'jump') {
       if (i !== items.length - 1) return 'chk_jump_last';
-      if (!prev || isBlock(prev)) return 'chk_jump_place';
-      if (ctx === 'and') return 'chk_jump_and';
+      // Un renvoi suit une étape ou une transition ; dans une branche ET, il peut aussi constituer toute la branche.
+      if (prev ? isBlock(prev) : ctx !== 'and') return 'chk_jump_place';
     } else return 'chk_unknown';
     prev = it;
   }
   const last = items[items.length - 1]!;
   if (isBlock(last)) return 'chk_block_end';
   if (ctx === 'or' && !(last.kind === 'trans' || last.kind === 'jump')) return 'chk_or_end';
-  if (ctx === 'and' && last.kind !== 'step') return 'chk_and_end';
+  if (ctx === 'and' && last.kind !== 'step' && last.kind !== 'jump') return 'chk_and_end';
   return null;
 }

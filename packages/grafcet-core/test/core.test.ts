@@ -1,7 +1,7 @@
 import { describe as suite, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
-  addBranch, allowedInsertions, checkSeq, describeId, flatten, insertAfter, newGrafcet, parseRecept,
+  addBranch, allowedInsertions, insertAt, checkSeq, describeId, flatten, insertAfter, newGrafcet, parseRecept,
   createExpansion, provablyExclusive, referencesTo, syncLinks, setMacro, removeBranch, removeItem, renumber, stats, validateGrafcet, walkAll, duplicateGrafcet, INSERT_KINDS,
   type Grafcet, type Project,
 } from '../src';
@@ -322,5 +322,80 @@ suite('synchronisations', () => {
     for (const g of P.grafcets) walkAll(g.items, (it) => { if (it.kind === 'step') known.add(it.num); });
     const links = syncLinks(P, known);
     expect(links.some((l) => l.from === a.id && l.num === stepB.num && l.in.includes(b.id))).toBe(true);
+  });
+});
+
+suite('enchaînement OU / ET', () => {
+  const S = (id: string, n: string, initial = false) => ({ id, kind: 'step' as const, num: n, name: '', initial, actions: [] });
+  const T = (id: string, n: number) => ({ id, kind: 'trans' as const, num: n, recept: 'a' });
+  const seq = (): Grafcet['items'] => [
+    S('s0', '0', true),
+    { id: 'o', kind: 'or', branches: [
+      [{ id: 'a', kind: 'and', branches: [[S('s1', '1')], [S('s2', '2')]] }, T('t9', 9)],
+      [T('t1', 1), S('s3', '3'), { id: 'o2', kind: 'or', branches: [[T('t2', 2)], [T('t3', 3)]] }, S('s4', '4'), T('t5', 5)],
+    ] },
+    S('s7', '7'), T('t0', 0),
+  ];
+  it('accepte un ET en tête de branche OU, et un OU en tête de branche ET', () => {
+    expect(checkSeq(seq(), 'root')).toBeNull();
+    const inv: Grafcet['items'] = [
+      S('s0', '0', true), T('t1', 1),
+      { id: 'a', kind: 'and', branches: [[{ id: 'o', kind: 'or', branches: [[T('t2', 2)], [T('t3', 3)]] }, S('s5', '5')], [S('s6', '6')]] },
+      T('t0', 0),
+    ];
+    expect(checkSeq(inv, 'root')).toBeNull();
+  });
+  it('relie la divergence OU directement aux étapes de la divergence ET', () => {
+    const P = demoProject();
+    const g = newGrafcet(P, 'x');
+    g.items = seq();
+    const links = flatten(g).links.filter((l) => l.from === 's0').map((l) => l.to).sort();
+    expect(links).toEqual(['s1', 's2', 't1']);
+  });
+  it('propose un ET juste après la divergence OU', () => {
+    const P = demoProject();
+    const g = newGrafcet(P, 'x');
+    g.items = [S('s0', '0', true), { id: 'o', kind: 'or', branches: [[T('t1', 1)], [T('t2', 2)]] }, S('s9', '9')];
+    expect(allowedInsertions(g, 't1', 'before').map((i) => i.kind)).toContain('and');
+  });
+});
+
+suite('renvoi dans une branche ET', () => {
+  const S = (id: string, n: string, initial = false) => ({ id, kind: 'step' as const, num: n, name: '', initial, actions: [] });
+  const T = (id: string, n: number) => ({ id, kind: 'trans' as const, num: n, recept: 'a' });
+  const mk = (b2: Grafcet['items']): Grafcet['items'] => [
+    S('s0', '0', true), T('t1', 1),
+    { id: 'a', kind: 'and', branches: [[S('s3', '3')], b2] }, T('t2', 2), S('s4', '4'), T('t3', 3),
+  ];
+  it('accepte une branche réduite à un renvoi', () => {
+    const items = mk([{ id: 'j', kind: 'jump', target: 's0' }]);
+    expect(checkSeq(items, 'root')).toBeNull();
+    const P = demoProject();
+    const g = newGrafcet(P, 'x');
+    g.items = items;
+    const l = flatten(g).links;
+    expect(l).toContainEqual({ from: 't1', to: 's0', jump: true });
+    expect(l.filter((x) => x.to === 't2').map((x) => x.from)).toEqual(['s3']);
+  });
+  it('refuse un ET dont toutes les branches se terminent par un renvoi', () => {
+    const items = mk([{ id: 'j', kind: 'jump', target: 's0' }]);
+    (items[2] as { branches: Grafcet['items'][] }).branches[0] = [{ id: 'j2', kind: 'jump', target: 's0' }];
+    expect(checkSeq(items, 'root')).toBe('chk_and_all_jump');
+  });
+});
+
+suite('saisie d’un renvoi dans une branche ET', () => {
+  it('remplace l’étape vide d’une branche par un renvoi', () => {
+    const P = demoProject();
+    const g = newGrafcet(P, 'x');
+    const S = (id: string, n: string, initial = false) => ({ id, kind: 'step' as const, num: n, name: '', initial, actions: [] });
+    g.items = [S('s0', '0', true), { id: 't1', kind: 'trans', num: 1, recept: 'a' },
+      { id: 'a', kind: 'and', branches: [[S('s1', '1')], [S('s2', '2')]] }, { id: 't2', kind: 'trans', num: 2, recept: 'b' }];
+    expect(allowedInsertions(g, 's2', 'after').map((i) => i.kind)).toContain('jump');
+    const id = insertAt(P, g, 's2', 'jump', 'after');
+    expect((g.items[2] as { branches: Grafcet['items'][] }).branches[1]).toEqual([expect.objectContaining({ id, kind: 'jump', target: 's0' })]);
+    expect(checkSeq(g.items, 'root')).toBeNull();
+    // la dernière branche convergente ne peut pas devenir un renvoi
+    expect(allowedInsertions(g, 's1', 'after').find((i) => i.kind === 'jump')?.noteKey ?? null).not.toBe('note_jump_replace');
   });
 });
