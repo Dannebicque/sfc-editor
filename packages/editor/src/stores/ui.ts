@@ -1,7 +1,7 @@
 import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { defineStore, storeToRefs } from 'pinia';
 import {
-  addBranch as addBranchCmd, allowedInsertions, canUnwrapBlock, canWrapInBlock, describeId, findItem, insertAt, isBlock,
+  addArrival as addArrivalCmd, addBranch as addBranchCmd, allowedInsertions, canUnwrapBlock, canWrapInBlock, describeId, findItem, insertAt, isBlock,
   locate, moveBranch as moveBranchCmd, parseRecept, removeBranch, removeItem, renumber, unwrapBlock, walkAll,
   wrapInBlock, type BlockKind, type InsertWhere, type ItemKind,
 } from '@grafcet/core';
@@ -184,6 +184,17 @@ export const useUiStore = defineStore('ui', () => {
   function delSync(stepId: string): void {
     const id = selBase.value;
     project.mutate((g) => { const it = findItem(g.items, id!); if (it && it.kind === 'trans' && it.sync) { it.sync = it.sync.filter((s) => s !== stepId); if (!it.sync.length) delete it.sync; } });
+  }
+  /** Convergence OU : fait arriver un renvoi sur l'élément sélectionné depuis la fin de séquence `sourceId`. */
+  function addArrivalFrom(sourceId: string): void {
+    const target = selBase.value;
+    if (!target || !sourceId) return;
+    const id = project.mutate((g, P) => addArrivalCmd(P, g, target, sourceId));
+    if (id) announce(T('a_arrival_added'));
+  }
+  function removeArrival(jumpId: string): void {
+    const r = project.mutate((g) => removeItem(g, jumpId));
+    if (r.ok) announce(T('a_arrival_removed'));
   }
   function addToken(t: string): void {
     const id = selBase.value;
@@ -563,7 +574,7 @@ export const useUiStore = defineStore('ui', () => {
     sel, tab, tabs, linkedNum, linkedIn, sharedNum, citingActive, citedIn, theme, themeLabel, dataView, sim, liveMsg, announce, insertWhere, whereNow, whereFixed,
     selBase, selLoc, selItem, isDivBar, selText, selShort, allowed, slotPos, activeRegion, jumpTargets, recFb, tokens,
     wrap, canWrap, unwrap, canUnwrap, moveBranch, canMoveBranch,
-    insertKind, removeSel, setField, setAction, addAction, delAction, addSync, delSync, addToken, addBranch, delBranch, doRenumber,
+    insertKind, removeSel, setField, setAction, addAction, delAction, addSync, delSync, addArrivalFrom, removeArrival, addToken, addBranch, delBranch, doRenumber,
     openG, addGrafcet, dupGrafcet, delGrafcet,
     pick, pickFromText, focusHost, onHostFocus, goIssue, onKey,
     simActive, simEnabled, simReset, simFire, toggleSim, toggleMacro, setExpansion, makeExpansion, setRole, openExpansion, parentsOfActive,

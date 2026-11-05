@@ -376,5 +376,12 @@
   "sync_add": "Also wait for step",
   "sync_choose": "Choose a step…",
   "sync_del_aria": "Stop waiting for step {n}",
-  "rep_x_sync": "“{g}”: the synchronisation of transition ({n}) is not exported to SFCEdit XML (the extra awaited steps are ignored)."
+  "rep_x_sync": "“{g}”: the synchronisation of transition ({n}) is not exported to SFCEdit XML (the extra awaited steps are ignored).",
+  "h_conv_or": "OR convergence (arrivals)",
+  "conv_or_hint": "Jumps arriving here from other branches. They are shown as labelled arrows joined by a bar.",
+  "conv_add": "Add an arrival from",
+  "conv_choose": "Choose a branch end…",
+  "conv_del_aria": "Remove the arrival: {d}",
+  "a_arrival_added": "Arrival added.",
+  "a_arrival_removed": "Arrival removed."
 }

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { checkSeq } from '@grafcet/core';
+import { arrivalSources, arrivalsTo, checkSeq } from '@grafcet/core';
 import { applyLang } from '../src/i18n';
 import { useProjectStore } from '../src/stores/project';
 import { useUiStore } from '../src/stores/ui';
@@ -225,5 +225,25 @@ describe('macro-étapes', () => {
     expect(project.issues.map((i) => i.key)).not.toContain('v_expansion_entry');
     project.undo();
     expect(project.project.grafcets).toHaveLength(n);
+  });
+});
+
+describe('convergence OU libre', () => {
+  it('ajoute puis supprime une arrivée depuis la fin d’une branche', () => {
+    const project = useProjectStore();
+    const ui = useUiStore();
+    project.activeId = project.project.grafcets[0]!.id;
+    const g = () => project.activeG;
+    const target = g().items.find((i) => i.kind === 'step')!;
+    ui.sel = target.id;
+    const sources = arrivalSources(g(), target.id);
+    expect(sources.length).toBeGreaterThan(0);
+    const n0 = arrivalsTo(g(), target.id).length;
+    ui.addArrivalFrom(sources[0]!);
+    expect(arrivalsTo(g(), target.id)).toHaveLength(n0 + 1);
+    expect(checkSeq(g().items, 'root')).toBeNull();
+    ui.removeArrival(arrivalsTo(g(), target.id).at(-1)!.id);
+    expect(arrivalsTo(g(), target.id)).toHaveLength(n0);
+    expect(checkSeq(g().items, 'root')).toBeNull();
   });
 });
