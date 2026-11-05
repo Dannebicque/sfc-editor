@@ -28,7 +28,11 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump'] as const)
           <line v-for="(l, i) in layout.lines" :key="'l' + i" class="lk" :x1="l.x1" :y1="l.y1" :x2="l.x2" :y2="l.y2" />
           <template v-for="v in shapes" :key="v.id + (v.kind === 'bar' ? v.part : '')">
             <g v-if="v.kind === 'step'" class="el" :class="{ active: simActive.has(v.id) }" @pointerdown.stop="ui.pick(v.id)">
-              <rect class="hit" :x="v.x - v.l" :y="v.y" :width="v.l + v.r" :height="v.h" />
+              <rect class="hit" :x="v.x - v.l" :y="v.ay" :width="v.l + v.r" :height="v.h + v.y - v.ay" />
+              <g v-if="v.arrivals.length" class="arrival">
+                <text class="jtxt" :x="v.x" :y="v.ay + 11" text-anchor="middle">{{ v.arrivals.join(', ') }}</text>
+                <polygon class="arrow" :points="(v.x - 5) + ',' + (v.ay + 13) + ' ' + (v.x + 5) + ',' + (v.ay + 13) + ' ' + v.x + ',' + (v.ay + 22)" />
+              </g>
               <rect class="st-box" :x="v.x - 22" :y="v.y" width="44" height="40" />
               <rect v-if="v.initial" class="st-in" :x="v.x - 18" :y="v.y + 4" width="36" height="32" />
               <text class="st-num" :x="v.x" :y="v.y + 25" text-anchor="middle">{{ v.num }}</text>
@@ -43,7 +47,11 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump'] as const)
               <rect v-if="sel === v.id" class="ring" :x="v.x - 27" :y="v.y - 5" width="54" height="50" rx="5" />
             </g>
             <g v-else-if="v.kind === 'trans'" class="el" :class="{ enabled: simEnabled.has(v.id) }" @pointerdown.stop="ui.pick(v.id)">
-              <rect class="hit" :x="v.x - v.l" :y="v.y" :width="v.l + v.r" :height="v.h" />
+              <rect class="hit" :x="v.x - v.l" :y="v.ay" :width="v.l + v.r" :height="v.h + v.y - v.ay" />
+              <g v-if="v.arrivals.length" class="arrival">
+                <text class="jtxt" :x="v.x" :y="v.ay + 11" text-anchor="middle">{{ v.arrivals.join(', ') }}</text>
+                <polygon class="arrow" :points="(v.x - 5) + ',' + (v.ay + 13) + ' ' + (v.x + 5) + ',' + (v.ay + 13) + ' ' + v.x + ',' + (v.ay + 22)" />
+              </g>
               <line class="tick" :x1="v.x - 9" :x2="v.x + 9" :y1="v.y + 20" :y2="v.y + 20" />
               <text class="tnum" :x="v.x - 17" :y="v.y + 24" text-anchor="end">({{ v.num }})</text>
               <text class="rec" :class="{ empty: !v.recept }" :x="v.x + 17" :y="v.y + 24">{{ v.recept || '?' }}</text>
