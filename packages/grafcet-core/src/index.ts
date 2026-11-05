@@ -5,7 +5,7 @@ export {
 } from './graph';
 export {
   insertNode, canInsert, addDivergence, addConvergence, removeNode, removeLink, removeSeq, addBranch, removeBranch, moveBranch,
-  connect, mergeEnds, mergeStarts, addJump, jumpTargets, setJumpTarget, removeJump, newSeq, addOpenLink, renumber, newGrafcet,
+  connect, mergeEnds, mergeStarts, addJump, jumpTargets, setJumpTarget, removeJump, newSeq, addOpenLink, renumber, numberTransitions, newGrafcet,
   duplicateGrafcet, stats, capabilities, probe, tidy, nextId, mkStep, mkTrans, INSERT_KINDS, type RemoveResult, type Capabilities,
 } from './edit';
 export { parseRecept, type ReceptResult } from './recept';
@@ -15,4 +15,4 @@ export { PROFILES, DEFAULT_PROFILE, isProfile, provablyExclusive, type Validatio
 export { validateGrafcet, type Issue, type IssueLevel, type ValidateOptions } from './validate';
 export { describe, describeId, type Description } from './describe';
 export { buildDemoProject, type DemoTexts } from './demo';
-export { treeToGraph, migrateProject, type TreeGrafcet, type TreeProject } from './migrate';
+export { treeToGraph, migrateProject, type TreeGrafcet, type TreeProject, type TreeItem } from './migrate';

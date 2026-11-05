@@ -414,6 +414,13 @@ export function renumber(g: Grafcet): void {
   g.nextTrans = tn;
 }
 
+/** Numérote les transitions 1…n dans l'ordre du document (sans toucher aux étapes). */
+export function numberTransitions(g: Grafcet): void {
+  let tn = 1;
+  for (const s of docOrder(g)) for (const it of s.items) if (it.kind === 'trans') it.num = tn++;
+  g.nextTrans = tn;
+}
+
 export function newGrafcet(P: Project, name: string): Grafcet {
   const g: Grafcet = { id: 'g' + P.gcount++, name, nextStep: 0, nextTrans: 1, seqs: [], links: [], jumps: [] };
   const s = mkStep(P, g);

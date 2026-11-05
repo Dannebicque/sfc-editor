@@ -18,11 +18,11 @@ describe('format natif', () => {
     const doc = JSON.parse(exportNative(P).output);
     expect(() => importNative('{')).toThrow(ImportError);
     expect(() => importNative(JSON.stringify({ ...doc, format: 'autre' }))).toThrow(/imp_format/);
-    expect(() => importNative(JSON.stringify({ ...doc, schemaVersion: '2.0.0' }))).toThrow(/imp_version/);
+    expect(() => importNative(JSON.stringify({ ...doc, schemaVersion: '3.0.0' }))).toThrow(/imp_version/);
   });
   it('refuse une structure contraire à la grammaire', () => {
     const doc = JSON.parse(exportNative(demoProject()).output);
-    doc.project.grafcets[1].items.splice(1, 1); // retire une transition : deux étapes consécutives
+    doc.project.grafcets[1].seqs[0].items.splice(1, 1); // retire une transition : deux étapes consécutives
     expect(() => importNative(JSON.stringify(doc))).toThrow(/imp_struct/);
   });
 });
@@ -44,8 +44,31 @@ describe('import JSON libre', () => {
   it('rejette ids dupliqués et structures invalides', () => {
     const cur = demoProject();
     const bad = JSON.parse(JSON.stringify(cur.grafcets[1]));
-    bad.items[2].id = bad.items[0].id;
+    bad.seqs[0].items[2].id = bad.seqs[0].items[0].id;
     expect(() => importJson(JSON.stringify(bad), cur, defaults)).toThrow(/imp_ids/);
-    expect(() => importJson('{"items":[]}', cur, defaults)).toThrow(/imp_struct/);
+    expect(() => importJson('{"items":[]}', cur, defaults)).not.toThrow();
+    expect(() => importJson('{}', cur, defaults)).toThrow(/imp_items/);
+  });
+});
+
+describe('lecture de l’ancien format 1.x (arbre de blocs)', () => {
+  const tree = {
+    format: 'grafcet-studio-project', schemaVersion: '1.1.0',
+    project: { name: 'ancien', counter: 20, gcount: 2, grafcets: [{ id: 'g1', name: 'A', nextStep: 3, nextTrans: 3, items: [
+      { id: 'n1', kind: 'step', num: '0', name: '', initial: true, actions: [] }, { id: 'n2', kind: 'trans', num: 1, recept: 'a' }, { id: 'n9', kind: 'step', num: '9', name: '', initial: false, actions: [] },
+      { id: 'o', kind: 'or', branches: [[{ id: 'n3', kind: 'trans', num: 2, recept: 'b' }, { id: 'n4', kind: 'step', num: '1', name: '', initial: false, actions: [] }, { id: 'n41', kind: 'trans', num: 5, recept: 'e' }], [{ id: 'n5', kind: 'trans', num: 3, recept: 'c' }, { id: 'n6', kind: 'step', num: '2', name: '', initial: false, actions: [] }, { id: 'n61', kind: 'trans', num: 6, recept: 'f' }]] },
+      { id: 'n8', kind: 'step', num: '3', name: '', initial: false, actions: [] }, { id: 'n7', kind: 'trans', num: 4, recept: 'd' }, { id: 'j', kind: 'jump', target: 'n1' },
+    ] }] },
+  };
+  it('est converti en séquences et liens', () => {
+    const P = importNative(JSON.stringify(tree)).model;
+    const g = P.grafcets[0]!;
+    expect(g.links.map((l) => `${l.kind}-${l.op}`)).toEqual(['div-or']);
+    expect(g.jumps).toHaveLength(1);
+    expect(g.seqs.length).toBe(4);
+  });
+  it('importJson accepte un GRAFCET en arbre', () => {
+    const r = importJson(JSON.stringify(tree.project.grafcets[0]), demoProject(), defaults).model;
+    expect(r.project.grafcets).toHaveLength(4);
   });
 });

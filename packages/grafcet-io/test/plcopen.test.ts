@@ -3,19 +3,15 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { Item, Project } from '@grafcet/core';
+import { nodesOf, type Project } from '@grafcet/core';
 import { exportPlcopenXml, importPlcopenXml, importSfcEditXml, looksLikePlcopenXml } from '../src';
 import { demoProject } from '../../grafcet-core/test/helpers';
 
 const fixture = readFileSync(new URL('../../../fixtures/sfcedit/convergence-et-renvoi.xml', import.meta.url), 'utf8');
 const NOW = new Date('2026-11-05T14:00:00Z');
 
-const shape = (items: Item[]): unknown[] => items.map((i) =>
-  i.kind === 'step' ? `S${i.num}${i.initial ? '*' : ''}:${i.actions.map((a) => a.kind[0] + a.label + (a.cond ? '?' + a.cond : '')).join(',')}`
-  : i.kind === 'trans' ? `T:${i.recept}`
-  : i.kind === 'jump' ? 'J'
-  : { [i.kind]: i.branches.map(shape) });
-const shapes = (p: Project) => p.grafcets.map((g) => shape(g.items));
+import { shape } from './shape';
+const shapes = (p: Project) => p.grafcets.map(shape);
 
 describe('PLCopen XML (TC6 v2.01)', () => {
   const conv = importSfcEditXml(fixture, { projectName: 'conv' }).model;
@@ -40,9 +36,10 @@ describe('PLCopen XML (TC6 v2.01)', () => {
     const o = exportPlcopenXml(demo, { now: NOW });
     const back = importPlcopenXml(o.output).model;
     expect(back.grafcets).toHaveLength(demo.grafcets.length);
+    expect(back.grafcets.map((g) => nodesOf(g).length)).toEqual(demo.grafcets.map((g) => nodesOf(g).length));
     // les actions « ↑ » / « ↓ » et conditionnelles survivent ; les réceptivités à fronts perdent le front (signalé)
     expect(o.report.entries.some((e) => e.message.key === 'rep_p_edge')).toBe(true);
-    const count = (p: Project) => p.grafcets.map((g) => JSON.stringify(shape(g.items)).match(/"(or|and)"/g)?.length ?? 0);
+    const count = (p: Project) => p.grafcets.map((g) => g.links.length);
     expect(count(back)).toEqual(count(demo));
   });
 

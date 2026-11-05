@@ -1,6 +1,6 @@
-import { checkSeq, walkAll, type Project } from '@grafcet/core';
+import { checkGraph, migrateProject, nodesOf, type Project } from '@grafcet/core';
 import { ImportError, type ExportResult, type ImportResult } from './contract';
-import { FORMAT_ID, ProjectSchema, SCHEMA_VERSION } from './schema';
+import { FORMAT_ID, ProjectSchema, SCHEMA_VERSION, TreeProjectSchema } from './schema';
 
 export interface NativeEnvelope { format: typeof FORMAT_ID; schemaVersion: string; project: Project }
 
@@ -18,21 +18,23 @@ export function importNative(text: string): ImportResult<Project> {
   try { raw = JSON.parse(text); } catch (e) { throw new ImportError({ key: 'imp_raw', params: { m: String((e as Error).message) } }); }
   const env = raw as Partial<NativeEnvelope> | null;
   if (!env || env.format !== FORMAT_ID) throw new ImportError({ key: 'imp_format' });
-  if (typeof env.schemaVersion !== 'string' || major(env.schemaVersion) !== major(SCHEMA_VERSION)) {
+  if (typeof env.schemaVersion !== 'string' || ![1, major(SCHEMA_VERSION)].includes(major(env.schemaVersion))) {
     throw new ImportError({ key: 'imp_version', params: { v: String(env.schemaVersion) } });
   }
-  const parsed = ProjectSchema.safeParse(env.project);
+  const legacy = major(env.schemaVersion) === 1;
+  const parsed = legacy ? TreeProjectSchema.safeParse(env.project) : ProjectSchema.safeParse(env.project);
   if (!parsed.success) throw new ImportError({ key: 'imp_raw', params: { m: parsed.error.issues[0]?.path.join('.') + ' : ' + parsed.error.issues[0]?.message } });
-  const project = parsed.data;
+  // Les fichiers 1.x (arbre de blocs) sont convertis en séquences + liens à la lecture.
+  const project: Project = legacy ? migrateProject(parsed.data as Parameters<typeof migrateProject>[0]) : (parsed.data as Project);
   if (!project.grafcets.length) throw new ImportError({ key: 'imp_empty' });
   for (const g of project.grafcets) {
-    const e = checkSeq(g.items, 'root');
-    if (e) throw new ImportError({ key: 'imp_struct', params: { g: g.name || '?', e: { key: e } } });
     const ids = new Set<string>();
-    walkAll(g.items, (it) => {
+    for (const it of nodesOf(g)) {
       if (ids.has(it.id)) throw new ImportError({ key: 'imp_ids', params: { g: g.name || '?' } });
       ids.add(it.id);
-    });
+    }
+    const e = checkGraph(g);
+    if (e) throw new ImportError({ key: 'imp_struct', params: { g: g.name || '?', e: { key: e } } });
   }
   return { model: project, report: { entries: [] } };
 }

@@ -6,14 +6,14 @@ import { buildSimulation, enabledTransitions, fire, macroActive } from '../src';
 const mkP = (): { P: Project; g: Grafcet; macroId: string; t2: string; t1: string } => {
   const g: Grafcet = {
     id: 'g1', name: 'Principal', nextStep: 3, nextTrans: 3,
-    items: [
+    seqs: [{ id: 'q1', items: [
       { id: 's0', kind: 'step', num: '0', name: '', initial: true, actions: [] },
       { id: 't1', kind: 'trans', num: 1, recept: 'a' },
       { id: 'm', kind: 'step', num: 'M1', name: '', initial: false, actions: [] },
       { id: 't2', kind: 'trans', num: 2, recept: 'b' },
       { id: 's3', kind: 'step', num: '3', name: '', initial: false, actions: [] },
-      { id: 'j', kind: 'jump', target: 's0' },
-    ],
+    ] }],
+    links: [], jumps: [{ id: 'j', from: 'q1', to: 's0' }],
   };
   const P: Project = { name: 'p', counter: 100, gcount: 2, grafcets: [g] };
   setMacro(g, 'm', true);
