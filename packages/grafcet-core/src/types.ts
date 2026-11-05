@@ -1,10 +1,7 @@
 /**
- * Modèle métier d'un GRAFCET (IEC 60848).
- *
- * Un GRAFCET est une séquence d'éléments : étape, transition, divergence OU,
- * divergence ET, renvoi. Les divergences contiennent des branches, qui sont
- * elles-mêmes des séquences. Les identifiants sont des chaînes opaques stables.
- * Voir docs/adr/0001-modele-graphe.md pour l'évolution vers un graphe canonique.
+ * Modèle métier d'un GRAFCET (IEC 60848), proche de celui de SFCEdit : des séquences (chaînes alternant étapes et
+ * transitions) reliées par des liens horizontaux (divergences et convergences, OU ou ET, ouvertes ou non) et des renvois.
+ * Les identifiants sont des chaînes opaques stables. Voir docs/adr/0003-modele-sequences-liens.md.
  */
 /** Types d'action : continue, conditionnelle (niveau), sur activation, sur désactivation, ou sur événement (`cond` = l'événement, ex. « ↑a »). */
 export type ActionKind = 'continue' | 'conditional' | 'activation' | 'deactivation' | 'event';
@@ -43,25 +40,41 @@ export interface Transition {
   actions?: Action[];
 }
 
+/** Élément d'une séquence : étape ou transition (elles alternent). */
+export type Node = Step | Transition;
+export type Item = Node;
+export type ItemKind = Item['kind'];
+
+/**
+ * Séquence : chaîne linéaire d'étapes et de transitions qui alternent. Une séquence vide est un emplacement « X »
+ * à compléter. Les séquences sont reliées entre elles par des liens horizontaux (divergences/convergences) et des renvois.
+ */
+export interface Seq {
+  id: string;
+  items: Node[];
+}
+
+/**
+ * Lien horizontal (barre) entre séquences.
+ *  - divergence (`div`) : la fin de la séquence `base` se prolonge dans le début de chaque séquence de `nodes` ;
+ *  - convergence (`conv`) : la fin de chaque séquence de `nodes` se prolonge dans le début de la séquence `base`.
+ * `op` : OU (barre simple, branches alternatives) ou ET (double barre, branches parallèles).
+ * `base` vaut null pour un lien ouvert (divergence sans amont, convergence sans aval).
+ */
+export interface HLink {
+  id: string;
+  kind: 'div' | 'conv';
+  op: 'or' | 'and';
+  base: string | null;
+  nodes: string[];
+}
+
+/** Renvoi : la fin de la séquence `from` se prolonge vers l'étape ou la transition `to` (null : cible manquante). */
 export interface Jump {
   id: string;
-  kind: 'jump';
-  /** Id de l'étape ou de la transition visée (null si aucune cible n'existe). */
-  target: string | null;
+  from: string;
+  to: string | null;
 }
-
-export type BlockKind = 'or' | 'and';
-
-export interface Block {
-  id: string;
-  kind: BlockKind;
-  branches: Item[][];
-}
-
-export type Item = Step | Transition | Jump | Block;
-export type ItemKind = Item['kind'];
-/** Contexte d'une séquence : racine, branche de divergence OU, ou branche de divergence ET. */
-export type SeqContext = 'root' | BlockKind;
 
 export interface Grafcet {
   id: string;
@@ -70,7 +83,9 @@ export interface Grafcet {
   comment?: string;
   nextStep: number;
   nextTrans: number;
-  items: Item[];
+  seqs: Seq[];
+  links: HLink[];
+  jumps: Jump[];
 }
 
 export interface Project {
@@ -90,6 +105,3 @@ export interface Message {
   pos?: number;
 }
 export type MessageParam = string | number | Message;
-
-export const isBlock = (it: Item | null | undefined): it is Block =>
-  !!it && (it.kind === 'or' || it.kind === 'and');

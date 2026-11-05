@@ -1,5 +1,5 @@
-import { findItem, walkAll } from './tree';
-import { mkStep, mkTrans } from './insertion';
+import { findNode, nodesOf } from './graph';
+import { mkStep, mkTrans } from './edit';
 import type { Grafcet, Project, Step } from './types';
 
 /** Une étape est une macro-étape si elle a une expansion (ou en attend une : `null`). */
@@ -8,13 +8,13 @@ export const isMacro = (s: Step): boolean => s.expansion !== undefined;
 /** Les macro-étapes d'un GRAFCET. */
 export function macrosOf(g: Grafcet): Step[] {
   const out: Step[] = [];
-  walkAll(g.items, (it) => { if (it.kind === 'step' && isMacro(it)) out.push(it); });
+  for (const it of nodesOf(g)) if (it.kind === 'step' && isMacro(it)) out.push(it);
   return out;
 }
 
 /** Transforme une étape en macro-étape (sans expansion) ou la redevient une étape ordinaire. Renvoie false si impossible. */
 export function setMacro(g: Grafcet, stepId: string, on: boolean): boolean {
-  const it = findItem(g.items, stepId);
+  const it = findNode(g, stepId);
   if (!it || it.kind !== 'step') return false;
   if (on) { if (it.expansion === undefined) { it.expansion = null; it.actions = []; } } else delete it.expansion;
   return true;
@@ -25,14 +25,14 @@ export function setMacro(g: Grafcet, stepId: string, on: boolean): boolean {
  * reliées par une transition. `name` est le nom du nouveau GRAFCET. Renvoie le GRAFCET créé (déjà ajouté au projet).
  */
 export function createExpansion(P: Project, g: Grafcet, stepId: string, name: string): Grafcet | null {
-  const it = findItem(g.items, stepId);
+  const it = findNode(g, stepId);
   if (!it || it.kind !== 'step' || it.expansion === undefined) return null;
-  const x: Grafcet = { id: 'g' + P.gcount++, name, nextStep: 0, nextTrans: 1, items: [] };
+  const x: Grafcet = { id: 'g' + P.gcount++, name, nextStep: 0, nextTrans: 1, seqs: [], links: [], jumps: [] };
   const e = mkStep(P, x), t = mkTrans(P, x), s = mkStep(P, x);
   if (e.kind === 'step') { e.num = 'E' + it.num; e.role = 'entry'; }
   if (s.kind === 'step') { s.num = 'S' + it.num; s.role = 'exit'; }
   x.nextStep = 0;
-  x.items.push(e, t, s);
+  x.seqs.push({ id: 'q' + P.counter++, items: [e, t, s] });
   P.grafcets.push(x);
   it.expansion = x.id;
   return x;

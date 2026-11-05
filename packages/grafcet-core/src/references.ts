@@ -1,6 +1,6 @@
 import type { Grafcet } from './types';
 import { parseRecept } from './recept';
-import { walkAll } from './tree';
+import { nodesOf } from './graph';
 
 /**
  * Éléments d'un GRAFCET qui testent l'étape d'identifiant `num` (« X13 », « INIT », temporisations…) :
@@ -10,7 +10,7 @@ import { walkAll } from './tree';
 export function referencesTo(g: Grafcet, num: string, known: ReadonlySet<string>): string[] {
   const out: string[] = [];
   const cites = (src: string) => !!src.trim() && parseRecept(src, known).refs.includes(num);
-  walkAll(g.items, (it) => {
+  nodesOf(g).forEach((it) => {
     if (it.kind === 'trans' && (cites(it.recept) || (it.actions ?? []).some((a) => cites(a.cond)))) out.push(it.id);
     else if (it.kind === 'step' && it.actions.some((a) => (a.kind === 'conditional' || a.kind === 'event') && cites(a.cond))) out.push(it.id);
   });
@@ -34,7 +34,7 @@ export interface SyncLink {
  */
 export function syncLinks(P: { grafcets: Grafcet[] }, known: ReadonlySet<string>): SyncLink[] {
   const defs = new Map<string, string[]>();
-  for (const g of P.grafcets) walkAll(g.items, (it) => {
+  for (const g of P.grafcets) nodesOf(g).forEach((it) => {
     if (it.kind === 'step') defs.set(it.num, [...(defs.get(it.num) ?? []), g.id]);
   });
   const out: SyncLink[] = [];
@@ -47,7 +47,7 @@ export function syncLinks(P: { grafcets: Grafcet[] }, known: ReadonlySet<string>
         out.push({ from: g.id, item, num, in: where });
       }
     };
-    walkAll(g.items, (it) => {
+    nodesOf(g).forEach((it) => {
       if (it.kind === 'trans') cite(it.id, it.recept);
       else if (it.kind === 'step') for (const a of it.actions) if (a.kind === 'conditional' || a.kind === 'event') cite(it.id, a.cond);
     });

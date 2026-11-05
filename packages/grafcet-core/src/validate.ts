@@ -1,7 +1,5 @@
-import { checkSeq } from './grammar';
-import { flatten } from './flatten';
+import { checkGraph, flatten, nodesOf } from './graph';
 import { parseRecept } from './recept';
-import { walkAll } from './tree';
 import type { Grafcet, Message, Project } from './types';
 import { expansionReaches, macrosOf } from './macro';
 import { DEFAULT_PROFILE, profileIssues, type ValidationProfile } from './profiles';
@@ -32,18 +30,15 @@ export interface ValidateOptions {
 export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[] {
   const external = new Set<string>(opts.knownSteps ?? []);
   const issues: Issue[] = [];
-  const steps: Extract<Grafcet['items'][number], { kind: 'step' }>[] = [];
-  const transitions: Extract<Grafcet['items'][number], { kind: 'trans' }>[] = [];
-  const jumps: Extract<Grafcet['items'][number], { kind: 'jump' }>[] = [];
-  walkAll(g.items, (it) => {
-    if (it.kind === 'step') steps.push(it);
-    else if (it.kind === 'trans') transitions.push(it);
-    else if (it.kind === 'jump') jumps.push(it);
-  });
+  const all = nodesOf(g);
+  const steps = all.filter((n): n is Extract<typeof n, { kind: 'step' }> => n.kind === 'step');
+  const transitions = all.filter((n): n is Extract<typeof n, { kind: 'trans' }> => n.kind === 'trans');
+  const fg = flatten(g);
+  const incoming = new Set(fg.links.map((l) => l.to));
+  const sources = transitions.filter((t) => !incoming.has(t.id));
   const entries = steps.filter((s) => s.role === 'entry'), exits = steps.filter((s) => s.role === 'exit');
   const isExpansion = !!opts.project && opts.project.grafcets.some((x) => x.id !== g.id && macrosOf(x).some((m) => m.expansion === g.id));
-  const hasSource = transitions.some((t) => g.items[0] === t);
-  if (!steps.some((s) => s.initial) && !entries.length && !hasSource) issues.push({ level: 'error', key: 'v_noinit', id: null });
+  if (!steps.some((s) => s.initial) && !entries.length && !sources.length) issues.push({ level: 'error', key: 'v_noinit', id: null });
   if (isExpansion || entries.length || exits.length) {
     if (entries.length !== 1) issues.push({ level: 'error', key: 'v_expansion_entry', params: { n: entries.length }, id: entries[1]?.id ?? null });
     if (exits.length !== 1) issues.push({ level: 'error', key: 'v_expansion_exit', params: { n: exits.length }, id: exits[1]?.id ?? null });
@@ -78,10 +73,8 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
     if (!r.ok) issues.push({ level: 'error', key: 'v_recept_err', params: { n: t.num, e: r.error! }, id: t.id });
     else for (const n of r.refs) if (!seen.has(n) && !external.has(n)) issues.push({ level: 'warning', key: 'v_step_missing', params: { n: t.num, m: n }, id: t.id });
   }
-  const ids = new Set<string>();
-  walkAll(g.items, (it) => ids.add(it.id));
-  for (const j of jumps) if (!j.target || !ids.has(j.target)) issues.push({ level: 'error', key: 'v_jump_broken', id: j.id });
-  const fg = flatten(g);
+  for (const j of g.jumps) if (!j.to) issues.push({ level: 'error', key: 'v_jump_broken', id: j.id });
+  for (const s of g.seqs) if (!s.items.length) issues.push({ level: 'warning', key: 'v_empty_seq', id: s.id });
   const nodeName = (n: { kind: string; num: string | number }): Message => ({ key: n.kind === 'step' ? 'd_step' : 'd_trans', params: { n: n.num } });
   const out = new Map<string, number>();
   for (const l of fg.links) out.set(l.from, (out.get(l.from) || 0) + 1);
@@ -92,7 +85,7 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
   for (const l of fg.links) { if (!adj.has(l.from)) adj.set(l.from, []); adj.get(l.from)!.push(l.to); }
   const reach = new Set<string>();
   const queue = steps.filter((s) => s.initial || s.role === 'entry').map((s) => s.id);
-  if (g.items[0]?.kind === 'trans') queue.push(g.items[0].id);
+  for (const t of sources) queue.push(t.id);
   while (queue.length) {
     const x = queue.pop()!;
     if (reach.has(x)) continue;
@@ -100,7 +93,7 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
     for (const y of adj.get(x) || []) queue.push(y);
   }
   if (reach.size) for (const n of fg.nodes) if (!reach.has(n.id)) issues.push({ level: 'warning', key: 'v_unreachable', params: { x: nodeName(n) }, id: n.id });
-  const e = checkSeq(g.items, 'root');
+  const e = checkGraph(g);
   if (e) issues.push({ level: 'error', key: 'v_structure', params: { e: { key: e } }, id: null });
   issues.push(...profileIssues(g, opts.profile ?? DEFAULT_PROFILE));
   return issues;
