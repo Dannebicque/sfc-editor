@@ -55,6 +55,8 @@ export type SeqContext = 'root' | BlockKind;
 export interface Grafcet {
   id: string;
   name: string;
+  /** Commentaire libre (facultatif). */
+  comment?: string;
   nextStep: number;
   nextTrans: number;
   items: Item[];

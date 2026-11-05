@@ -15,7 +15,16 @@ export interface Issue {
   id: string | null;
 }
 
-export function validateGrafcet(g: Grafcet): Issue[] {
+export interface ValidateOptions {
+  /**
+   * Numéros d'étapes connus dans le reste du projet. Une réceptivité peut tester l'état d'une étape d'un autre GRAFCET
+   * (par exemple X15 dans un autre GRAFCET du projet) : ces références ne sont pas signalées comme manquantes.
+   */
+  knownSteps?: Iterable<number>;
+}
+
+export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[] {
+  const external = new Set<number>(opts.knownSteps ?? []);
   const issues: Issue[] = [];
   const steps: Extract<Grafcet['items'][number], { kind: 'step' }>[] = [];
   const transitions: Extract<Grafcet['items'][number], { kind: 'trans' }>[] = [];
@@ -39,7 +48,7 @@ export function validateGrafcet(g: Grafcet): Issue[] {
     if (!t.recept.trim()) { issues.push({ level: 'warning', key: 'v_recept_empty', params: { n: t.num }, id: t.id }); continue; }
     const r = parseRecept(t.recept);
     if (!r.ok) issues.push({ level: 'error', key: 'v_recept_err', params: { n: t.num, e: r.error! }, id: t.id });
-    else for (const n of r.refs) if (!seen.has(n)) issues.push({ level: 'warning', key: 'v_step_missing', params: { n: t.num, m: n }, id: t.id });
+    else for (const n of r.refs) if (!seen.has(n) && !external.has(n)) issues.push({ level: 'warning', key: 'v_step_missing', params: { n: t.num, m: n }, id: t.id });
   }
   const ids = new Set<string>();
   walkAll(g.items, (it) => ids.add(it.id));

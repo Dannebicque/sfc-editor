@@ -125,3 +125,20 @@ describe('édition 1b (store)', () => {
     expect(project.activeG.items.some((i) => i.kind === 'or')).toBe(true);
   });
 });
+
+describe('import SFCEdit', () => {
+  it('importe le XML, affiche le rapport et ne signale pas les Xn des autres GRAFCET', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const xml = readFileSync(resolve(process.cwd(), '../../fixtures/sfcedit/convergence-et-renvoi.xml'), 'utf8');
+    const ui = useUiStore();
+    const project = useProjectStore();
+    ui.importText = xml;
+    ui.applyImport('exemple.xml');
+    expect(ui.importMsg.cls).toBe('ok');
+    expect(project.project.name).toBe('exemple');
+    expect(project.project.grafcets).toHaveLength(2);
+    project.activeId = project.project.grafcets[1]!.id;
+    expect(project.issues.filter((i) => i.key === 'v_step_missing')).toEqual([]);
+  });
+});
