@@ -128,6 +128,21 @@ suite('divergences et convergences', () => {
     expect(head.items[head.items.length - 1]!.id).toBe(t);
     expect(checkGraph(g)).toBeNull();
   });
+  it('convergence sur la dernière étape : barre juste après elle, branche en attente à côté', () => {
+    for (const op of ['or', 'and'] as const) {
+      const P = proj(); const g = newGrafcet(P, 'x');
+      let last = g.seqs[0]!.items[0]!.id;
+      for (let i = 0; i < 3; i++) { const t = insertNode(P, g, last, 'trans')!; last = insertNode(P, g, t, 'step')!; }
+      const before = nodesOf(g).length;
+      expect(addConvergence(P, g, last, op)).toBeTruthy();
+      expect(checkGraph(g)).toBeNull();
+      const l = g.links.find((x) => x.kind === 'conv')!;
+      expect(l.op).toBe(op);
+      const head = g.seqs.find((q) => q.id === l.nodes[0])!;
+      expect(head.items.some((i) => i.id === last)).toBe(true);
+      expect(nodesOf(g).length).toBeGreaterThan(before);
+    }
+  });
   it('supprimer une branche jusqu’à un seul reste fusionne les séquences', () => {
     const P = proj(); const g = newGrafcet(P, 'x');
     const s0 = g.seqs[0]!.items[0]!.id;
