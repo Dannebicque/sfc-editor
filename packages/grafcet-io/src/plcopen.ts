@@ -112,13 +112,16 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
     nodes.push(`<actionBlock localId="${id}">${pos(x + COL / 2, y)}${cpin([{ id: stepId, fp: 'action' }])}${acts.join('')}</actionBlock>`);
   }
 
+  // Étapes attendues par une synchronisation : leur identifiant local est réservé d'avance (référence possible vers l'avant).
+  const reserved = new Map<string, number>();
+  walkAll(g.items, (it) => { if (it.kind === 'trans') for (const s of it.sync ?? []) if (!reserved.has(s)) reserved.set(s, next++); });
   const widthOf = (items: Item[]): number => Math.max(1, ...items.map((it) => (it.kind === 'or' || it.kind === 'and' ? it.branches.reduce((n, b) => n + widthOf(b), 0) : 1)));
 
   function walk(items: Item[], preds: Pred[], cx: number, y: number): { preds: Pred[]; y: number } {
     for (const it of items) {
       if (it.kind === 'step') {
         if (it.expansion !== undefined) report.push(warn('rep_p_macro', { g: g.name }));
-        const id = next++;
+        const id = reserved.get(it.id) ?? next++;
         nodes.push(`<step localId="${id}" name="${esc(stepName(it.num))}"${it.initial ? ' initialStep="true"' : ''}>${pos(cx, y)}${cpin(preds)}<connectionPointOut formalParameter="sfc"/>${it.actions.length ? '<connectionPointOutAction formalParameter="action"/>' : ''}</step>`);
         if (it.actions.length) actionBlock(it, id, cx, y);
         preds = [{ id, fp: 'sfc' }]; y += ROW;
@@ -128,7 +131,7 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
         let cond = '';
         if (it.recept.trim()) cond = `<condition><inline name="">${st(toST(it.recept, known, notes))}</inline></condition>`;
         else report.push(warn('rep_p_empty_cond', { g: g.name, n: it.num }));
-        nodes.push(`<transition localId="${id}">${pos(cx, y)}${cpin(preds)}<connectionPointOut/>${cond}</transition>`);
+        nodes.push(`<transition localId="${id}">${pos(cx, y)}${cpin([...preds, ...(it.sync ?? []).filter((s) => reserved.has(s)).map((s) => ({ id: reserved.get(s)!, fp: 'sfc' }))])}<connectionPointOut/>${cond}</transition>`);
         preds = [{ id }]; y += ROW;
       } else if (it.kind === 'jump') {
         const t = it.target ? idx.get(it.target) : undefined;

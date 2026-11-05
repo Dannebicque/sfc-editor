@@ -23,7 +23,11 @@ export function removeItem(g: Grafcet, id: string): RemoveResult {
   const r = tryRemove(loc.seq, loc.ctx, loc.idx);
   if (!r) return { ok: false };
   const prevItem = loc.seq[r.s - 1];
+  const gone = new Set<string>();
+  walkAll(loc.seq.slice(r.s, r.s + r.len), (it) => gone.add(it.id));
   loc.seq.splice(r.s, r.len);
+  // Une synchronisation ne peut plus attendre une étape supprimée.
+  walkAll(g.items, (it) => { if (it.kind === 'trans' && it.sync) { it.sync = it.sync.filter((s) => !gone.has(s)); if (!it.sync.length) delete it.sync; } });
   const cand = prevItem || loc.seq[r.s];
   const nextSel = cand ? (isBlock(cand) && !prevItem ? cand.id + ':d' : cand.id) : loc.block ? loc.block.id : null;
   return { ok: true, nextSel };
@@ -91,7 +95,10 @@ export function duplicateGrafcet(P: Project, g: Grafcet, name: string): Grafcet 
   c.name = name;
   const map = new Map<string, string>();
   walkAll(c.items, (it) => { const nid = nextId(P); map.set(it.id, nid); it.id = nid; });
-  walkAll(c.items, (it) => { if (it.kind === 'jump' && it.target && map.has(it.target)) it.target = map.get(it.target)!; });
+  walkAll(c.items, (it) => {
+    if (it.kind === 'jump' && it.target && map.has(it.target)) it.target = map.get(it.target)!;
+    if (it.kind === 'trans' && it.sync) it.sync = it.sync.map((s) => map.get(s) ?? s);
+  });
   return c;
 }
 

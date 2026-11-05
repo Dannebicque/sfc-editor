@@ -133,3 +133,16 @@ describe('renvois dans des branches', () => {
     expect(and.ys[0]! - or.ys[0]!).toBeGreaterThanOrEqual(12);
   });
 });
+
+describe('synchronisation', () => {
+  it('affiche les étapes attendues comme arrivées de la transition', () => {
+    const S = (id: string, n: string, initial = false) => ({ id, kind: 'step', num: n, name: '', initial, actions: [] });
+    const g = { id: 'g', name: 'g', nextStep: 9, nextTrans: 9, items: [
+      S('a', '2A', true), { id: 't1', kind: 'trans', num: 1, recept: 'x' }, S('b', '30'),
+      { id: 't2', kind: 'trans', num: 2, recept: 'y', sync: ['a'] }, S('c', '3'),
+    ] } as unknown as Grafcet;
+    const t = layoutGrafcet(g, tw).views.find((v) => v.kind === 'trans' && v.id === 't2') as { arrivals: string[]; sync: boolean };
+    expect(t.sync).toBe(true);
+    expect(t.arrivals).toEqual(['2A']);
+  });
+});

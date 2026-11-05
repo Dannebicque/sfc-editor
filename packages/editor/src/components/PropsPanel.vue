@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
+import { walkAll } from '@grafcet/core';
 import { T, keys as K } from '../i18n';
 import { useProjectStore } from '../stores/project';
 import { useUiStore } from '../stores/ui';
@@ -9,6 +11,13 @@ const project = useProjectStore();
 const ui = useUiStore();
 const { activeG, stats, varList } = storeToRefs(project);
 const { selItem, selLoc, recFb, tokens, jumpTargets } = storeToRefs(ui);
+const allSteps = computed(() => {
+  const out: { id: string; num: string }[] = [];
+  walkAll(activeG.value.items, (it) => { if (it.kind === 'step') out.push({ id: it.id, num: it.num }); });
+  return out;
+});
+const stepLabel = (id: string) => allSteps.value.find((s) => s.id === id)?.num ?? '?';
+const syncChoices = computed(() => allSteps.value.filter((s) => !(selItem.value && selItem.value.kind === 'trans' && selItem.value.sync?.includes(s.id))));
 const val = (e: Event) => (e.target as HTMLInputElement).value;
 const checked = (e: Event) => (e.target as HTMLInputElement).checked;
 </script>
@@ -92,6 +101,21 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
         <button v-for="t in tokens" :key="t.v" class="chip" :title="t.t" @click="ui.addToken(t.v)">{{ t.v.trim() }}</button>
       </div>
       <p class="hint">{{ T('syntax') }} <code class="mono">.</code> {{ T('s_and') }}, <code class="mono">+</code> {{ T('s_or') }}, <code class="mono">/a</code> {{ T('s_not') }}, <code class="mono">↑a</code> {{ T('s_rise') }}, <code class="mono">X3</code> {{ T('s_step') }}, <code class="mono">t1/X2/3s</code> {{ T('s_delay') }}.</p>
+      <h3>{{ T('h_sync') }}</h3>
+      <p class="hint">{{ T('sync_hint') }}</p>
+      <ul v-if="selItem.sync?.length" class="acts">
+        <li v-for="sid in selItem.sync" :key="sid" class="mini">
+          <span class="mono">{{ stepLabel(sid) }}</span>
+          <button class="btn icon" :aria-label="T('sync_del_aria', { n: stepLabel(sid) })" @click="ui.delSync(sid)"><Icon n="trash" /></button>
+        </li>
+      </ul>
+      <div class="field">
+        <label for="f-sync">{{ T('sync_add') }}</label>
+        <select id="f-sync" @change="ui.addSync(val($event)); ($event.target as HTMLSelectElement).value = ''">
+          <option value="">{{ T('sync_choose') }}</option>
+          <option v-for="s in syncChoices" :key="s.id" :value="s.id">{{ s.num }}</option>
+        </select>
+      </div>
       <h3>{{ T('h_trans_actions') }}</h3>
       <p class="hint">{{ T('trans_act_help') }}</p>
       <ul v-if="selItem.actions?.length" class="acts">

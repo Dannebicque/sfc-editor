@@ -10,7 +10,7 @@ export interface ActionView { i: number; x: number; y: number; condW: number; la
 interface BoxBase { id: string; x: number; y: number; l: number; r: number; h: number }
 /** `arrivals` : numéros des étapes d'où part un renvoi vers cet élément (affichés au-dessus, avec une flèche entrante). */
 export interface StepView extends BoxBase { kind: 'step'; num: string; w: number; macro: boolean; role: 'entry' | 'exit' | null; name: string; initial: boolean; acts: ActionView[]; arrivals: string[]; ay: number }
-export interface TransView extends BoxBase { kind: 'trans'; num: number; recept: string; arrivals: string[]; ay: number; acts: ActionView[] }
+export interface TransView extends BoxBase { kind: 'trans'; num: number; recept: string; arrivals: string[]; ay: number; acts: ActionView[]; sync: boolean }
 export interface JumpView extends BoxBase { kind: 'jump'; label: string; broken: boolean }
 export interface BarView { kind: 'bar'; id: string; part: 'd' | 'c'; ys: number[]; x1: number; x2: number }
 export interface RegionView { kind: 'region'; id: string; x1: number; x2: number; y1: number; y2: number }
@@ -65,7 +65,12 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
       } else if (it.kind === 'or' || it.kind === 'and') { const o = stepBefore(seq, i) ?? outer; it.branches.forEach((b) => collect(b, o)); }
     });
   })(g.items, null);
-  const arrivals = (id: string): string[] => arrivalsOf.get(id) ?? [];
+  // Synchronisations : les étapes attendues s'affichent comme des arrivées au-dessus de la transition.
+  const syncOf = new Map<string, string[]>();
+  walkAll(g.items, (it) => {
+    if (it.kind === 'trans' && it.sync?.length) syncOf.set(it.id, it.sync.map((s) => { const t = idx.get(s); return t && t.kind === 'step' ? String(t.num) : '?'; }));
+  });
+  const arrivals = (id: string): string[] => [...(syncOf.get(id) ?? []), ...(arrivalsOf.get(id) ?? [])];
   const arrTop = (id: string): number => (arrivals(id).length ? GEO.arrivalH : 0);
   const arrHalf = (id: string): number => (arrivals(id).length ? tw(arrivals(id).join(', ')) / 2 + 4 : 0);
   const actText = (a: { kind: string; label: string }) => (a.kind === 'activation' ? '↑ ' : a.kind === 'deactivation' ? '↓ ' : '') + (a.label || '?');
@@ -154,7 +159,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
         (it.actions ?? []).forEach((a, i) => acts.push({ i, x: ax, y: y + 9 + i * GEO.actH, condW: m.ag!.condW, labW: m.ag!.labW, cond: a.cond || '', text: actText(a), cell: !!(a.cond || '').trim() }));
         L(rx, y + 20, ax, y + 20);
       }
-      views.push({ kind: 'trans', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, recept: it.recept, arrivals: arrivals(it.id), ay, acts });
+      views.push({ kind: 'trans', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, recept: it.recept, arrivals: arrivals(it.id), ay, acts, sync: syncOf.has(it.id) });
       focus.push({ id: it.id, x, y: y + 20, slot: { x, y: y + 31 }, slotBefore: { x, y: y - 11 } });
     } else if (it.kind === 'jump') {
       L(x, y, x, y + 24);

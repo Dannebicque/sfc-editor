@@ -53,6 +53,7 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump'] as const)
                 <text class="jtxt" :x="v.x" :y="v.ay + 11" text-anchor="middle">{{ v.arrivals.join(', ') }}</text>
                 <polygon class="arrow" :points="(v.x - 5) + ',' + (v.ay + 13) + ' ' + (v.x + 5) + ',' + (v.ay + 13) + ' ' + v.x + ',' + (v.ay + 22)" />
               </g>
+              <g v-if="v.sync" class="bar-sync"><line class="bar" :x1="v.x - 22" :x2="v.x + 22" :y1="v.y - 5" :y2="v.y - 5" /><line class="bar" :x1="v.x - 22" :x2="v.x + 22" :y1="v.y - 2" :y2="v.y - 2" /></g>
               <line class="tick" :x1="v.x - 9" :x2="v.x + 9" :y1="v.y + 20" :y2="v.y + 20" />
               <text class="tnum" :x="v.x - 17" :y="v.y + 24" text-anchor="end">({{ v.num }})</text>
               <text class="rec" :class="{ empty: !v.recept }" :x="v.x + 17" :y="v.y + 24">{{ v.recept || '?' }}</text>

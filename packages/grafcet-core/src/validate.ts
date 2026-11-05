@@ -72,6 +72,10 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
     }
   }
   const known = new Set<string>([...external, ...steps.map((x) => x.num)]);
+  const stepIds = new Set(steps.map((x) => x.id));
+  for (const t of transitions) for (const sid of t.sync ?? []) {
+    if (!stepIds.has(sid)) issues.push({ level: 'error', key: 'v_sync_missing', params: { n: t.num }, id: t.id });
+  }
   for (const t of transitions) {
     if (!t.recept.trim()) { issues.push({ level: 'warning', key: 'v_recept_empty', params: { n: t.num }, id: t.id }); continue; }
     const r = parseRecept(t.recept, known);
