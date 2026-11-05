@@ -358,5 +358,10 @@
   "v_assign_continuous": "Étape {n} : une affectation (:=) est une action mémorisée ; utilisez « sur activation », « sur désactivation » ou « sur événement ».",
   "rep_p_event_action": "« {g} » : les actions sur événement sont exportées comme affectation ST (le front est perdu).",
   "rep_p_source": "« {g} » : la transition source (sans étape amont) est exportée sans connexion d’entrée ; certains outils la refusent.",
-  "rep_p_sink": "« {g} » : la transition puits (sans étape aval) est exportée sans suite ; certains outils la refusent."
+  "rep_p_sink": "« {g} » : la transition puits (sans étape aval) est exportée sans suite ; certains outils la refusent.",
+  "sync_title": "Synchronisations",
+  "sync_help": "Étapes testées dans un autre GRAFCET du projet (réceptivités et conditions d’action).",
+  "sync_ok": "Lien",
+  "sync_unknown": "Inconnue",
+  "sync_line": "« {g} » teste l’étape {n} (définie dans : {d})"
 }

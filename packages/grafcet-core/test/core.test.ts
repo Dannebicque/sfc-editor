@@ -2,7 +2,7 @@ import { describe as suite, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
   addBranch, allowedInsertions, checkSeq, describeId, flatten, insertAfter, newGrafcet, parseRecept,
-  createExpansion, provablyExclusive, referencesTo, setMacro, removeBranch, removeItem, renumber, stats, validateGrafcet, walkAll, duplicateGrafcet, INSERT_KINDS,
+  createExpansion, provablyExclusive, referencesTo, syncLinks, setMacro, removeBranch, removeItem, renumber, stats, validateGrafcet, walkAll, duplicateGrafcet, INSERT_KINDS,
   type Grafcet, type Project,
 } from '../src';
 import { demoProject } from './helpers';
@@ -307,5 +307,20 @@ suite('transitions source et puits', () => {
     const g = P.grafcets[0]!;
     const first = g.items[0]!;
     expect(allowedInsertions(g, first.id, 'before').map((i) => i.kind)).toContain('trans');
+  });
+});
+
+suite('synchronisations', () => {
+  it('liste les étapes testées dans un autre GRAFCET, pas celles du même', () => {
+    const P = demoProject();
+    const a = P.grafcets[0]!, b = P.grafcets[1]!;
+    const stepB = b.items.find((i) => i.kind === 'step')! as { num: string };
+    stepB.num = 'SYNC';
+    const tA = a.items.find((i) => i.kind === 'trans')! as { recept: string };
+    tA.recept = 'X' + stepB.num;
+    const known = new Set<string>();
+    for (const g of P.grafcets) walkAll(g.items, (it) => { if (it.kind === 'step') known.add(it.num); });
+    const links = syncLinks(P, known);
+    expect(links.some((l) => l.from === a.id && l.num === stepB.num && l.in.includes(b.id))).toBe(true);
   });
 });
