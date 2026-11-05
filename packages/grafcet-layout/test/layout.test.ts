@@ -141,3 +141,20 @@ describe('actions liées à une transition', () => {
     expect(v.acts[0]!.cell).toBe(true);
   });
 });
+
+describe('renvoi tracé en trait continu', () => {
+  it('une cible libre atteinte par un seul renvoi est alignée sous sa source, sans flèche', () => {
+    const g = G([['a', [S('s0', '0', true), T('t1', 1)]], ['b', [S('s5', '5'), T('t6', 6)]]], [], [{ id: 'j', from: 'a', to: 's5' }]);
+    const L = finite(g);
+    const s0 = L.views.find((v) => v.id === 's0') as StepView, s5 = L.views.find((v) => v.id === 's5') as StepView;
+    expect(s5.x).toBe(s0.x);
+    expect(s5.y).toBeGreaterThan(s0.y);
+    expect(s5.arrivals).toEqual([]);
+    expect(L.views.find((v) => v.kind === 'jump')).toMatchObject({ line: true });
+    expect(overlaps(g)).toEqual([]);
+  });
+  it('un renvoi qui boucle garde sa flèche', () => {
+    const g = G([['a', [S('s0', '0', true), T('t1', 1)]]], [], [{ id: 'j', from: 'a', to: 's0' }]);
+    expect(layoutGrafcet(g, tw).views.find((v) => v.kind === 'jump')).not.toHaveProperty('line', true);
+  });
+});

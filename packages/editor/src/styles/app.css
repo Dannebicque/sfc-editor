@@ -293,3 +293,4 @@ mark.todo{background:var(--warn-soft);color:var(--warn);padding:0 4px;border-rad
 .ico-or::before{top:2px}.ico-or::after{display:none}
 .ico-and::before{top:0}.ico-and::after{bottom:0}
 .tb kbd{font-size:10.5px}
+.jdot{fill:var(--accent);opacity:.55}

@@ -143,6 +143,20 @@ suite('divergences et convergences', () => {
       expect(nodesOf(g).length).toBeGreaterThan(before);
     }
   });
+  it('un graphe importé avec une violation reste éditable sans en ajouter de nouvelle', () => {
+    const P = proj(); const g = newGrafcet(P, 'x');
+    const s0 = g.seqs[0]!.items[0]!.id;
+    const t = insertNode(P, g, s0, 'trans')!;
+    const s1 = insertNode(P, g, t, 'step')!;
+    // violation héritée : convergence OU dont une branche se termine par une étape
+    const a = { id: 'qa', items: [{ id: 'xa', kind: 'step' as const, num: '90', name: '', initial: false, actions: [] }] };
+    const b = { id: 'qb', items: [{ id: 'xb', kind: 'step' as const, num: '91', name: '', initial: false, actions: [] }] };
+    g.seqs.push(a, b);
+    g.links.push({ id: 'lx', kind: 'conv', op: 'or', base: null, nodes: ['qa', 'qb'] });
+    expect(checkGraph(g)).not.toBeNull();
+    expect(insertNode(P, g, s1, 'trans')).toBeTruthy(); // l'édition ailleurs passe
+    expect(checkGraph(g)).not.toBeNull(); // la violation héritée est toujours signalée
+  });
   it('supprimer une branche jusqu’à un seul reste fusionne les séquences', () => {
     const P = proj(); const g = newGrafcet(P, 'x');
     const s0 = g.seqs[0]!.items[0]!.id;
