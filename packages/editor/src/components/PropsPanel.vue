@@ -19,6 +19,13 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
       <h2>{{ T('d_step', { n: selItem.num }) }}</h2>
       <div class="field"><label for="f-name">{{ T('f_name') }}</label><input id="f-name" type="text" data-main-field :value="selItem.name" @input="ui.setField('name', val($event), true)" /></div>
       <div class="field"><label for="f-num">{{ T('f_num') }}</label><input id="f-num" type="text" spellcheck="false" autocomplete="off" :value="selItem.num" @input="ui.setField('num', val($event).trim(), true)" /></div>
+      <div v-if="ui.citedIn.length || ui.citingActive.size" class="shared-box">
+        <h3>{{ T('h_cited') }}</h3>
+        <p v-if="ui.citingActive.size" class="hint">{{ T('cited_here', { n: ui.citingActive.size }) }}</p>
+        <ul class="shared-list">
+          <li v-for="c in ui.citedIn" :key="c.gid"><button class="btn solid" @click="ui.openG(c.gid, c.itemId)">{{ T('cited_go', { g: c.name || '?', c: c.count }) }}</button></li>
+        </ul>
+      </div>
       <div v-if="ui.linkedIn.length" class="shared-box">
         <h3>{{ T('h_shared') }}</h3>
         <ul class="shared-list">

@@ -310,5 +310,10 @@
   "rep_p_conv_mixed": "“{g}”: the branches of a divergence do not converge at the same point.",
   "rep_p_implicit_div": "“{g}”: several successors without an explicit divergence; only the first is kept.",
   "rep_p_no_initial": "“{g}”: no initial step declared; the first step without predecessor is used.",
-  "rep_p_orphan": "“{g}”: elements not connected to the initial step were not imported."
+  "rep_p_orphan": "“{g}”: elements not connected to the initial step were not imported.",
+  "h_cited": "Cited in receptivities",
+  "cited_here": "Cited by {n} element of this GRAFCET (highlighted). | Cited by {n} elements of this GRAFCET (highlighted).",
+  "cited_go": "Go to “{g}” ({c})",
+  "cite_badge": "cites {n} ×{c}",
+  "cite_title": "A receptivity or action in this GRAFCET cites step {n}"
 }
