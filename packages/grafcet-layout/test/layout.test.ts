@@ -146,3 +146,22 @@ describe('synchronisation', () => {
     expect(t.arrivals).toEqual(['2A']);
   });
 });
+
+describe('convergence OU libre', () => {
+  it('donne à chaque renvoi sa flèche d’arrivée, reliées par une barre', () => {
+    const S = (id: string, n: string, initial = false) => ({ id, kind: 'step', num: n, name: '', initial, actions: [] });
+    const T = (id: string, n: number) => ({ id, kind: 'trans', num: n, recept: 'a' });
+    const g = { id: 'g', name: 'g', nextStep: 9, nextTrans: 9, items: [
+      S('s0', '2_1', true), T('t1', 1), S('s1', '2B'),
+      { id: 'o', kind: 'or', branches: [
+        [T('t5', 5), { id: 'j1', kind: 'jump', target: 's0' }],
+        [T('t6', 6), S('s3', '2A'), T('t7', 7), { id: 'j2', kind: 'jump', target: 's0' }],
+      ] },
+      S('s9', '9'), T('t9', 9),
+    ] } as unknown as Grafcet;
+    const s0 = layoutGrafcet(g, tw).views.find((v) => v.kind === 'step' && v.id === 's0') as StepView;
+    expect(s0.arrivals.sort()).toEqual(['2A', '2B']);
+    expect(s0.arrXs).toHaveLength(2);
+    expect(s0.arrXs[0]).toBeLessThan(s0.arrXs[1]!);
+  });
+});

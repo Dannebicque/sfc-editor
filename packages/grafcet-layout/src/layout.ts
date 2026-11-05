@@ -9,8 +9,8 @@ export interface Line { x1: number; y1: number; x2: number; y2: number }
 export interface ActionView { i: number; x: number; y: number; condW: number; labW: number; cond: string; text: string; cell: boolean }
 interface BoxBase { id: string; x: number; y: number; l: number; r: number; h: number }
 /** `arrivals` : numéros des étapes d'où part un renvoi vers cet élément (affichés au-dessus, avec une flèche entrante). */
-export interface StepView extends BoxBase { kind: 'step'; num: string; w: number; macro: boolean; role: 'entry' | 'exit' | null; name: string; initial: boolean; acts: ActionView[]; arrivals: string[]; ay: number }
-export interface TransView extends BoxBase { kind: 'trans'; num: number; recept: string; arrivals: string[]; ay: number; acts: ActionView[]; sync: boolean }
+export interface StepView extends BoxBase { kind: 'step'; num: string; w: number; macro: boolean; role: 'entry' | 'exit' | null; name: string; initial: boolean; acts: ActionView[]; arrivals: string[]; arrXs: number[]; ay: number }
+export interface TransView extends BoxBase { kind: 'trans'; num: number; recept: string; arrivals: string[]; arrXs: number[]; ay: number; acts: ActionView[]; sync: boolean }
 export interface JumpView extends BoxBase { kind: 'jump'; label: string; broken: boolean }
 export interface BarView { kind: 'bar'; id: string; part: 'd' | 'c'; ys: number[]; x1: number; x2: number }
 export interface RegionView { kind: 'region'; id: string; x1: number; x2: number; y1: number; y2: number }
@@ -71,8 +71,21 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
     if (it.kind === 'trans' && it.sync?.length) syncOf.set(it.id, it.sync.map((s) => { const t = idx.get(s); return t && t.kind === 'step' ? String(t.num) : '?'; }));
   });
   const arrivals = (id: string): string[] => [...(syncOf.get(id) ?? []), ...(arrivalsOf.get(id) ?? [])];
-  const arrTop = (id: string): number => (arrivals(id).length ? GEO.arrivalH : 0);
-  const arrHalf = (id: string): number => (arrivals(id).length ? tw(arrivals(id).join(', ')) / 2 + 4 : 0);
+  /** Plusieurs arrivées : chacune a sa flèche, reliées par une barre (simple : convergence OU ; double : synchronisation). */
+  const multi = (id: string): boolean => arrivals(id).length >= 2;
+  const arrXs = (id: string): number[] => {
+    const ws = arrivals(id).map((l) => tw(l) + 18);
+    if (ws.length < 2) return [0];
+    const total = ws.reduce((a, b) => a + b, 0);
+    let acc = -total / 2;
+    return ws.map((w) => { const c = acc + w / 2; acc += w; return c; });
+  };
+  const arrTop = (id: string): number => (!arrivals(id).length ? 0 : multi(id) ? GEO.arrivalH + 16 : GEO.arrivalH);
+  const arrHalf = (id: string): number => {
+    if (!arrivals(id).length) return 0;
+    if (multi(id)) { const xs = arrXs(id); return Math.max(...xs.map(Math.abs)) + tw(arrivals(id)[0]!) / 2 + 8; }
+    return tw(arrivals(id).join(', ')) / 2 + 4;
+  };
   const actText = (a: { kind: string; label: string }) => (a.kind === 'activation' ? '↑ ' : a.kind === 'deactivation' ? '↓ ' : '') + (a.label || '?');
   const jumpLabel = (it: Extract<Item, { kind: 'jump' }>) => {
     const t = it.target ? idx.get(it.target) : undefined;
@@ -139,7 +152,20 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
     const m0 = mItem(it);
     const top = it.kind === 'step' || it.kind === 'trans' ? arrTop(it.id) : 0;
     const ay = y;
-    if (top) { L(x, y + 13, x, y + top); y += top; }
+    if (top) {
+      const sync = it.kind === 'trans' && syncOf.has(it.id);
+      if (multi(it.id)) {
+        const xs = arrXs(it.id), bar = y + 34, bar2 = bar + 3;
+        for (const o of xs) L(x + o, y + 22, x + o, bar);
+        L(x + xs[0]!, bar, x + xs[xs.length - 1]!, bar);
+        if (sync) L(x + xs[0]!, bar2, x + xs[xs.length - 1]!, bar2);
+        L(x, sync ? bar2 : bar, x, y + top);
+      } else {
+        L(x, y + 13, x, y + top);
+        if (sync) { L(x - 22, y + top - 5, x + 22, y + top - 5); L(x - 22, y + top - 2, x + 22, y + top - 2); }
+      }
+      y += top;
+    }
     const m = top ? { ...m0, h: m0.h - top } : m0;
     if (it.kind === 'step') {
       const acts: ActionView[] = [];
@@ -149,7 +175,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
         L(x + sw(it) / 2, y + 20, ax, y + 20);
       }
       if (m.h > GEO.stepH) L(x, y + GEO.stepH, x, y + m.h);
-      views.push({ kind: 'step', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, w: sw(it), macro: it.expansion !== undefined, role: it.role ?? null, name: it.name, initial: it.initial, acts, arrivals: arrivals(it.id), ay });
+      views.push({ kind: 'step', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, w: sw(it), macro: it.expansion !== undefined, role: it.role ?? null, name: it.name, initial: it.initial, acts, arrivals: arrivals(it.id), arrXs: arrXs(it.id), ay });
       focus.push({ id: it.id, x, y: y + 20, slot: { x, y: y + GEO.stepH + 11 }, slotBefore: { x, y: y - 11 } });
     } else if (it.kind === 'trans') {
       L(x, y, x, y + m.h);
@@ -159,7 +185,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
         (it.actions ?? []).forEach((a, i) => acts.push({ i, x: ax, y: y + 9 + i * GEO.actH, condW: m.ag!.condW, labW: m.ag!.labW, cond: a.cond || '', text: actText(a), cell: !!(a.cond || '').trim() }));
         L(rx, y + 20, ax, y + 20);
       }
-      views.push({ kind: 'trans', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, recept: it.recept, arrivals: arrivals(it.id), ay, acts, sync: syncOf.has(it.id) });
+      views.push({ kind: 'trans', id: it.id, x, y, l: m.l, r: m.r, h: m.h, num: it.num, recept: it.recept, arrivals: arrivals(it.id), arrXs: arrXs(it.id), ay, acts, sync: syncOf.has(it.id) });
       focus.push({ id: it.id, x, y: y + 20, slot: { x, y: y + 31 }, slotBefore: { x, y: y - 11 } });
     } else if (it.kind === 'jump') {
       L(x, y, x, y + 24);
