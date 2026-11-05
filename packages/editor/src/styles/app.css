@@ -184,7 +184,7 @@ kbd{font-family:var(--font-mono);font-size:11px;font-weight:500;border:1px solid
 .ol-btn{display:block;width:100%;text-align:left;border:1px solid transparent;background:transparent;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:13px}
 .ol-btn:hover{background:var(--panel-2)}
 .ol-btn.on{background:var(--accent-soft);border-color:var(--accent)}
-.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden;margin-bottom:10px}
+.seg{display:inline-flex;flex-wrap:wrap;max-width:100%;border:1px solid var(--line-2);border-radius:8px;overflow:hidden;margin-bottom:10px}
 .seg button{border:0;background:var(--canvas);padding:5px 11px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 .wheresel{margin-bottom:0}.wheresel button{padding:3px 9px;font-size:12px;font-weight:600}.wheresel button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}

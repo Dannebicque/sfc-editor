@@ -16,12 +16,14 @@ const { dataView, dataText, copyMsg, importMsg, importText, importReport, export
       <button :aria-pressed="dataView === 'graph'" @click="dataView = 'graph'">{{ T('fmt_graph') }}</button>
       <button :aria-pressed="dataView === 'native'" @click="dataView = 'native'">{{ T('fmt_native') }}</button>
       <button :aria-pressed="dataView === 'sfcedit'" @click="dataView = 'sfcedit'">{{ T('fmt_sfcedit') }}</button>
+      <button :aria-pressed="dataView === 'plcopen'" @click="dataView = 'plcopen'">{{ T('fmt_plcopen') }}</button>
     </div>
     <pre class="code" tabindex="0" :aria-label="T('data_aria')">{{ dataText }}</pre>
     <div class="row">
       <button class="btn solid" @click="ui.copyData()"><Icon n="copy" />{{ T('copy') }}</button>
       <button class="btn solid" @click="ui.downloadNative()"><Icon n="download" />{{ T('download') }}</button>
       <button class="btn solid" @click="ui.downloadSfcEdit()"><Icon n="download" />{{ T('download_sfcedit') }}</button>
+      <button class="btn solid" @click="ui.downloadPlcopen()"><Icon n="download" />{{ T('download_plcopen') }}</button>
       <button class="btn solid" @click="ui.downloadArchive()"><Icon n="download" />{{ T('download_zip') }}</button>
       <button v-if="ui.canFolder" class="btn solid" @click="ui.saveFolder()"><Icon n="download" />{{ T('save_folder') }}</button>
       <span class="msg" :class="copyMsg.cls" role="status">{{ copyMsg.text }}</span>
