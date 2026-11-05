@@ -1,5 +1,5 @@
 import { checkSeq } from './grammar';
-import { locate, walkAll } from './tree';
+import { locate, walkAll, walkGrafcet, locateIn } from './tree';
 import type { Grafcet, Item, ItemKind, Project, SeqContext } from './types';
 import { isBlock } from './types';
 
@@ -69,7 +69,7 @@ export const INSERT_KINDS: ItemKind[] = ['step', 'trans', 'or', 'and', 'jump'];
 export function insertionSite(g: Grafcet, id: string | null, where: InsertWhere) {
   if (!id) return null;
   const bar = id.endsWith(':d');
-  const loc = locate(g.items, bar ? id.slice(0, -2) : id);
+  const loc = locateIn(g, bar ? id.slice(0, -2) : id);
   if (!loc || loc.item.kind === 'jump') return null;
   if (isBlock(loc.item)) {
     if (bar && where === 'after') return null;
@@ -88,10 +88,10 @@ function replaceableByJump(g: Grafcet, loc: NonNullable<ReturnType<typeof locate
   const s = loc.item;
   if (loc.ctx !== 'and' || loc.seq.length !== 1 || s.kind !== 'step' || s.initial || s.actions.length || s.expansion !== undefined) return false;
   let targeted = false;
-  walkAll(g.items, (it) => { if (it.kind === 'jump' && it.target === s.id) targeted = true; });
+  walkGrafcet(g, (it) => { if (it.kind === 'jump' && it.target === s.id) targeted = true; });
   if (targeted || !loc.block || loc.block.branches.filter((b) => b[b.length - 1]!.kind !== 'jump').length < 2) return false;
   let any = false;
-  walkAll(g.items, (it) => { if (it.kind === 'step' && it.id !== s.id) any = true; });
+  walkGrafcet(g, (it) => { if (it.kind === 'step' && it.id !== s.id) any = true; });
   return any;
 }
 
@@ -110,7 +110,7 @@ export function allowedInsertions(g: Grafcet, id: string | null, where: InsertWh
       const prev = loc.seq[at - 1];
       const want = prev && prev.kind === 'step' ? 'trans' : 'step';
       let any = false;
-      walkAll(g.items, (it) => { if (it.kind === want) any = true; });
+      walkGrafcet(g, (it) => { if (it.kind === want) any = true; });
       if (!any) continue;
     }
     out.push({ kind, noteKey: noteKeyFor(kind, pat) });
@@ -125,8 +125,8 @@ function mkItem(P: Project, g: Grafcet, kind: ItemKind, prev: Item | undefined):
   if (kind === 'and') return { id: nextId(P), kind, branches: [[mkStep(P, g)], [mkStep(P, g)]] };
   const want = prev && prev.kind === 'step' ? 'trans' : 'step';
   let target: string | null = null;
-  walkAll(g.items, (it) => { if (!target && it.kind === want && (want === 'trans' || (it.kind === 'step' && it.initial))) target = it.id; });
-  if (!target) walkAll(g.items, (it) => { if (!target && it.kind === want) target = it.id; });
+  walkGrafcet(g, (it) => { if (!target && it.kind === want && (want === 'trans' || (it.kind === 'step' && it.initial))) target = it.id; });
+  if (!target) walkGrafcet(g, (it) => { if (!target && it.kind === want) target = it.id; });
   return { id: nextId(P), kind: 'jump', target };
 }
 
@@ -140,8 +140,8 @@ export function insertAt(P: Project, g: Grafcet, id: string, kind: ItemKind, whe
   const { loc, at } = site;
   if (kind === 'jump' && replaceableByJump(g, loc)) {
     let target: string | null = null;
-    walkAll(g.items, (it) => { if (!target && it.kind === 'step' && it.id !== loc.item.id && it.initial) target = it.id; });
-    walkAll(g.items, (it) => { if (!target && it.kind === 'step' && it.id !== loc.item.id) target = it.id; });
+    walkGrafcet(g, (it) => { if (!target && it.kind === 'step' && it.id !== loc.item.id && it.initial) target = it.id; });
+    walkGrafcet(g, (it) => { if (!target && it.kind === 'step' && it.id !== loc.item.id) target = it.id; });
     const j: Item = { id: nextId(P), kind: 'jump', target };
     loc.seq.splice(0, 1, j);
     return j.id;

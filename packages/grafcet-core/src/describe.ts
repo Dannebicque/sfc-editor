@@ -1,4 +1,4 @@
-import { findItem } from './tree';
+import { findItem, findInGrafcet } from './tree';
 import type { Grafcet, Item } from './types';
 
 /** Description structurée d'un élément ; l'interface en fait un texte localisé. */
@@ -19,7 +19,7 @@ export function describe(it: Item, g: Grafcet): Description {
     case 'step': return { key: 'd_step', params: { n: it.num }, name: it.name, initial: it.initial };
     case 'trans': return { key: 'd_trans', params: { n: it.num }, recept: it.recept };
     case 'jump': {
-      const t = it.target ? findItem(g.items, it.target) : null;
+      const t = it.target ? findInGrafcet(g, it.target) : null;
       if (!t) return { key: 'd_jump_none' };
       return { key: t.kind === 'step' ? 'd_jump_step' : 'd_jump_trans', params: { n: (t as { num: string | number }).num } };
     }
@@ -31,7 +31,7 @@ export function describe(it: Item, g: Grafcet): Description {
 export function describeId(g: Grafcet, id: string | null): Description | null {
   if (!id) return null;
   const base = id.replace(':d', '');
-  const it = findItem(g.items, base);
+  const it = findInGrafcet(g, base);
   if (!it) return null;
   if (it.kind === 'or' || it.kind === 'and') {
     const div = id.endsWith(':d');

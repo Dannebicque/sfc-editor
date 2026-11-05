@@ -247,3 +247,24 @@ describe('convergence OU libre', () => {
     expect(checkSeq(g().items, 'root')).toBeNull();
   });
 });
+
+describe('séquences', () => {
+  it('ajoute, déplace et supprime une séquence', () => {
+    const project = useProjectStore();
+    const ui = useUiStore();
+    project.activeId = project.project.grafcets[0]!.id;
+    expect(ui.seqCount).toBe(1);
+    ui.addSeq();
+    expect(project.activeG.more).toHaveLength(1);
+    expect(ui.seqCount).toBe(2);
+    expect(ui.seqIdx).toBe(1);
+    ui.moveSeq(-1);
+    expect(ui.seqIdx).toBe(0);
+    expect(checkSeq(project.activeG.items, 'root')).toBeNull();
+    ui.moveSeq(1);
+    ui.delSeq();
+    expect(project.activeG.more).toBeUndefined();
+    project.undo();
+    expect(project.activeG.more).toHaveLength(1);
+  });
+});

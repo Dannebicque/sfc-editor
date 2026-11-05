@@ -383,5 +383,16 @@
   "conv_choose": "Choose a branch end…",
   "conv_del_aria": "Remove the arrival: {d}",
   "a_arrival_added": "Arrival added.",
-  "a_arrival_removed": "Arrival removed."
+  "a_arrival_removed": "Arrival removed.",
+  "h_seq": "Sequences",
+  "seq_pos": "Sequence {i} of {n}.",
+  "seq_hint": "An independent sequence (for example an isolated step) links to the others through a synchronisation or a jump.",
+  "seq_add": "Add a sequence",
+  "seq_del": "Delete the sequence",
+  "seq_move_l": "Move sequence left",
+  "seq_move_r": "Move sequence right",
+  "a_seq_added": "Sequence added.",
+  "a_seq_deleted": "Sequence deleted.",
+  "a_seq_moved": "Sequence moved.",
+  "text_seq": "Sequence {i}"
 }

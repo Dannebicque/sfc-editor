@@ -1,4 +1,4 @@
-import { checkSeq, walkAll, type Action, type Block, type Grafcet, type Item, type Message, type Project } from '@grafcet/core';
+import { checkSeq, walkAll, type Action, type Block, type Grafcet, type Item, type Message, type Project, walkGrafcet } from '@grafcet/core';
 import { ImportError, type ExportResult, type ImportResult, type ReportEntry } from './contract';
 import { elements, esc, parseXml, textOf, type XNode } from './xml';
 
@@ -141,7 +141,7 @@ function importGrafcet(P: Project, gx: XNode, report: ReportEntry[], index: numb
   } else if (seqs.size) report.push(err('rep_cycle', { g: g.name }));
 
   let tn = 1, maxStep = -1;
-  walkAll(g.items, (it) => { if (it.kind === 'trans') it.num = tn++; else if (it.kind === 'step' && /^\d+$/.test(it.num)) maxStep = Math.max(maxStep, +it.num); });
+  walkGrafcet(g, (it) => { if (it.kind === 'trans') it.num = tn++; else if (it.kind === 'step' && /^\d+$/.test(it.num)) maxStep = Math.max(maxStep, +it.num); });
   for (const s of pendingNumbers) s.num = String(++maxStep);
   g.nextTrans = tn;
   g.nextStep = maxStep + 1;

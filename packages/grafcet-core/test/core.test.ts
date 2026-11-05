@@ -1,7 +1,7 @@
 import { describe as suite, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
-  addBranch, addArrival, arrivalSources, arrivalsTo, allowedInsertions, insertAt, checkSeq, describeId, flatten, insertAfter, newGrafcet, parseRecept,
+  addSequence, removeSequence, extraSequenceOf, checkGrafcet, addBranch, addArrival, arrivalSources, arrivalsTo, allowedInsertions, insertAt, checkSeq, describeId, flatten, insertAfter, newGrafcet, parseRecept,
   createExpansion, provablyExclusive, referencesTo, syncLinks, setMacro, removeBranch, removeItem, renumber, stats, validateGrafcet, walkAll, duplicateGrafcet, INSERT_KINDS,
   type Grafcet, type Project,
 } from '../src';
@@ -512,5 +512,39 @@ suite('convergence OU libre (arrivées)', () => {
     expect(arrivalsTo(g, 's0').map((j) => j.id)).toEqual([id]);
     expect(checkSeq(g.items, 'root')).toBeNull();
     expect(addArrival(P, g, 's0', 's1')).toBeNull();
+  });
+});
+
+suite('séquences supplémentaires', () => {
+  const S = (id: string, n: string, initial = false) => ({ id, kind: 'step' as const, num: n, name: '', initial, actions: [] });
+  const T = (id: string, n: number, sync?: string[]) => ({ id, kind: 'trans' as const, num: n, recept: 'a', ...(sync ? { sync } : {}) });
+  it('ajoute une séquence indépendante, reliée par une synchronisation', () => {
+    const P = demoProject();
+    const g = newGrafcet(P, 'x');
+    g.items = [S('a', '1', true), T('t1', 1), S('b', '2'), T('t2', 2)];
+    const id = addSequence(P, g);
+    expect(g.more).toHaveLength(1);
+    expect(checkGrafcet(g)).toBeNull();
+    (g.items[3] as { sync?: string[] }).sync = [id];
+    expect(flatten(g).links.filter((l) => l.to === 't2').map((l) => l.from).sort()).toEqual([id, 'b'].sort());
+    expect(validateGrafcet(g).map((i) => i.key)).not.toContain('v_sync_missing');
+    expect(extraSequenceOf(g, id)).toBe(0);
+  });
+  it('supprime une séquence et oublie les synchronisations qui l’attendaient', () => {
+    const P = demoProject();
+    const g = newGrafcet(P, 'x');
+    g.items = [S('a', '1', true), T('t1', 1, [])];
+    const id = addSequence(P, g);
+    (g.items[1] as { sync?: string[] }).sync = [id];
+    expect(removeSequence(g, id)).not.toBeNull();
+    expect(g.more).toBeUndefined();
+    expect((g.items[1] as { sync?: string[] }).sync).toBeUndefined();
+    expect(removeSequence(g, 'a')).toBeNull();
+  });
+  it('vérifie chaque séquence', () => {
+    const P = demoProject();
+    const g = newGrafcet(P, 'x');
+    g.more = [[T('t9', 9), T('t8', 8)]];
+    expect(checkGrafcet(g)).not.toBeNull();
   });
 });

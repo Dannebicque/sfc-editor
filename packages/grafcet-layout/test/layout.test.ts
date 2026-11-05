@@ -135,15 +135,27 @@ describe('renvois dans des branches', () => {
 });
 
 describe('synchronisation', () => {
-  it('affiche les étapes attendues comme arrivées de la transition', () => {
-    const S = (id: string, n: string, initial = false) => ({ id, kind: 'step', num: n, name: '', initial, actions: [] });
+  const S = (id: string, n: string, initial = false) => ({ id, kind: 'step', num: n, name: '', initial, actions: [] });
+  it('trace une double barre au-dessus de la transition, jusqu’à l’étape attendue', () => {
     const g = { id: 'g', name: 'g', nextStep: 9, nextTrans: 9, items: [
       S('a', '2A', true), { id: 't1', kind: 'trans', num: 1, recept: 'x' }, S('b', '30'),
       { id: 't2', kind: 'trans', num: 2, recept: 'y', sync: ['a'] }, S('c', '3'),
     ] } as unknown as Grafcet;
-    const t = layoutGrafcet(g, tw).views.find((v) => v.kind === 'trans' && v.id === 't2') as { arrivals: string[]; sync: boolean };
-    expect(t.sync).toBe(true);
-    expect(t.arrivals).toEqual(['2A']);
+    const L = layoutGrafcet(g, tw);
+    const bar = L.views.find((v) => v.kind === 'bar' && v.id === 't2') as { ys: number[]; x1: number; x2: number };
+    const t = L.views.find((v) => v.kind === 'trans' && v.id === 't2') as { y: number; x: number };
+    expect(bar.ys).toHaveLength(2);
+    expect(bar.ys[1]!).toBeLessThan(t.y);
+    expect(bar.x1).toBeLessThanOrEqual(t.x - 16);
+  });
+  it('place les séquences côte à côte sans chevauchement', () => {
+    const g = { id: 'g', name: 'g', nextStep: 9, nextTrans: 9,
+      items: [S('a', '1', true), { id: 't1', kind: 'trans', num: 1, recept: 'abcdefgh' }, S('b', '2')],
+      more: [[S('c', '30', true)]] } as unknown as Grafcet;
+    const L = layoutGrafcet(g, tw);
+    const a = L.views.find((v) => v.id === 't1') as { x: number; r: number };
+    const c = L.views.find((v) => v.id === 'c') as { x: number; l: number };
+    expect(c.x - c.l).toBeGreaterThan(a.x + a.r);
   });
 });
 

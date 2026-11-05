@@ -1,5 +1,5 @@
 import type { Issue } from './validate';
-import { walkAll } from './tree';
+import { walkAll, walkGrafcet } from './tree';
 import type { Grafcet, Item } from './types';
 
 /**
@@ -40,10 +40,10 @@ const IEC_IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 export function profileIssues(g: Grafcet, profile: ValidationProfile): Issue[] {
   const issues: Issue[] = [];
   const byId = new Map<string, Item>();
-  walkAll(g.items, (it) => byId.set(it.id, it));
+  walkGrafcet(g, (it) => byId.set(it.id, it));
 
   if (profile === 'grafcet') {
-    walkAll(g.items, (it) => {
+    walkGrafcet(g, (it) => {
       if (it.kind !== 'or') return;
       const first = it.branches.map((b) => b[0]).filter((x): x is Extract<Item, { kind: 'trans' }> => !!x && x.kind === 'trans' && !!x.recept.trim());
       for (let i = 0; i < first.length; i++) {
@@ -55,7 +55,7 @@ export function profileIssues(g: Grafcet, profile: ValidationProfile): Issue[] {
   }
 
   // sfc et plcopen
-  walkAll(g.items, (it) => {
+  walkGrafcet(g, (it) => {
     if (it.kind === 'jump' && it.target && byId.get(it.target)?.kind === 'trans') issues.push({ level: 'error', key: 'v_sfc_jump_trans', id: it.id });
     if (it.kind === 'trans' && /[↑↓^]/.test(it.recept)) issues.push({ level: 'warning', key: 'v_sfc_edge', params: { n: it.num }, id: it.id });
     if (it.kind === 'step') {

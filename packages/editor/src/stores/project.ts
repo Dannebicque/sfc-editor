@@ -1,9 +1,8 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import {
-  checkSeq, DEFAULT_PROFILE, isProfile, duplicateGrafcet, findItem, flatten, newGrafcet, parseRecept, stats as statsOf, validateGrafcet, walkAll,
-  type Grafcet, type Project, type ValidationProfile,
-} from '@grafcet/core';
+  checkGrafcet, DEFAULT_PROFILE, isProfile, duplicateGrafcet, findItem, flatten, newGrafcet, parseRecept, stats as statsOf, validateGrafcet, walkAll,
+  type Grafcet, type Project, type ValidationProfile, walkGrafcet, findInGrafcet } from '@grafcet/core';
 import { LS_PREFIX, T, lang } from '../i18n';
 import { demoProject, syncDemo } from '../demo';
 import { useUiStore } from './ui';
@@ -26,7 +25,7 @@ function loadSaved(): { project: Project; activeId: string } | null {
   try {
     const o = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     if (o && o.project && Array.isArray(o.project.grafcets) && o.project.grafcets.length
-      && o.project.grafcets.every((g: Grafcet) => Array.isArray(g.items) && !checkSeq(g.items, 'root'))) return o;
+      && o.project.grafcets.every((g: Grafcet) => Array.isArray(g.items) && !checkGrafcet(g))) return o;
   } catch { /* stockage indisponible ou contenu invalide */ }
   return null;
 }
@@ -55,7 +54,7 @@ export const useProjectStore = defineStore('project', () => {
   /** Numéros d'étapes de tout le projet : une réceptivité peut référencer une étape d'un autre GRAFCET (Xn). */
   const knownSteps = computed(() => {
     const out = new Set<string>();
-    for (const g of project.value.grafcets) walkAll(g.items, (it) => { if (it.kind === 'step') out.add(it.num); });
+    for (const g of project.value.grafcets) walkGrafcet(g, (it) => { if (it.kind === 'step') out.add(it.num); });
     return out;
   });
   const issues = computed(() => validateGrafcet(activeG.value, { knownSteps: knownSteps.value, profile: profile.value, project: project.value }));
@@ -73,7 +72,7 @@ export const useProjectStore = defineStore('project', () => {
   });
   const varList = computed(() => {
     const set = new Set<string>();
-    walkAll(activeG.value.items, (it) => {
+    walkGrafcet(activeG.value, (it) => {
       if (it.kind === 'trans' && it.recept) parseRecept(it.recept).vars.forEach((v) => set.add(v));
       if (it.kind === 'step') it.actions.forEach((a) => { if (a.label) set.add(a.label); });
     });
@@ -113,7 +112,7 @@ export const useProjectStore = defineStore('project', () => {
     const ui = useUiStore();
     project.value = JSON.parse(e.p);
     activeId.value = project.value.grafcets.some((g) => g.id === e.a) ? e.a : project.value.grafcets[0]!.id;
-    ui.sel = e.sel && findItem(activeG.value.items, e.sel.replace(':d', '')) ? e.sel : null;
+    ui.sel = e.sel && findInGrafcet(activeG.value, e.sel.replace(':d', '')) ? e.sel : null;
     coalesce.key = null;
     persist();
   }

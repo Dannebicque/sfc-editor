@@ -383,5 +383,16 @@
   "conv_choose": "Choisir une fin de branche…",
   "conv_del_aria": "Supprimer l’arrivée : {d}",
   "a_arrival_added": "Arrivée ajoutée.",
-  "a_arrival_removed": "Arrivée supprimée."
+  "a_arrival_removed": "Arrivée supprimée.",
+  "h_seq": "Séquences",
+  "seq_pos": "Séquence {i} sur {n}.",
+  "seq_hint": "Une séquence indépendante (par exemple une étape isolée) se relie aux autres par une synchronisation ou un renvoi.",
+  "seq_add": "Ajouter une séquence",
+  "seq_del": "Supprimer la séquence",
+  "seq_move_l": "Séquence à gauche",
+  "seq_move_r": "Séquence à droite",
+  "a_seq_added": "Séquence ajoutée.",
+  "a_seq_deleted": "Séquence supprimée.",
+  "a_seq_moved": "Séquence déplacée.",
+  "text_seq": "Séquence {i}"
 }

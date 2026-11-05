@@ -1,7 +1,7 @@
-import { checkSeq } from './grammar';
+import { checkGrafcet } from './grammar';
 import { flatten } from './flatten';
 import { parseRecept } from './recept';
-import { walkAll } from './tree';
+import { sequencesOf, walkAll, walkGrafcet } from './tree';
 import type { Grafcet, Message, Project } from './types';
 import { expansionReaches, macrosOf } from './macro';
 import { DEFAULT_PROFILE, profileIssues, type ValidationProfile } from './profiles';
@@ -35,14 +35,15 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
   const steps: Extract<Grafcet['items'][number], { kind: 'step' }>[] = [];
   const transitions: Extract<Grafcet['items'][number], { kind: 'trans' }>[] = [];
   const jumps: Extract<Grafcet['items'][number], { kind: 'jump' }>[] = [];
-  walkAll(g.items, (it) => {
+  walkGrafcet(g, (it) => {
     if (it.kind === 'step') steps.push(it);
     else if (it.kind === 'trans') transitions.push(it);
     else if (it.kind === 'jump') jumps.push(it);
   });
   const entries = steps.filter((s) => s.role === 'entry'), exits = steps.filter((s) => s.role === 'exit');
   const isExpansion = !!opts.project && opts.project.grafcets.some((x) => x.id !== g.id && macrosOf(x).some((m) => m.expansion === g.id));
-  const hasSource = transitions.some((t) => g.items[0] === t);
+  const roots = sequencesOf(g);
+  const hasSource = roots.some((s) => s[0]?.kind === 'trans');
   if (!steps.some((s) => s.initial) && !entries.length && !hasSource) issues.push({ level: 'error', key: 'v_noinit', id: null });
   if (isExpansion || entries.length || exits.length) {
     if (entries.length !== 1) issues.push({ level: 'error', key: 'v_expansion_entry', params: { n: entries.length }, id: entries[1]?.id ?? null });
@@ -83,7 +84,7 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
     else for (const n of r.refs) if (!seen.has(n) && !external.has(n)) issues.push({ level: 'warning', key: 'v_step_missing', params: { n: t.num, m: n }, id: t.id });
   }
   const ids = new Set<string>();
-  walkAll(g.items, (it) => ids.add(it.id));
+  walkGrafcet(g, (it) => ids.add(it.id));
   for (const j of jumps) if (!j.target || !ids.has(j.target)) issues.push({ level: 'error', key: 'v_jump_broken', id: j.id });
   const fg = flatten(g);
   const nodeName = (n: { kind: string; num: string | number }): Message => ({ key: n.kind === 'step' ? 'd_step' : 'd_trans', params: { n: n.num } });
@@ -96,7 +97,7 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
   for (const l of fg.links) { if (!adj.has(l.from)) adj.set(l.from, []); adj.get(l.from)!.push(l.to); }
   const reach = new Set<string>();
   const queue = steps.filter((s) => s.initial || s.role === 'entry').map((s) => s.id);
-  if (g.items[0]?.kind === 'trans') queue.push(g.items[0].id);
+  for (const s of roots) if (s[0]?.kind === 'trans') queue.push(s[0].id);
   while (queue.length) {
     const x = queue.pop()!;
     if (reach.has(x)) continue;
@@ -104,7 +105,7 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
     for (const y of adj.get(x) || []) queue.push(y);
   }
   if (reach.size) for (const n of fg.nodes) if (!reach.has(n.id)) issues.push({ level: 'warning', key: 'v_unreachable', params: { x: nodeName(n) }, id: n.id });
-  const e = checkSeq(g.items, 'root');
+  const e = checkGrafcet(g);
   if (e) issues.push({ level: 'error', key: 'v_structure', params: { e: { key: e } }, id: null });
   issues.push(...profileIssues(g, opts.profile ?? DEFAULT_PROFILE));
   return issues;
