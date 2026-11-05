@@ -43,8 +43,12 @@ export function parseXml(text: string): XNode {
   return roots[0]!;
 }
 
+/** Nom local d'une balise (sans préfixe d'espace de noms). */
+export const local = (tag: string): string => tag.slice(tag.indexOf(':') + 1);
+
+/** Éléments enfants, éventuellement filtrés par nom local (`xhtml:p` correspond à `p`). */
 export const elements = (n: XNode, tag?: string): XNode[] =>
-  n.children.filter((c): c is XNode => typeof c !== 'string' && (!tag || c.tag === tag));
+  n.children.filter((c): c is XNode => typeof c !== 'string' && (!tag || local(c.tag) === tag));
 
 /** Texte brut d'un nœud (concaténation de tous les textes descendants). */
 export const textOf = (n: XNode): string =>

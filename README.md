@@ -39,7 +39,7 @@ Les paquets internes sont consommés **directement en TypeScript** (pas d'étape
 - **1b (fait)** insertion avant/après (Maj + lettre pour le côté opposé), encadrer un élément dans une divergence OU/ET, dissoudre une divergence en gardant une branche, déplacer une branche.
 - **1c (en grande partie fait)** PWA hors ligne, format dossier (un fichier par GRAFCET, adapté à Git) et archive ZIP déterministe. Reste : shell Electron minimal.
 - **2** macro-étapes, GRAFCETs partiels, forçages, validation IEC 60848 complète.
-- **3** import/export SFCEdit (XML) **fait** ; export PLCopen — en attente d'échantillons réels dans `fixtures/`.
+- **3 (fait)** import/export SFCEdit (XML) et PLCopen XML TC6 v2.01 (partie SFC), validés contre le schéma officiel ; voir `fixtures/plcopen/README.md`.
 - **4+** serveur (comptes, partage), puis co-édition temps réel si le besoin est avéré.
 
 Décisions d'architecture : [docs/adr](docs/adr).

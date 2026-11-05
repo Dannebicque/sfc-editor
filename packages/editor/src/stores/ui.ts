@@ -5,7 +5,7 @@ import {
   locate, moveBranch as moveBranchCmd, parseRecept, removeBranch, removeItem, renumber, unwrapBlock, walkAll,
   wrapInBlock, type BlockKind, type InsertWhere, type ItemKind,
 } from '@grafcet/core';
-import { exportArchive, exportFolder, importArchive, importFolder, looksLikeZip, type FolderFile, exportNative, exportSfcEditXml, FORMAT_ID, importJson, importNative, importSfcEditXml, looksLikeSfcEditXml, ImportError, type ReportEntry } from '@grafcet/io';
+import { exportArchive, exportFolder, importArchive, importFolder, looksLikeZip, type FolderFile, exportNative, exportSfcEditXml, FORMAT_ID, importJson, importNative, importSfcEditXml, looksLikeSfcEditXml, exportPlcopenXml, importPlcopenXml, looksLikePlcopenXml, ImportError, type ReportEntry } from '@grafcet/io';
 import { enabledTransitions, fire, initialMarking } from '@grafcet/simulation';
 import { describeText, renderMessage } from '../format';
 import { isLegalDocId, type LegalDocId } from '../legal';
@@ -25,7 +25,7 @@ export const useUiStore = defineStore('ui', () => {
   const sel = ref<string | null>(null);
   const tab = ref<TabId>('props');
   const theme = ref<Theme>('auto');
-  const dataView = ref<'json' | 'graph' | 'native' | 'sfcedit'>('json');
+  const dataView = ref<'json' | 'graph' | 'native' | 'sfcedit' | 'plcopen'>('json');
   /** Côté d'insertion choisi pour les éléments simples (les blocs imposent le leur : barre = avant, convergence = après). */
   const insertWhere = ref<InsertWhere>('after');
   const sim = reactive({ on: false, active: [] as string[] });
@@ -295,6 +295,7 @@ export const useUiStore = defineStore('ui', () => {
   const dataText = computed(() => {
     if (dataView.value === 'native') return exportNative(projectRef.value).output;
     if (dataView.value === 'sfcedit') return exportSfcEditXml(projectRef.value).output;
+    if (dataView.value === 'plcopen') return exportPlcopenXml(projectRef.value).output;
     return JSON.stringify(dataView.value === 'json' ? activeG.value : flat.value, null, 1);
   });
   const copyMsg = reactive({ text: '', cls: '' });
@@ -303,7 +304,9 @@ export const useUiStore = defineStore('ui', () => {
   /** Rapport de conversion du dernier import / de l'export en cours (lignes déjà localisées). */
   const importReport = ref<{ level: ReportEntry['level']; text: string }[]>([]);
   const toLines = (es: ReportEntry[]) => es.map((e) => ({ level: e.level, text: renderMessage(e.message) }));
-  const exportReport = computed(() => (dataView.value === 'sfcedit' ? toLines(exportSfcEditXml(projectRef.value).report.entries) : []));
+  const exportReport = computed(() =>
+    dataView.value === 'sfcedit' ? toLines(exportSfcEditXml(projectRef.value).report.entries)
+    : dataView.value === 'plcopen' ? toLines(exportPlcopenXml(projectRef.value).report.entries) : []);
   function copyData(): void {
     const done = (ok: boolean) => { copyMsg.text = ok ? T('copied') : T('copy_fail'); copyMsg.cls = ok ? 'ok' : 'err'; };
     try { navigator.clipboard.writeText(dataText.value).then(() => done(true), () => done(false)); } catch { done(false); }
@@ -326,10 +329,19 @@ export const useUiStore = defineStore('ui', () => {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
+  /** Télécharge le projet au format PLCopen XML (TC6 v2.01). */
+  function downloadPlcopen(): void {
+    saveAs(new Blob([exportPlcopenXml(projectRef.value).output], { type: 'application/xml' }), baseName() + '.plcopen.xml');
+  }
   function applyImport(fileName?: string): void {
     importReport.value = [];
     try {
       let next, activeId: string;
+      if (looksLikePlcopenXml(importText.value)) {
+        const r = importPlcopenXml(importText.value, { projectName: (fileName ?? '').replace(/\.[^.]+$/, '') || undefined });
+        commitImport(r.model, r.report.entries);
+        return;
+      }
       if (looksLikeSfcEditXml(importText.value)) {
         const base = (fileName ?? '').replace(/\.[^.]+$/, '') || T('p_imported');
         const r = importSfcEditXml(importText.value, { projectName: base });
@@ -482,7 +494,7 @@ export const useUiStore = defineStore('ui', () => {
     openG, addGrafcet, dupGrafcet, delGrafcet,
     pick, pickFromText, focusHost, onHostFocus, goIssue, onKey,
     simActive, simEnabled, simReset, simFire, toggleSim,
-    dataText, importReport, exportReport, downloadSfcEdit, downloadArchive, canFolder, saveFolder, openFolder, copyMsg, importMsg, importText, copyData, downloadNative, applyImport, onFile,
+    dataText, importReport, exportReport, downloadSfcEdit, downloadPlcopen, downloadArchive, canFolder, saveFolder, openFolder, copyMsg, importMsg, importText, copyData, downloadNative, applyImport, onFile,
     legalDoc, openLegal, closeLegal, syncLegalFromHash,
     cycleTheme, setLang, init,
   };
