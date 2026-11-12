@@ -106,6 +106,7 @@
   "key_undo": "annuler, rétablir",
   "branch_of": "Branche {i} sur {n}",
   "branch_l": "À gauche",
+  "branch_add": "Ajouter une branche",
   "branch_r": "À droite",
   "branch_del": "Supprimer la branche",
   "del_item": "Supprimer l’élément",

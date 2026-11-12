@@ -240,6 +240,7 @@ export const useUiStore = defineStore('ui', () => {
     if (!sel.value || sim.on || !selItem.value) return;
     pending.value = { kind, from: sel.value };
     announce(T('a_pending_' + kind));
+    nextTick(focusHost); // la barre d'outils change : le clavier reprend dans le dessin pour choisir la cible
   }
   function cancelPending(): void { if (pending.value) { pending.value = null; announce(T('a_pending_cancel')); } }
   function completePending(to: string): void {
