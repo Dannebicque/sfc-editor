@@ -232,6 +232,7 @@
   "rep_action_type": "Action de type « {type} » dans « {g} » : importée comme action continue.",
   "rep_cycle": "« {g} » : structure circulaire ou sans point de départ, séquences ignorées.",
   "rep_jump_target": "« {g} » : renvoi vers une séquence vide, ignoré.",
+  "rep_jump_resolved": "« {g} » : renvoi depuis un placeholder traduit en renvois directs vers l’étape cible.",
   "rep_conv_kind": "« {g} » : divergence et convergence de types différents (ET/OU).",
   "rep_conv_missing": "« {g} » : convergence manquante pour une divergence.",
   "rep_orphan_seq": "« {g} » : la séquence {n} n'est reliée à rien et n'a pas été importée.",
