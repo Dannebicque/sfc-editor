@@ -12,8 +12,8 @@ importers:
         specifier: ^2.5.0
         version: 2.11.10
       typescript:
-        specifier: ~5.9.3
-        version: 5.9.3
+        specifier: ~6.0.3
+        version: 6.0.3
 
   apps/web:
     dependencies:
@@ -28,17 +28,17 @@ importers:
         version: link:../../packages/editor
       vue:
         specifier: ^3.5.13
-        version: 3.5.45(typescript@5.9.3)
+        version: 3.5.45(typescript@6.0.3)
     devDependencies:
       '@vitejs/plugin-vue':
         specifier: ^6.0.0
-        version: 6.0.10(vite@7.3.7(@types/node@20.19.43))(vue@3.5.45(typescript@5.9.3))
+        version: 6.0.10(vite@7.3.7(@types/node@20.19.43))(vue@3.5.45(typescript@6.0.3))
       vite:
         specifier: ^7.0.0
         version: 7.3.7(@types/node@20.19.43)
       vue-tsc:
         specifier: ^3.0.0
-        version: 3.3.14(typescript@5.9.3)
+        version: 3.3.14(typescript@6.0.3)
 
   packages/editor:
     dependencies:
@@ -56,17 +56,17 @@ importers:
         version: link:../grafcet-simulation
       pinia:
         specifier: ^3.0.3
-        version: 3.0.4(typescript@5.9.3)(vue@3.5.45(typescript@5.9.3))
+        version: 3.0.4(typescript@6.0.3)(vue@3.5.45(typescript@6.0.3))
       vue:
         specifier: ^3.5.13
-        version: 3.5.45(typescript@5.9.3)
+        version: 3.5.45(typescript@6.0.3)
       vue-i18n:
         specifier: ^11.1.0
-        version: 11.4.18(vue@3.5.45(typescript@5.9.3))
+        version: 11.4.18(vue@3.5.45(typescript@6.0.3))
     devDependencies:
       '@vue/test-utils':
         specifier: ^2.4.6
-        version: 2.5.1(@vue/compiler-dom@3.5.45)(@vue/server-renderer@3.5.45)(vue@3.5.45(typescript@5.9.3))
+        version: 2.5.1(@vue/compiler-dom@3.5.45)(@vue/server-renderer@3.5.45)(vue@3.5.45(typescript@6.0.3))
       happy-dom:
         specifier: ^18.0.1
         version: 18.0.1
@@ -75,7 +75,7 @@ importers:
         version: 3.2.7(@types/node@20.19.43)(happy-dom@18.0.1)
       vue-tsc:
         specifier: ^3.0.0
-        version: 3.3.14(typescript@5.9.3)
+        version: 3.3.14(typescript@6.0.3)
 
   packages/grafcet-core:
     devDependencies:
@@ -370,66 +370,79 @@ packages:
     resolution: {integrity: sha512-dgU1CvUuE2IkaJBAeuAbxpDdMHAdZBT5oth5u22DtuoMg4gXXYr2+Sm30RigPJG1F2VEoiGJUziGLuIh9+jPxA==}
     cpu: [arm]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-arm-musleabihf@4.67.5':
     resolution: {integrity: sha512-rdgJcJig2VngYlcTCRQw2BA8kLWM6QwDFe9uLFo81lya0jPC1r8wZu92sAvTUIv48GWlkRVi6/fpsa5CoFSKoQ==}
     cpu: [arm]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-arm64-gnu@4.67.5':
     resolution: {integrity: sha512-+jtCiQnrEFHWAUAcUpP7wppb1p6HKOgBP3mXx75cEYpDF2Y5MEqBky2HNz+osFuVx5uX44gnMTmbe5RJauzn6A==}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-arm64-musl@4.67.5':
     resolution: {integrity: sha512-heflX7ENhL8eHmLcUxDEHCSK8CKLyPprysb2JGoSTh5Ip7nHrzIRc+2USyxul3nxi98H8pGxJIEDEpURlS1X5A==}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-loong64-gnu@4.67.5':
     resolution: {integrity: sha512-rRtNU0zBfRHkJ8pscHN9qRtUYLq8Rao4EX7aVWvKcFmJUANkCCXFRU7ovNBEMhpEONyUEB/3DRVDXwDDguSfHA==}
     cpu: [loong64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-loong64-musl@4.67.5':
     resolution: {integrity: sha512-/6auyi9yj8MD/Q+8P+f2ay57jQ7a0j7Yp1JK86pecH6ZnRViQZ5GOjoRSjGArFeTSHFznRbM2QPQcBgDPyNMfQ==}
     cpu: [loong64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-ppc64-gnu@4.67.5':
     resolution: {integrity: sha512-Hsc0vlt+vPvqzUkHKffWKf3YE/yexrY+yeFf7IsUvDC6PV7YGCsA/gJvPa+WJdgxGJnwuoO1HmLkbahaLKabYQ==}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-ppc64-musl@4.67.5':
     resolution: {integrity: sha512-Jx5TMMSPJwHY7F/JwPdS6nuBwny2ECRK+EsAJV5HZrfiddeSS6ZrohkLkFZm3rjqBUuQ4FPX5gGMtakUuQO6fQ==}
     cpu: [ppc64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-riscv64-gnu@4.67.5':
     resolution: {integrity: sha512-fGWcq2lo/XCqAkBLOokg66D/z+MUouryB8i+QdU9RR6O5knG7rucc0WFPqWYL1Wk/wuiJouDfmyBxmZKRM9bag==}
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-riscv64-musl@4.67.5':
     resolution: {integrity: sha512-JwO/Ys3jybc0UW3V5XO2CMnp0RhvoczDDQTgAEE1IctT+HRY3W5parIIWLUpmAK4gHSeeYJofm2iQPFA62K6ag==}
     cpu: [riscv64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-s390x-gnu@4.67.5':
     resolution: {integrity: sha512-vVD4iqel6J6A1xAJlb4mxEO9i1wOJ4/SkcKoDKAuK/wqEBPOA7/P5dDyZvNx46ocHwOUwzo3WjhTdKqET9kEAg==}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-x64-gnu@4.67.5':
     resolution: {integrity: sha512-HmEfNh5Cdd/NHxgqwMzKnjlvicQQA+D+w+vQXDJSV0x/aHiQSjVwh1Th5RoA7QsMieIaxibt/5iJq68BraTSUg==}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-x64-musl@4.67.5':
     resolution: {integrity: sha512-NfmALpbe009nYzZ2QqlSW6nzbGddXpqk3nwualrIr+4QflQCTGMzt3QKK20yARiAnSV9fJdM5WNwIYUf31x3uA==}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-openbsd-x64@4.67.5':
     resolution: {integrity: sha512-ngcE7Udpy/iJ3lexVhYcbpUV2OJIakRGus3snc6K52BnAAJetDBG1Ku5Eh3CECtnW3mpBYWg5VCD4tTaOXKOVQ==}
@@ -910,8 +923,8 @@ packages:
     resolution: {integrity: sha512-3GJYwig8ygEI89oaOZdduJX8/aw6O9eRPYHoIt6T3FZl9hkKjiyIspufJoVgqXihPoJu8M5CSV0DlZvzfohBCw==}
     hasBin: true
 
-  typescript@5.9.3:
-    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+  typescript@6.0.3:
+    resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -1280,11 +1293,11 @@ snapshots:
 
   '@types/whatwg-mimetype@3.0.2': {}
 
-  '@vitejs/plugin-vue@6.0.10(vite@7.3.7(@types/node@20.19.43))(vue@3.5.45(typescript@5.9.3))':
+  '@vitejs/plugin-vue@6.0.10(vite@7.3.7(@types/node@20.19.43))(vue@3.5.45(typescript@6.0.3))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
       vite: 7.3.7(@types/node@20.19.43)
-      vue: 3.5.45(typescript@5.9.3)
+      vue: 3.5.45(typescript@6.0.3)
 
   '@vitest/expect@3.2.7':
     dependencies:
@@ -1332,25 +1345,25 @@ snapshots:
     dependencies:
       '@volar/source-map': 2.4.30
 
-  '@volar/language-service@2.4.30(typescript@5.9.3)':
+  '@volar/language-service@2.4.30(typescript@6.0.3)':
     dependencies:
       '@volar/language-core': 2.4.30
       vscode-languageserver-protocol: 3.18.5
       vscode-languageserver-textdocument: 1.0.16
       vscode-uri: 3.2.0
     optionalDependencies:
-      typescript: 5.9.3
+      typescript: 6.0.3
 
   '@volar/source-map@2.4.30': {}
 
-  '@volar/typescript@2.4.30(typescript@5.9.3)':
+  '@volar/typescript@2.4.30(typescript@6.0.3)':
     dependencies:
       '@volar/language-core': 2.4.30
-      '@volar/language-service': 2.4.30(typescript@5.9.3)
+      '@volar/language-service': 2.4.30(typescript@6.0.3)
       path-browserify: 1.0.1
       vscode-uri: 3.2.0
     optionalDependencies:
-      typescript: 5.9.3
+      typescript: 6.0.3
 
   '@vue/compiler-core@3.5.45':
     dependencies:
@@ -1436,11 +1449,11 @@ snapshots:
 
   '@vue/shared@3.5.45': {}
 
-  '@vue/test-utils@2.5.1(@vue/compiler-dom@3.5.45)(@vue/server-renderer@3.5.45)(vue@3.5.45(typescript@5.9.3))':
+  '@vue/test-utils@2.5.1(@vue/compiler-dom@3.5.45)(@vue/server-renderer@3.5.45)(vue@3.5.45(typescript@6.0.3))':
     dependencies:
       '@vue/compiler-dom': 3.5.45
       js-beautify: 2.0.3
-      vue: 3.5.45(typescript@5.9.3)
+      vue: 3.5.45(typescript@6.0.3)
       vue-component-type-helpers: 3.3.14
     optionalDependencies:
       '@vue/server-renderer': 3.5.45
@@ -1638,12 +1651,12 @@ snapshots:
 
   picomatch@4.0.7: {}
 
-  pinia@3.0.4(typescript@5.9.3)(vue@3.5.45(typescript@5.9.3)):
+  pinia@3.0.4(typescript@6.0.3)(vue@3.5.45(typescript@6.0.3)):
     dependencies:
       '@vue/devtools-api': 7.7.10
-      vue: 3.5.45(typescript@5.9.3)
+      vue: 3.5.45(typescript@6.0.3)
     optionalDependencies:
-      typescript: 5.9.3
+      typescript: 6.0.3
 
   postcss@8.5.32:
     dependencies:
@@ -1737,7 +1750,7 @@ snapshots:
       '@turbo/windows-64': 2.11.10
       '@turbo/windows-arm64': 2.11.10
 
-  typescript@5.9.3: {}
+  typescript@6.0.3: {}
 
   undici-types@6.21.0: {}
 
@@ -1831,21 +1844,21 @@ snapshots:
 
   vue-component-type-helpers@3.3.14: {}
 
-  vue-i18n@11.4.18(vue@3.5.45(typescript@5.9.3)):
+  vue-i18n@11.4.18(vue@3.5.45(typescript@6.0.3)):
     dependencies:
       '@intlify/core-base': 11.4.18
       '@intlify/devtools-types': 11.4.18
       '@intlify/shared': 11.4.18
       '@vue/devtools-api': 6.6.4
-      vue: 3.5.45(typescript@5.9.3)
+      vue: 3.5.45(typescript@6.0.3)
 
-  vue-tsc@3.3.14(typescript@5.9.3):
+  vue-tsc@3.3.14(typescript@6.0.3):
     dependencies:
-      '@volar/typescript': 2.4.30(typescript@5.9.3)
+      '@volar/typescript': 2.4.30(typescript@6.0.3)
       '@vue/language-core': 3.3.14
-      typescript: 5.9.3
+      typescript: 6.0.3
 
-  vue@3.5.45(typescript@5.9.3):
+  vue@3.5.45(typescript@6.0.3):
     dependencies:
       '@vue/compiler-dom': 3.5.45
       '@vue/compiler-sfc': 3.5.45
@@ -1853,7 +1866,7 @@ snapshots:
       '@vue/server-renderer': 3.5.45
       '@vue/shared': 3.5.45
     optionalDependencies:
-      typescript: 5.9.3
+      typescript: 6.0.3
 
   whatwg-mimetype@3.0.0: {}
 
