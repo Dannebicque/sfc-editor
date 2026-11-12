@@ -58,6 +58,7 @@ export const en: LegalDoc[] = [
           ['grafcet-studio-v1', 'Your project and the open GRAFCET', 'Find your work again (local autosave)', 'Until you erase it'],
           ['grafcet-studio-v1-lang', 'Chosen language (fr or en)', 'Remember your preference', 'Until you erase it'],
           ['grafcet-studio-v1-theme', 'Chosen theme (auto, light, dark)', 'Remember your preference', 'Until you erase it'],
+          ['grafcet-studio-v1-shares', 'Identifier, deletion token and expiry date of the shares you created (only if you use link sharing)', 'Let you delete your shares from this device', 'Until the share is deleted or you erase it'],
         ],
       } },
       { p: 'This data stays on your device, is not transmitted, and is used for no advertising, audience measurement or tracking. To our knowledge, these uses are strictly necessary for the service you requested or are preferences you choose yourself: they do not require consent (CNIL guidelines on trackers). That is why no consent banner is shown.' },

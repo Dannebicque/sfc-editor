@@ -2,9 +2,12 @@
 import { storeToRefs } from 'pinia';
 import { T } from '../i18n';
 import { useUiStore } from '../stores/ui';
+import { shareLink } from '../share';
+import { useShareStore } from '../stores/share';
 import Icon from './Icon.vue';
 
 const ui = useUiStore();
+const share = useShareStore();
 const { dataView, dataText, copyMsg, importMsg, importText, importReport, exportReport } = storeToRefs(ui);
 </script>
 
@@ -31,6 +34,17 @@ const { dataView, dataText, copyMsg, importMsg, importText, importReport, export
     <ul v-if="exportReport.length" class="report" :aria-label="T('report_aria')">
       <li v-for="(r, i) in exportReport" :key="i" :class="r.level"><strong>{{ T('lvl_' + r.level) }}</strong> {{ r.text }}</li>
     </ul>
+    <template v-if="share.enabled">
+      <h3>{{ T('share_h') }}</h3>
+      <p class="hint">{{ T('share_hint') }}</p>
+      <div class="row"><button class="btn solid" type="button" @click="share.openPublish()"><Icon n="copy" />{{ T('share_btn') }}</button></div>
+      <ul v-if="share.entries.length" class="report" :aria-label="T('share_list_aria')">
+        <li v-for="e in share.entries" :key="e.id">
+          <a :href="shareLink(e.id)">{{ e.name || e.id }}</a> — {{ T('share_expires', { d: new Date(e.expiresAt).toLocaleDateString() }) }}
+          <button class="btn solid" type="button" @click="share.remove(e.id)">{{ T('share_remove') }}</button>
+        </li>
+      </ul>
+    </template>
     <h3>{{ T('h_import') }}</h3>
     <p class="hint">{{ T('import_hint') }}</p>
     <label class="sr" for="imp">{{ T('import_label') }}</label>

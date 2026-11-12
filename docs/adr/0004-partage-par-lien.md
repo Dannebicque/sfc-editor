@@ -1,6 +1,6 @@
 # ADR 0004 — Serveur : partage par lien
 
-**Statut :** proposée (serveur et API implémentés ; client et textes légaux à faire).
+**Statut :** serveur, API et client implémentés ; textes légaux et déploiement à faire avant toute mise en service publique.
 
 ## Contexte
 L'application est **local-first** : aucun compte, aucun serveur, aucune donnée envoyée. Le jalon 4 de la feuille de route ajoute un serveur
@@ -44,8 +44,10 @@ Les réponses portent `Cache-Control: no-store` (sauf `GET` d'un partage : `priv
 et l'origine autorisée est celle de `ALLOWED_ORIGIN` (jamais `*`).
 
 ## Hors périmètre (étapes suivantes)
-1. **Client** : bouton « Partager » (confirmation explicite de ce qui part et de la durée), affichage du lien et du jeton, route `#/s/<id>`
-   qui propose d'ouvrir une **copie** locale (pas de mode lecture seule dans un premier temps).
+1. ~~**Client**~~ **(fait)** : « Partager par lien… » dans l'onglet Données (confirmation explicite de ce qui part), lien affiché, liste des
+   partages de cet appareil avec suppression (identifiant et jeton dans `grafcet-studio-v1-shares`, déclaré dans la page « Cookies et stockage
+   local »), route `#/s/<id>` qui propose d'ouvrir une **copie** (remplace le projet, annulable par Ctrl+Z ; pas de mode lecture seule).
+   Les requêtes n'envoient ni cookies ni référent ; l'identifiant reste dans le fragment de l'adresse.
 2. **Textes légaux** : politique de confidentialité, conditions et mentions à compléter (hébergeur, durée de conservation, contact) avant
    toute mise en service publique. Ne rien inventer : les champs restent « [à compléter] » jusqu'à la saisie par l'éditeur.
 3. **Déploiement** : Dockerfile, reverse proxy TLS (en-têtes `X-Forwarded-For` pris en compte seulement si `TRUST_PROXY=1`), sauvegarde.

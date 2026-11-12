@@ -18,4 +18,4 @@ pnpm --filter @grafcet/server test
 | `TRUST_PROXY` | — | `1` pour lire l'adresse du client dans `X-Forwarded-For` (derrière votre proxy seulement). |
 
 À faire avant toute mise en service publique : compléter les textes légaux de l'éditeur (hébergeur, durée de conservation, contact),
-puis construire l'éditeur avec `VITE_SHARE_URL` (le bouton « Partager » n'existe pas encore côté client).
+puis construire l'éditeur avec `VITE_SHARE_URL=https://votre-serveur` : sans cette variable, le partage n'apparaît pas dans l'interface.

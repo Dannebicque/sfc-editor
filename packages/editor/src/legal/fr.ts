@@ -58,6 +58,7 @@ export const fr: LegalDoc[] = [
           ['grafcet-studio-v1', 'Votre projet et le GRAFCET ouvert', 'Retrouver votre travail (sauvegarde automatique locale)', 'Jusqu’à effacement par vos soins'],
           ['grafcet-studio-v1-lang', 'Langue choisie (fr ou en)', 'Mémoriser votre préférence', 'Jusqu’à effacement par vos soins'],
           ['grafcet-studio-v1-theme', 'Thème choisi (auto, clair, sombre)', 'Mémoriser votre préférence', 'Jusqu’à effacement par vos soins'],
+          ['grafcet-studio-v1-shares', 'Identifiant, jeton de suppression et date d’expiration des partages que vous avez créés (uniquement si vous utilisez le partage par lien)', 'Pouvoir supprimer vos partages depuis cet appareil', 'Jusqu’à suppression du partage ou effacement par vos soins'],
         ],
       } },
       { p: 'Ces données restent sur votre appareil, ne sont pas transmises et ne servent ni à la publicité, ni à la mesure d’audience, ni au suivi. À notre connaissance, ces usages sont strictement nécessaires au service demandé ou relèvent de préférences que vous choisissez vous-même : ils n’exigent pas de consentement (lignes directrices de la CNIL sur les traceurs). C’est pourquoi aucun bandeau de consentement n’est affiché.' },

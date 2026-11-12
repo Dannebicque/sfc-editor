@@ -7,11 +7,14 @@ import CanvasStage from './components/CanvasStage.vue';
 import InspectorPanel from './components/InspectorPanel.vue';
 import ProjectSidebar from './components/ProjectSidebar.vue';
 import LegalDialog from './components/LegalDialog.vue';
+import ShareDialog from './components/ShareDialog.vue';
+import { useShareStore } from './stores/share';
 import StatusBar from './components/StatusBar.vue';
 
 const ui = useUiStore();
 const { liveMsg } = storeToRefs(ui);
-onMounted(() => ui.init());
+const share = useShareStore();
+onMounted(() => { ui.init(); share.init(); });
 </script>
 
 <template>
@@ -24,6 +27,7 @@ onMounted(() => ui.init());
     </main>
     <StatusBar />
     <LegalDialog />
+    <ShareDialog v-if="share.enabled" />
     <div class="sr" role="status" aria-live="polite">{{ liveMsg }}</div>
   </div>
 </template>

@@ -30,7 +30,7 @@ Prérequis : Node ≥ 22.12, pnpm 10.
 | `packages/grafcet-io` | Format natif versionné (`schemaVersion`), import JSON libre, contrat `import → { model, report }`. | core, zod |
 | `packages/editor` | Application Vue : stores Pinia (document, interface, vue), composants, vue-i18n fr/en. | tous |
 | `apps/web` | Shell Vite. | editor |
-| `apps/server` | Serveur de partage par lien ([ADR 0004](docs/adr/0004-partage-par-lien.md)) : Node + TypeScript, sans base de données. Désactivé tant que l'éditeur n'est pas construit avec `VITE_SHARE_URL`. | core, io |
+| `apps/server` | Serveur de partage par lien ([ADR 0004](docs/adr/0004-partage-par-lien.md)) : Node + TypeScript, sans base de données. L'éditeur n'affiche le partage que s'il est construit avec `VITE_SHARE_URL`. | core, io |
 | `fixtures/` | Exemples de référence (SFCEdit, PLCopen, natif) — à compléter. | — |
 | `prototype/` | Prototypes HTML d'origine (référence, non maintenus). | — |
 
@@ -43,7 +43,7 @@ Les paquets internes sont consommés **directement en TypeScript** (pas d'étape
 - **1c (en grande partie fait)** PWA hors ligne, format dossier (un fichier par GRAFCET, adapté à Git) et archive ZIP déterministe. Reste : shell Electron minimal.
 - **2** ✅ macro-étapes (expansion dans le même projet), actions sur événement, transitions source/puits, vue des synchronisations entre GRAFCET. Forçages manuels en simulation ({INIT}, {}, {*}, Maj + clic sur une étape). GRAFCETs partiels : un ordre de forçage écrit dans une action (`GP{INIT}`, `GP{}`, `GP{*}`, `GP{X1,X3}`) agit sur le GRAFCET désigné tant que l'étape est active. Reste : étapes englobantes, ordres conditionnels (réceptivités non évaluées).
 - **3 (fait)** import/export SFCEdit (XML) et PLCopen XML TC6 v2.01 (partie SFC), validés contre le schéma officiel ; voir `fixtures/plcopen/README.md`.
-- **4 (en cours)** partage par lien : serveur et API faits (ADR 0004) ; reste le client (bouton « Partager », ouverture d'une copie), les textes légaux et le déploiement. Ensuite, si le besoin est avéré : comptes, espace classe, co-édition temps réel.
+- **4 (en cours)** partage par lien : serveur et API faits (ADR 0004) ; client fait (bouton « Partager par lien… », ouverture d'une copie) ; reste les textes légaux et le déploiement. Ensuite, si le besoin est avéré : comptes, espace classe, co-édition temps réel.
 
 Décisions d'architecture : [docs/adr](docs/adr).
 

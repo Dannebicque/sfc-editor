@@ -298,3 +298,5 @@ mark.todo{background:var(--warn-soft);color:var(--warn);padding:0 4px;border-rad
 .ico-and::before{top:0}.ico-and::after{bottom:0}
 .tb kbd{font-size:10.5px}
 .jdot{fill:var(--accent);opacity:.55}
+
+dialog.share{width:min(560px,94vw)}.share-body{padding:14px 16px 16px;display:grid;gap:10px;overflow:auto}.share-body p,.share-body ul{margin:0}.share-body ul{padding-left:18px}.share-link{flex:1;min-width:0;font:12.5px var(--font-mono);padding:6px 8px;border:1px solid var(--line-2);border-radius:8px;background:var(--canvas);color:var(--ink)}

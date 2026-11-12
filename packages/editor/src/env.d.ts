@@ -5,3 +5,6 @@ declare module '*.vue' {
 }
 
 declare module '*.css';
+
+interface ImportMetaEnv { readonly VITE_SHARE_URL?: string }
+interface ImportMeta { readonly env: ImportMetaEnv }
