@@ -40,7 +40,7 @@ Les paquets internes sont consommés **directement en TypeScript** (pas d'étape
 - **1a (fait)** noyau + mise en page + format natif JSON + éditeur web, tests de propriétés.
 - **1b (fait)** insertion avant/après (Maj + lettre pour le côté opposé), divergences/convergences OU/ET, connecter deux éléments, fusionner des branches, renvois, ajout/suppression/déplacement de branches, barre d'outils complète. Modèle séquences + liens (branche `feat/graph-model`, [ADR 0003](docs/adr/0003-sequences-et-liens.md)).
 - **1c (en grande partie fait)** PWA hors ligne, format dossier (un fichier par GRAFCET, adapté à Git) et archive ZIP déterministe. Reste : shell Electron minimal.
-- **2** ✅ macro-étapes (expansion dans le même projet), actions sur événement, transitions source/puits, vue des synchronisations entre GRAFCET. Reste : GRAFCETs partiels, étapes englobantes, forçages.
+- **2** ✅ macro-étapes (expansion dans le même projet), actions sur événement, transitions source/puits, vue des synchronisations entre GRAFCET. Forçages manuels en simulation ({INIT}, {}, {*}, Maj + clic sur une étape). Reste : GRAFCETs partiels, étapes englobantes, ordres de forçage écrits dans les actions.
 - **3 (fait)** import/export SFCEdit (XML) et PLCopen XML TC6 v2.01 (partie SFC), validés contre le schéma officiel ; voir `fixtures/plcopen/README.md`.
 - **4+** serveur (comptes, partage), puis co-édition temps réel si le besoin est avéré.
 

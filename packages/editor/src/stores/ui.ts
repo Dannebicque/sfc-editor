@@ -7,7 +7,7 @@ import {
 } from '@grafcet/core';
 import { createExpansion, macrosOf, referencesTo, setMacro } from '@grafcet/core';
 import { exportArchive, exportFolder, importArchive, importFolder, looksLikeZip, type FolderFile, exportNative, exportSfcEditXml, FORMAT_ID, importJson, importNative, importSfcEditXml, looksLikeSfcEditXml, exportPlcopenXml, importPlcopenXml, looksLikePlcopenXml, ImportError, type ReportEntry } from '@grafcet/io';
-import { buildSimulation, enabledTransitions, fire, macroActive } from '@grafcet/simulation';
+import { applyForcing, buildSimulation, enabledTransitions, fire, macroActive, type Forcing } from '@grafcet/simulation';
 import { describeText, renderMessage } from '../format';
 import { isLegalDocId, type LegalDocId } from '../legal';
 import { applyLang, kindLabel, KEYMAP, LS_PREFIX, T, lang, type Lang } from '../i18n';
@@ -30,7 +30,7 @@ export const useUiStore = defineStore('ui', () => {
   const dataView = ref<'json' | 'graph' | 'native' | 'sfcedit' | 'plcopen'>('json');
   /** Côté d'insertion choisi pour les éléments simples (les blocs imposent le leur : barre = avant, convergence = après). */
   const insertWhere = ref<InsertWhere>('after');
-  const sim = reactive({ on: false, active: [] as string[], root: '' });
+  const sim = reactive({ on: false, active: [] as string[], root: '', frozen: [] as string[] });
 
   /* ----- annonces pour lecteurs d'écran ----- */
   const liveMsg = ref('');
@@ -354,7 +354,7 @@ export const useUiStore = defineStore('ui', () => {
     if (k.startsWith('Arrow')) { e.preventDefault(); viewStore.navigate(k.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right'); return; }
     if (sim.on) {
       if (k === 'Escape') toggleSim();
-      else if ((k === 'Enter' || k === ' ') && sel.value) { e.preventDefault(); pick(sel.value); }
+      else if ((k === 'Enter' || k === ' ') && sel.value) { e.preventDefault(); if (e.shiftKey) simToggleStep(sel.value); else pick(sel.value); }
       return;
     }
     if (pending.value) {
@@ -389,12 +389,34 @@ export const useUiStore = defineStore('ui', () => {
     for (const id of g.members.keys()) if (macroActive(g, marking, id)) out.add(id);
     return out;
   });
-  const simEnabled = computed(() => (simGraph.value ? enabledTransitions(simGraph.value.flat, new Set(sim.active)) : new Set<string>()));
-  function simReset(): void { if (simGraph.value) sim.active = [...simGraph.value.initial]; }
+  const simEnabled = computed(() => (simGraph.value ? enabledTransitions(simGraph.value.flat, new Set(sim.active), { owner: simGraph.value.owner, grafcets: new Set(sim.frozen) }) : new Set<string>()));
+  /** Le GRAFCET affiché fait partie de la simulation (les ordres de forçage le visent). */
+  const simForceable = computed(() => !!simGraph.value?.grafcets.has(project.activeId));
+  const simFrozenNow = computed(() => sim.frozen.includes(project.activeId));
+  function simReset(): void { if (simGraph.value) { sim.active = [...simGraph.value.initial]; sim.frozen = []; } }
+  /** Ordre de forçage IEC 60848 sur le GRAFCET affiché : {INIT}, {}, {*} (figer / libérer). */
+  function simForce(f: Forcing): void {
+    const sg = simGraph.value;
+    if (!sg || !simForceable.value) return;
+    const r = applyForcing(sg, { marking: new Set(sim.active), frozen: new Set(sim.frozen) }, project.activeId, f);
+    sim.active = [...r.marking]; sim.frozen = [...r.frozen];
+    announce(T('a_force_' + f.kind));
+  }
+  /** Maj + clic sur une étape : l'active ou la désactive (forçage de situation du GRAFCET qui la porte). */
+  function simToggleStep(id: string): void {
+    const sg = simGraph.value;
+    const gid = sg?.owner.get(id);
+    if (!sg || !gid || sg.flat.nodes.find((n) => n.id === id)?.kind !== 'step') return;
+    const own = sim.active.filter((x) => sg.owner.get(x) === gid);
+    const steps = own.includes(id) ? own.filter((x) => x !== id) : [...own, id];
+    const r = applyForcing(sg, { marking: new Set(sim.active), frozen: new Set(sim.frozen) }, gid, { kind: 'steps', steps });
+    sim.active = [...r.marking];
+    announce(T(own.includes(id) ? 'a_force_off' : 'a_force_on'));
+  }
   function simFire(tid: string): void { if (!simGraph.value) return; sim.active = [...fire(simGraph.value.flat, new Set(sim.active), tid)]; announce(T('a_fired')); }
   function toggleSim(): void {
     sim.on = !sim.on;
-    if (sim.on) { sim.root = project.activeId; simReset(); announce(T('a_sim_on')); } else announce(T('a_sim_off'));
+    if (sim.on) { sim.root = project.activeId; sim.frozen = []; simReset(); announce(T('a_sim_on')); } else announce(T('a_sim_off'));
   }
 
   /* ----- données : vue, copie, import ----- */
@@ -598,7 +620,7 @@ export const useUiStore = defineStore('ui', () => {
     startPending, cancelPending, completePending, addFree, doRenumber,
     openG, addGrafcet, dupGrafcet, delGrafcet,
     pick, pickFromText, focusHost, onHostFocus, goIssue, onKey,
-    simActive, simEnabled, simReset, simFire, toggleSim, toggleMacro, setExpansion, makeExpansion, setRole, openExpansion, parentsOfActive,
+    simActive, simEnabled, simForceable, simFrozenNow, simForce, simToggleStep, simReset, simFire, toggleSim, toggleMacro, setExpansion, makeExpansion, setRole, openExpansion, parentsOfActive,
     dataText, importReport, exportReport, downloadSfcEdit, downloadPlcopen, downloadArchive, canFolder, saveFolder, openFolder, copyMsg, importMsg, importText, copyData, downloadNative, applyImport, onFile,
     legalDoc, openLegal, closeLegal, syncLegalFromHash,
     cycleTheme, setLang, init,

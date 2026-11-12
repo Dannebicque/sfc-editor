@@ -11,7 +11,7 @@ const ui = useUiStore();
 const view = useViewStore();
 const { host } = storeToRefs(view);
 const { shapes, layout, gTransform, gridStyle } = storeToRefs(view);
-const { sel, sim, simActive, simEnabled, slotPos, sharedNum, citingActive, pending } = storeToRefs(ui);
+const { sel, sim, simActive, simEnabled, simForceable, simFrozenNow, slotPos, sharedNum, citingActive, pending } = storeToRefs(ui);
 const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump', 'link'] as const).map((k) => K.value[k]).join(', '));
 </script>
 
@@ -26,7 +26,7 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump', 'link'] a
         <g :transform="gTransform">
           <line v-for="(l, i) in layout.lines" :key="'l' + i" class="lk" :x1="l.x1" :y1="l.y1" :x2="l.x2" :y2="l.y2" />
           <template v-for="v in shapes" :key="v.id">
-            <g v-if="v.kind === 'step'" class="el" :class="{ active: simActive.has(v.id), linked: sharedNum !== null && v.num === sharedNum, cites: citingActive.has(v.id) }" @pointerdown.stop="ui.pick(v.id)" @dblclick.stop="v.macro && ui.openExpansion(v.id)">
+            <g v-if="v.kind === 'step'" class="el" :class="{ active: simActive.has(v.id), linked: sharedNum !== null && v.num === sharedNum, cites: citingActive.has(v.id) }" @pointerdown.stop="$event.shiftKey && sim.on ? ui.simToggleStep(v.id) : ui.pick(v.id)" @dblclick.stop="v.macro && ui.openExpansion(v.id)">
               <rect class="hit" :x="v.x - v.l" :y="v.ay" :width="v.l + v.r" :height="v.h + v.y - v.ay" />
               <g v-if="v.arrivals.length" class="arrival">
                 <text class="jtxt" :x="v.x" :y="v.ay + 11" text-anchor="middle">{{ v.arrivals.join(', ') }}</text>
@@ -99,8 +99,14 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump', 'link'] a
 
     <Toolbar />
     <div v-if="sim.on" class="simbar">
-      <p><b>{{ T('sim') }}</b>{{ T('colon') }}{{ T('sim_help') }}</p>
+      <p><b>{{ T('sim') }}</b>{{ T('colon') }}{{ T('sim_help') }} {{ T('sim_force_help') }}</p>
       <button class="btn solid" @click="ui.simReset()"><Icon n="reset" />{{ T('sim_reset') }}</button>
+      <div class="simforce" role="group" :aria-label="T('sim_force')">
+        <span class="tb-title">{{ T('sim_force') }}</span>
+        <button class="btn solid" :disabled="!simForceable" :title="T('sim_force_init_hint')" @click="ui.simForce({ kind: 'init' })"><code>{INIT}</code></button>
+        <button class="btn solid" :disabled="!simForceable" :title="T('sim_force_empty_hint')" @click="ui.simForce({ kind: 'empty' })"><code>{}</code></button>
+        <button class="btn solid" :disabled="!simForceable" :aria-pressed="simFrozenNow" :title="T('sim_force_freeze_hint')" @click="ui.simForce({ kind: simFrozenNow ? 'release' : 'freeze' })"><code>{*}</code></button>
+      </div>
     </div>
   </section>
 </template>

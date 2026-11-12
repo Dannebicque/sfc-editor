@@ -14,7 +14,7 @@ export function initialMarking(g: Grafcet): Set<string> {
  * Transitions validables : toutes les étapes amont sont actives.
  * Simulation à jetons : les réceptivités ne sont pas évaluées (prototype, voir ADR).
  */
-export function enabledTransitions(flat: FlatGraph, marking: Marking): Set<string> {
+export function enabledTransitions(flat: FlatGraph, marking: Marking, frozen?: { owner: ReadonlyMap<string, string>; grafcets: ReadonlySet<string> }): Set<string> {
   const preds = new Map<string, string[]>();
   for (const l of flat.links) {
     if (!preds.has(l.to)) preds.set(l.to, []);
@@ -23,6 +23,8 @@ export function enabledTransitions(flat: FlatGraph, marking: Marking): Set<strin
   const en = new Set<string>();
   for (const n of flat.nodes) {
     if (n.kind !== 'trans') continue;
+    // Un GRAFCET figé {*} n'évolue plus : aucune de ses transitions n'est franchissable.
+    if (frozen && frozen.grafcets.has(frozen.owner.get(n.id) ?? '')) continue;
     const p = preds.get(n.id) ?? [];
     // Une transition source (sans étape amont) est toujours validable ; sa réceptivité seule décide.
     if (p.every((x) => marking.has(x))) en.add(n.id);
@@ -49,6 +51,37 @@ export interface Simulation {
   members: Map<string, string[]>;
   /** GRAFCET inclus dans la simulation. */
   grafcets: Set<string>;
+  /** Étape ou transition → GRAFCET auquel elle appartient (les macro-étapes remplacées par leur expansion n'y figurent plus). */
+  owner: Map<string, string>;
+  /** Étapes initiales de chaque GRAFCET. */
+  initialOf: Map<string, string[]>;
+}
+
+/** Ordres de forçage IEC 60848 : `G{INIT}`, `G{}`, `G{*}`, `G{X1,X3}`, et la levée d'un figeage. */
+export type Forcing =
+  | { kind: 'init' }
+  | { kind: 'empty' }
+  | { kind: 'freeze' }
+  | { kind: 'release' }
+  | { kind: 'steps'; steps: readonly string[] };
+
+export interface SimState { marking: Set<string>; frozen: Set<string> }
+
+/**
+ * Applique un ordre de forçage au GRAFCET `gid` : la situation du seul GRAFCET visé est imposée
+ * (les autres ne sont pas touchés) ; figer ne change pas le marquage mais empêche toute évolution.
+ * Un forçage de situation prime sur la réceptivité des transitions et ne lève pas un figeage.
+ */
+export function applyForcing(sim: Simulation, state: SimState, gid: string, f: Forcing): SimState {
+  const own = [...sim.owner].filter(([, g]) => g === gid).map(([id]) => id);
+  const marking = new Set(state.marking);
+  const frozen = new Set(state.frozen);
+  if (f.kind === 'freeze') { frozen.add(gid); return { marking, frozen }; }
+  if (f.kind === 'release') { frozen.delete(gid); return { marking, frozen }; }
+  for (const id of own) marking.delete(id);
+  if (f.kind === 'init') for (const id of sim.initialOf.get(gid) ?? []) marking.add(id);
+  else if (f.kind === 'steps') for (const id of f.steps) if (sim.owner.get(id) === gid) marking.add(id);
+  return { marking, frozen };
 }
 
 /**
@@ -100,7 +133,21 @@ export function buildSimulation(P: Project, rootId: string): Simulation {
       if (rewire.has(it.id)) initial.add(rewire.get(it.id)!.entry!); else initial.add(it.id);
     }
   }
-  return { flat: { nodes: [...nodes.values()], links }, initial, members, grafcets };
+  const owner = new Map<string, string>();
+  const initialOf = new Map<string, string[]>();
+  for (const gid of grafcets) {
+    const g = P.grafcets.find((x) => x.id === gid)!;
+    const ini: string[] = [];
+    for (const it of nodesOf(g)) {
+      if (!nodes.has(it.id)) continue;
+      owner.set(it.id, gid);
+      if (it.kind === 'step' && it.initial) ini.push(it.id);
+    }
+    // Une macro-étape initiale est remplacée par l'étape d'entrée de son expansion.
+    for (const it of nodesOf(g)) if (it.kind === 'step' && it.initial && rewire.has(it.id)) ini.push(rewire.get(it.id)!.entry!);
+    initialOf.set(gid, ini);
+  }
+  return { flat: { nodes: [...nodes.values()], links }, initial, members, grafcets, owner, initialOf };
 }
 
 /** Une macro-étape est active dès qu'une étape de son expansion l'est. */
