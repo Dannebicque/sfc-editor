@@ -7,7 +7,7 @@ import {
 } from '@grafcet/core';
 import { createExpansion, macrosOf, referencesTo, setMacro } from '@grafcet/core';
 import { exportArchive, exportFolder, importArchive, importFolder, looksLikeZip, type FolderFile, exportNative, exportSfcEditXml, FORMAT_ID, importJson, importNative, importSfcEditXml, looksLikeSfcEditXml, exportPlcopenXml, importPlcopenXml, looksLikePlcopenXml, ImportError, type ReportEntry } from '@grafcet/io';
-import { applyForcing, buildSimulation, enabledTransitions, fire, macroActive, type Forcing } from '@grafcet/simulation';
+import { applyForcing, buildSimulation, enabledTransitions, fire, frozenGrafcets, macroActive, settle, type Forcing } from '@grafcet/simulation';
 import { describeText, renderMessage } from '../format';
 import { isLegalDocId, type LegalDocId } from '../legal';
 import { applyLang, kindLabel, KEYMAP, LS_PREFIX, T, lang, type Lang } from '../i18n';
@@ -389,17 +389,23 @@ export const useUiStore = defineStore('ui', () => {
     for (const id of g.members.keys()) if (macroActive(g, marking, id)) out.add(id);
     return out;
   });
-  const simEnabled = computed(() => (simGraph.value ? enabledTransitions(simGraph.value.flat, new Set(sim.active), { owner: simGraph.value.owner, grafcets: new Set(sim.frozen) }) : new Set<string>()));
+  /** Marquage et figeages (manuels) après application des ordres de forçage des étapes actives. */
+  const simState = (marking: Iterable<string>, frozen: string[] = sim.frozen) => settle(simGraph.value!, { marking: new Set(marking), frozen: new Set(frozen) });
+  /** GRAFCET figés, à la main ou par un ordre actif. */
+  const simFrozenAll = computed(() => (simGraph.value ? frozenGrafcets(simGraph.value, { marking: new Set(sim.active), frozen: new Set(sim.frozen) }) : new Set<string>()));
+  const simFrozenNames = computed(() => projectRef.value.grafcets.filter((g) => simFrozenAll.value.has(g.id)).map((g) => g.name));
+  const simUnresolved = computed(() => [...new Set((simGraph.value?.unresolved ?? []).map((u) => u.text))]);
+  const simEnabled = computed(() => (simGraph.value ? enabledTransitions(simGraph.value.flat, new Set(sim.active), { owner: simGraph.value.owner, grafcets: simFrozenAll.value }) : new Set<string>()));
   /** Le GRAFCET affiché fait partie de la simulation (les ordres de forçage le visent). */
   const simForceable = computed(() => !!simGraph.value?.grafcets.has(project.activeId));
   const simFrozenNow = computed(() => sim.frozen.includes(project.activeId));
-  function simReset(): void { if (simGraph.value) { sim.active = [...simGraph.value.initial]; sim.frozen = []; } }
+  function simReset(): void { if (simGraph.value) { sim.frozen = []; sim.active = [...simState(simGraph.value.initial, []).marking]; } }
   /** Ordre de forçage IEC 60848 sur le GRAFCET affiché : {INIT}, {}, {*} (figer / libérer). */
   function simForce(f: Forcing): void {
     const sg = simGraph.value;
     if (!sg || !simForceable.value) return;
     const r = applyForcing(sg, { marking: new Set(sim.active), frozen: new Set(sim.frozen) }, project.activeId, f);
-    sim.active = [...r.marking]; sim.frozen = [...r.frozen];
+    sim.active = [...simState(r.marking, [...r.frozen]).marking]; sim.frozen = [...r.frozen];
     announce(T('a_force_' + f.kind));
   }
   /** Maj + clic sur une étape : l'active ou la désactive (forçage de situation du GRAFCET qui la porte). */
@@ -410,10 +416,10 @@ export const useUiStore = defineStore('ui', () => {
     const own = sim.active.filter((x) => sg.owner.get(x) === gid);
     const steps = own.includes(id) ? own.filter((x) => x !== id) : [...own, id];
     const r = applyForcing(sg, { marking: new Set(sim.active), frozen: new Set(sim.frozen) }, gid, { kind: 'steps', steps });
-    sim.active = [...r.marking];
+    sim.active = [...simState(r.marking).marking];
     announce(T(own.includes(id) ? 'a_force_off' : 'a_force_on'));
   }
-  function simFire(tid: string): void { if (!simGraph.value) return; sim.active = [...fire(simGraph.value.flat, new Set(sim.active), tid)]; announce(T('a_fired')); }
+  function simFire(tid: string): void { if (!simGraph.value) return; sim.active = [...simState(fire(simGraph.value.flat, new Set(sim.active), tid)).marking]; announce(T('a_fired')); }
   function toggleSim(): void {
     sim.on = !sim.on;
     if (sim.on) { sim.root = project.activeId; sim.frozen = []; simReset(); announce(T('a_sim_on')); } else announce(T('a_sim_off'));
@@ -620,7 +626,7 @@ export const useUiStore = defineStore('ui', () => {
     startPending, cancelPending, completePending, addFree, doRenumber,
     openG, addGrafcet, dupGrafcet, delGrafcet,
     pick, pickFromText, focusHost, onHostFocus, goIssue, onKey,
-    simActive, simEnabled, simForceable, simFrozenNow, simForce, simToggleStep, simReset, simFire, toggleSim, toggleMacro, setExpansion, makeExpansion, setRole, openExpansion, parentsOfActive,
+    simActive, simEnabled, simFrozenNames, simUnresolved, simForceable, simFrozenNow, simForce, simToggleStep, simReset, simFire, toggleSim, toggleMacro, setExpansion, makeExpansion, setRole, openExpansion, parentsOfActive,
     dataText, importReport, exportReport, downloadSfcEdit, downloadPlcopen, downloadArchive, canFolder, saveFolder, openFolder, copyMsg, importMsg, importText, copyData, downloadNative, applyImport, onFile,
     legalDoc, openLegal, closeLegal, syncLegalFromHash,
     cycleTheme, setLang, init,

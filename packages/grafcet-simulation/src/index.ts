@@ -1,4 +1,4 @@
-import { flatten, isMacro, macrosOf, nodesOf, type FlatGraph, type Grafcet, type Project } from '@grafcet/core';
+import { flatten, isMacro, macrosOf, nodesOf, parseForcingOrder, sameStepNum, type FlatGraph, type Grafcet, type Project } from '@grafcet/core';
 
 /** Marquage : ensemble des ids d'étapes actives. */
 export type Marking = ReadonlySet<string>;
@@ -55,6 +55,10 @@ export interface Simulation {
   owner: Map<string, string>;
   /** Étapes initiales de chaque GRAFCET. */
   initialOf: Map<string, string[]>;
+  /** Ordres de forçage portés par des étapes (`G2{INIT}` dans une action) : actifs tant que l'étape l'est. */
+  orders: Map<string, { target: string; forcing: Forcing }[]>;
+  /** Ordres dont le GRAFCET visé est introuvable (étape qui les porte, texte de l'action). */
+  unresolved: { step: string; text: string }[];
 }
 
 /** Ordres de forçage IEC 60848 : `G{INIT}`, `G{}`, `G{*}`, `G{X1,X3}`, et la levée d'un figeage. */
@@ -89,6 +93,9 @@ export function applyForcing(sim: Simulation, state: SimState, gid: string, f: F
  * l'étape d'entrée de son expansion, et une liaison depuis la macro-étape part de l'étape de sortie.
  * Une macro-étape sans expansion exploitable reste une étape ordinaire.
  */
+/** Ordre de forçage porté par une action continue (les actions conditionnelles ou sur événement ne sont pas évaluées ici). */
+const forcingOf = (a: { kind: string; label: string }) => (a.kind === 'continue' || a.kind === 'activation' ? parseForcingOrder(a.label) : null);
+
 export function buildSimulation(P: Project, rootId: string): Simulation {
   const nodes = new Map<string, FlatGraph['nodes'][number]>();
   let links: FlatGraph['links'] = [];
@@ -116,6 +123,15 @@ export function buildSimulation(P: Project, rootId: string): Simulation {
         if (it.role === 'exit') exit = it.id;
       }
       if (entry && exit) { members.set(m.id, ids); rewire.set(m.id, { entry, exit }); }
+    }
+    // Les GRAFCET visés par un ordre de forçage font partie de la simulation.
+    for (const it of nodesOf(g)) {
+      if (it.kind !== 'step') continue;
+      for (const a of it.actions) {
+        const o = forcingOf(a);
+        const x = o && P.grafcets.find((y) => y.name === o.target);
+        if (x) include(x);
+      }
     }
   }
   const root = P.grafcets.find((g) => g.id === rootId) ?? P.grafcets[0]!;
@@ -147,7 +163,28 @@ export function buildSimulation(P: Project, rootId: string): Simulation {
     for (const it of nodesOf(g)) if (it.kind === 'step' && it.initial && rewire.has(it.id)) ini.push(rewire.get(it.id)!.entry!);
     initialOf.set(gid, ini);
   }
-  return { flat: { nodes: [...nodes.values()], links }, initial, members, grafcets, owner, initialOf };
+  const orders = new Map<string, { target: string; forcing: Forcing }[]>();
+  const unresolved: { step: string; text: string }[] = [];
+  for (const gid of grafcets) {
+    for (const it of nodesOf(P.grafcets.find((x) => x.id === gid)!)) {
+      if (it.kind !== 'step' || !nodes.has(it.id)) continue;
+      for (const a of it.actions) {
+        const o = forcingOf(a);
+        if (!o) continue;
+        const target = P.grafcets.find((y) => y.name === o.target);
+        if (!target) { unresolved.push({ step: it.id, text: a.label }); continue; }
+        let forcing: Forcing;
+        if (o.what.kind === 'steps') {
+          const refs = o.what.steps;
+          forcing = { kind: 'steps', steps: nodesOf(target).filter((n) => n.kind === 'step' && refs.some((r) => sameStepNum(String(n.num), r))).map((n) => n.id) };
+        } else forcing = o.what;
+        const l = orders.get(it.id) ?? [];
+        l.push({ target: target.id, forcing });
+        orders.set(it.id, l);
+      }
+    }
+  }
+  return { flat: { nodes: [...nodes.values()], links }, initial, members, grafcets, owner, initialOf, orders, unresolved };
 }
 
 /** Une macro-étape est active dès qu'une étape de son expansion l'est. */
@@ -155,3 +192,26 @@ export const macroActive = (sim: Simulation, marking: Marking, macroId: string):
   (sim.members.get(macroId) ?? []).some((id) => marking.has(id));
 
 export { isMacro };
+
+
+/** GRAFCET figés : ceux que l'utilisateur a figés, et ceux visés par un ordre `{*}` dont l'étape est active. */
+export function frozenGrafcets(sim: Simulation, state: SimState): Set<string> {
+  const out = new Set(state.frozen);
+  for (const id of state.marking) for (const o of sim.orders.get(id) ?? []) if (o.forcing.kind === 'freeze') out.add(o.target);
+  return out;
+}
+
+/**
+ * Applique les ordres de forçage des étapes actives jusqu'à stabilité (un ordre peut en désactiver un autre).
+ * Un ordre actif impose sa situation à chaque évolution : elle prime sur le franchissement des transitions.
+ */
+export function settle(sim: Simulation, state: SimState): SimState {
+  let cur = state;
+  for (let i = 0; i < 10; i++) {
+    let next = cur;
+    for (const id of cur.marking) for (const o of sim.orders.get(id) ?? []) if (o.forcing.kind !== 'freeze') next = applyForcing(sim, next, o.target, o.forcing);
+    if (next.marking.size === cur.marking.size && [...next.marking].every((x) => cur.marking.has(x))) return next;
+    cur = next;
+  }
+  return cur;
+}

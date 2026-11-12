@@ -49,6 +49,8 @@
   "colon": " : ",
   "sim_help": "cliquez une transition en surbrillance pour la franchir.",
   "sim_reset": "Réinitialiser",
+  "sim_frozen": "Figé : {g}",
+  "sim_unresolved": "GRAFCET introuvable dans : {a}",
   "sim_force": "Forçage",
   "sim_force_init_hint": "Forçage INIT : remet le GRAFCET affiché dans sa situation initiale",
   "sim_force_empty_hint": "Forçage vide : désactive toutes les étapes du GRAFCET affiché",

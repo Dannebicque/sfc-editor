@@ -49,6 +49,8 @@
   "colon": ": ",
   "sim_help": "click a highlighted transition to fire it.",
   "sim_reset": "Reset",
+  "sim_frozen": "Frozen: {g}",
+  "sim_unresolved": "GRAFCET not found in: {a}",
   "sim_force": "Forcing",
   "sim_force_init_hint": "INIT forcing: puts the displayed GRAFCET back in its initial situation",
   "sim_force_empty_hint": "Empty forcing: deactivates every step of the displayed GRAFCET",

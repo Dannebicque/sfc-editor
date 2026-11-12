@@ -11,7 +11,7 @@ const ui = useUiStore();
 const view = useViewStore();
 const { host } = storeToRefs(view);
 const { shapes, layout, gTransform, gridStyle } = storeToRefs(view);
-const { sel, sim, simActive, simEnabled, simForceable, simFrozenNow, slotPos, sharedNum, citingActive, pending } = storeToRefs(ui);
+const { sel, sim, simActive, simEnabled, simForceable, simFrozenNow, simFrozenNames, simUnresolved, slotPos, sharedNum, citingActive, pending } = storeToRefs(ui);
 const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump', 'link'] as const).map((k) => K.value[k]).join(', '));
 </script>
 
@@ -101,6 +101,8 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump', 'link'] a
     <div v-if="sim.on" class="simbar">
       <p><b>{{ T('sim') }}</b>{{ T('colon') }}{{ T('sim_help') }} {{ T('sim_force_help') }}</p>
       <button class="btn solid" @click="ui.simReset()"><Icon n="reset" />{{ T('sim_reset') }}</button>
+      <p v-if="simFrozenNames.length" class="simnote" role="status">{{ T('sim_frozen', { g: simFrozenNames.join(', ') }) }}</p>
+      <p v-if="simUnresolved.length" class="simnote warn">{{ T('sim_unresolved', { a: simUnresolved.join(', ') }) }}</p>
       <div class="simforce" role="group" :aria-label="T('sim_force')">
         <span class="tb-title">{{ T('sim_force') }}</span>
         <button class="btn solid" :disabled="!simForceable" :title="T('sim_force_init_hint')" @click="ui.simForce({ kind: 'init' })"><code>{INIT}</code></button>
