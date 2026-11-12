@@ -20,7 +20,7 @@ describe('SFCEdit : Separating Station', () => {
   });
   it('GAST : renvois vers X2_1 et X6_5 portés par une branche vide de divergence ET', () => {
     const step = (n: string) => nodesOf(gast).find((x) => x.kind === 'step' && x.num === n)!;
-    for (const n of ['X2_1', 'X6_5']) {
+    for (const n of ['2_1', '6_5']) {
       const from = gast.jumps.filter((j) => j.to === step(n).id).map((j) => gast.seqs.find((q) => q.id === j.from)!);
       expect(from.some((q) => q.items.length === 0)).toBe(true);
     }
@@ -34,6 +34,13 @@ describe('SFCEdit : Separating Station', () => {
       const g = model.grafcets.find((x) => x.name === n)!;
       expect(validateGrafcet(g).filter((i) => i.level === 'error')).toEqual([]);
     }
+  });
+  it('les noms X2_1, X1_2… sont affichés 2_1, 1_2… (comme SFCEdit) et réexportés avec leur X', () => {
+    const nums = nodesOf(gast).filter((n) => n.kind === 'step').map((n) => String(n.num));
+    expect(nums).toEqual(expect.arrayContaining(['2_1', '1_2', '5_6', '6_5', '30']));
+    expect(nums.some((n) => /^X\d/.test(n))).toBe(false);
+    expect(exportSfcEditXml(model).output).toContain('name="X2_1"');
+    expect(validateGrafcet(gast).filter((i) => i.level === 'error')).toEqual([]);
   });
   it('aller-retour SFCEdit : GAST reste valide', () => {
     const out = exportSfcEditXml(model).output;

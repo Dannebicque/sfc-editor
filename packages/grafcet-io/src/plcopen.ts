@@ -22,7 +22,7 @@ const err = (key: string, p?: Params) => entry('error', key, p);
 export const looksLikePlcopenXml = (text: string): boolean => /plcopen\.org\/xml\/tc6/.test(text) && /<project[\s>]/.test(text);
 
 /** Nom ST d'une étape : `X12` pour un identifiant numérique, sinon l'identifiant lui-même. */
-const stepName = (num: string): string => (/^\d+$/.test(num) ? 'X' + num : num);
+const stepName = (num: string): string => (/^\d/.test(num) ? 'X' + num : num);
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /* ------------------------------------------------------------------ export */

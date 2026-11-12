@@ -57,7 +57,7 @@ function importGrafcet(P: Project, gx: XNode, report: ReportEntry[], index: numb
     for (const c of elements(sx)) {
       if (c.tag === 'step') {
         const rawName = (c.attrs.name ?? '').trim();
-        const m = /^X(\d+)$/i.exec(rawName);
+        const m = /^X(\d\w*)$/i.exec(rawName);
         const type = c.attrs.type ?? 'normal';
         if (type !== 'normal' && type !== 'initial') report.push(warn('rep_step_type', { g: g.name, type, name: c.attrs.name ?? '?' }));
         const step: Extract<Node, { kind: 'step' }> = {
@@ -230,7 +230,7 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
   let actionKinds = false, macroFlag = false;
 
   function stepXml(it: Extract<Node, { kind: 'step' }>): string {
-    const attrs = `type="${it.initial ? 'initial' : 'normal'}" name="${/^\d+$/.test(it.num) ? 'X' + it.num : esc(it.num)}"` + (it.name ? ` x-label="${esc(it.name)}"` : '');
+    const attrs = `type="${it.initial ? 'initial' : 'normal'}" name="${/^\d/.test(it.num) ? 'X' + esc(it.num) : esc(it.num)}"` + (it.name ? ` x-label="${esc(it.name)}"` : '');
     if (it.name) flags.labels = true;
     if (it.expansion !== undefined) macroFlag = true;
     if (!it.actions.length) return `\t\t\t<step ${attrs} />`;
