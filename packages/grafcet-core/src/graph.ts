@@ -60,6 +60,9 @@ export { other as alternate };
  *  - une fin de séquence n'est utilisée qu'une fois (base de divergence, branche de convergence ou renvoi), un début aussi ;
  *  - le graphe des liens n'a pas de cycle ; un lien a au moins deux branches.
  */
+/** Une séquence est branche d'une divergence ET (sa tête est alors une étape). */
+export const isAndBranch = (g: Grafcet, seqId: string): boolean => g.links.some((l) => l.kind === 'div' && l.op === 'and' && l.nodes.includes(seqId));
+
 export interface Violation { key: string; id: string }
 
 /** Toutes les violations structurelles (clé de message + identifiant concerné). Vide = graphe valide. */
@@ -110,13 +113,15 @@ export function violations(g: Grafcet): Violation[] {
   }
   for (const j of g.jumps) {
     const s = ix.seq.get(j.from);
-    if (!s || !s.items.length) { bad('chk_jump_from', j.id); continue; }
+    // Un renvoi part de la fin d'une séquence, ou d'une branche vide de divergence ET (la barre arrive alors directement sur l'étape cible).
+    const andBranch = !!s && !s.items.length && isAndBranch(g, s.id);
+    if (!s || (!s.items.length && !andBranch)) { bad('chk_jump_from', j.id); continue; }
     if (endUsed.has(j.from)) bad('chk_end_used', j.from);
     endUsed.add(j.from);
     if (j.to !== null) {
       const t = ix.node.get(j.to);
       if (!t) bad('chk_ref', j.id);
-      else if (t.item.kind === last(s)!.kind) bad('chk_jump_kind', j.id);
+      else if (t.item.kind === (andBranch ? 'trans' : last(s)!.kind)) bad('chk_jump_kind', j.id);
     }
   }
   // Pas de cycle dans le graphe des liens (une boucle se fait avec un renvoi).
@@ -189,7 +194,9 @@ export function flatten(g: Grafcet): FlatGraph {
     }
   }
   for (const j of g.jumps) {
-    const a = last(ix.seq.get(j.from));
+    const from = ix.seq.get(j.from);
+    // Branche vide de divergence ET : le renvoi part de la dernière transition avant la barre.
+    const a = from?.items.length ? last(from) : g.links.filter((l) => l.kind === 'div' && l.op === 'and' && l.nodes.includes(j.from)).map((l) => last(l.base ? ix.seq.get(l.base) : undefined)).find(Boolean);
     if (a && j.to) links.push({ from: a.id, to: j.to, jump: true });
   }
   return { nodes, links };

@@ -1,0 +1,697 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+	<grafcet type="normal" owner="" name="Gtempo" comment="">
+		<sequence id="1">
+			<step type="initial" name="X60" />
+			<transition>
+				<condition>500ms/X60</condition>
+			</transition>
+			<step type="normal" name="X61" />
+			<transition>
+				<condition>500ms/X61</condition>
+			</transition>
+		</sequence>
+		<jump seqid_from="1" seqid_to="1" />
+	</grafcet>
+	<grafcet type="normal" owner="" name="GMMA" comment="">
+		<sequence id="1">
+			<step type="initial" name="X100">
+				<action type="on deact">
+					<text>Count1:=999</text>
+				</action>
+				<action type="on deact">
+					<text>Count2:=999</text>
+				</action>
+				<action type="conditional">
+					<condition>X61</condition>
+					<text>VL_start</text>
+				</action>
+			</step>
+			<transition>
+				<condition><re />bp_start</condition>
+				<action type="normal">
+					<text>Count1:=0</text>
+				</action>
+				<action type="normal">
+					<text>Count2:=0</text>
+				</action>
+				<action type="normal">
+					<text>blue1:=blue01</text>
+				</action>
+				<action type="normal">
+					<text>blue2:=blue02</text>
+				</action>
+			</transition>
+			<step type="normal" name="X101">
+				<action type="on event">
+					<condition><fe />fpc1</condition>
+					<text>Count1:=Count1+1</text>
+				</action>
+				<action type="on event">
+					<condition><fe />fpc2</condition>
+					<text>Count2:=Count2+1</text>
+				</action>
+				<action type="conditional">
+					<condition>X61</condition>
+					<text>VL_stop</text>
+				</action>
+				<action type="conditional">
+					<condition><cpl>XT3O</cpl>.<cpl>XT7O</cpl>.<cpl>XT3I</cpl></condition>
+					<text>C1</text>
+				</action>
+				<action type="conditional">
+					<condition><cpl>XT3O</cpl>.<cpl>XT7O</cpl>.<cpl>XT7I</cpl></condition>
+					<text>C2</text>
+				</action>
+				<action type="conditional">
+					<condition>X61.(blue1.<cpl>blue01</cpl>+<cpl>blue1</cpl>.blue01+blue2.<cpl>blue02</cpl>+<cpl>blue2</cpl>.blue02)</condition>
+					<text>VL_reset</text>
+				</action>
+			</step>
+			<transition>
+				<condition><fe />bp_stop</condition>
+			</transition>
+			<step type="normal" name="X102">
+				<action type="on event">
+					<condition><fe />fpc1</condition>
+					<text>Count1:=Count1+1</text>
+				</action>
+				<action type="on event">
+					<condition><fe />fpc2</condition>
+					<text>Count2:=Count2+1</text>
+				</action>
+			</step>
+			<transition>
+				<condition>X2_1.X6_5.X30.XT1_1.XT2_1.XT3_1.XT4_1.XT5_1.XT6_1.XT7_1.XT8_1.XT3A1.XT7A1</condition>
+			</transition>
+		</sequence>
+		<jump seqid_from="1" seqid_to="1" />
+	</grafcet>
+	<grafcet type="normal" owner="" name="GAST" comment="">
+		<sequence id="1" />
+		<sequence id="2" />
+		<sequence id="3" />
+		<sequence id="4" />
+		<sequence id="5" />
+		<sequence id="6">
+			<transition>
+				<condition>1</condition>
+			</transition>
+		</sequence>
+		<sequence id="7">
+			<step type="task" name="XT4B">
+				<action type="normal">
+					<text>T4</text>
+				</action>
+			</step>
+			<transition>
+				<condition>XT4_F</condition>
+			</transition>
+			<step type="normal" name="X13" />
+		</sequence>
+		<sequence id="8">
+			<step type="task" name="XT7I">
+				<action type="normal">
+					<text>T7I</text>
+				</action>
+			</step>
+			<transition>
+				<condition>X7AF</condition>
+			</transition>
+			<step type="normal" name="X12" />
+		</sequence>
+		<sequence id="9">
+			<transition>
+				<condition>XT6A.XT6_F.<cpl>flag2c1</cpl></condition>
+			</transition>
+			<step type="task" name="XT7O">
+				<action type="normal">
+					<text>T7O</text>
+				</action>
+			</step>
+			<transition>
+				<condition>XT7_F</condition>
+			</transition>
+		</sequence>
+		<sequence id="10">
+			<transition>
+				<condition>XT6A.XT6_F.flag2c1</condition>
+			</transition>
+			<step type="task" name="XT8A">
+				<action type="normal">
+					<text>T8</text>
+				</action>
+			</step>
+			<transition>
+				<condition>XT8_F</condition>
+			</transition>
+		</sequence>
+		<sequence id="11">
+			<transition>
+				<condition>1</condition>
+			</transition>
+		</sequence>
+		<sequence id="12">
+			<step type="task" name="XT8B">
+				<action type="normal">
+					<text>T8</text>
+				</action>
+			</step>
+			<transition>
+				<condition>XT8_F</condition>
+			</transition>
+			<step type="normal" name="X11" />
+		</sequence>
+		<sequence id="13">
+			<step type="task" name="XT3I">
+				<action type="normal">
+					<text>T3I</text>
+				</action>
+			</step>
+			<transition>
+				<condition>X3AF</condition>
+			</transition>
+			<step type="normal" name="X10" />
+		</sequence>
+		<sequence id="14">
+			<transition>
+				<condition>XT2A.XT2_F.flag1c1</condition>
+			</transition>
+			<step type="task" name="XT4A">
+				<action type="normal">
+					<text>T4</text>
+				</action>
+			</step>
+			<transition>
+				<condition>XT4_F</condition>
+			</transition>
+		</sequence>
+		<sequence id="15">
+			<transition>
+				<condition>XT2A.XT2_F.<cpl>flag1c1</cpl></condition>
+			</transition>
+			<step type="task" name="XT3O">
+				<action type="normal">
+					<text>T3O</text>
+				</action>
+			</step>
+			<transition>
+				<condition>XT3_F</condition>
+			</transition>
+		</sequence>
+		<sequence id="16" />
+		<sequence id="17">
+			<transition>
+				<condition>X1_2.<cpl>XT2B</cpl>.<cpl>XT4C</cpl>.(flag_sim+<cpl>X5_6</cpl>).(flag1c+<cpl>XT6B</cpl>.<cpl>XT8C</cpl>)</condition>
+				<action type="conditional">
+					<condition>X5_6</condition>
+					<text>flag_sim:=0</text>
+				</action>
+				<action type="normal">
+					<text>flag1c1:=p1_blue.blue1+<cpl>p1_blue</cpl>.<cpl>blue1</cpl></text>
+				</action>
+			</transition>
+			<step type="normal" name="X2" />
+		</sequence>
+		<sequence id="18">
+			<transition>
+				<condition>X5_6.<cpl>XT6B</cpl>.<cpl>XT8C</cpl>.(<cpl>flag_sim</cpl>+<cpl>X1_2</cpl>).(flag2c+<cpl>XT2B</cpl>.<cpl>XT4C</cpl>)</condition>
+				<action type="conditional">
+					<condition>X1_2</condition>
+					<text>flag_sim:=1</text>
+				</action>
+				<action type="normal">
+					<text>flag2c1:=p2_blue.blue2+<cpl>p2_blue</cpl>.<cpl>blue2</cpl></text>
+				</action>
+			</transition>
+			<step type="normal" name="X6" />
+		</sequence>
+		<sequence id="19">
+			<transition>
+				<condition>0</condition>
+			</transition>
+		</sequence>
+		<sequence id="20">
+			<step type="initial" name="X30" />
+		</sequence>
+		<sequence id="21">
+			<transition>
+				<condition>0</condition>
+			</transition>
+		</sequence>
+		<sequence id="22">
+			<transition>
+				<condition>0</condition>
+			</transition>
+		</sequence>
+		<sequence id="23">
+			<step type="normal" name="X0" />
+		</sequence>
+		<sequence id="24">
+			<step type="task" name="XT4C">
+				<action type="normal">
+					<text>T4</text>
+				</action>
+			</step>
+			<transition>
+				<condition>XT4_F</condition>
+			</transition>
+		</sequence>
+		<sequence id="25">
+			<step type="task" name="XT8C">
+				<action type="normal">
+					<text>T8</text>
+				</action>
+			</step>
+			<transition>
+				<condition>XT8_F</condition>
+			</transition>
+		</sequence>
+		<sequence id="26" />
+		<sequence id="27" />
+		<sequence id="28">
+			<transition>
+				<condition>X30.<cpl>XT2B</cpl>.<cpl>XT4C</cpl>.(flag_sim+<cpl>X5_6</cpl>).(flag1c+<cpl>XT6B</cpl>.<cpl>XT8C</cpl>)</condition>
+			</transition>
+			<step type="task" name="XT2A">
+				<action type="normal">
+					<text>T2</text>
+				</action>
+			</step>
+			<transition>
+				<condition>XT2_F</condition>
+			</transition>
+		</sequence>
+		<sequence id="29">
+			<transition>
+				<condition>flag1c.<cpl>XT4A</cpl>.<cpl>XT4B</cpl>.<cpl>XT4C</cpl>.(<cpl>X30</cpl>.(X6.flag2c1+XT8A)+X30.X5_6.<cpl>flag_sim</cpl>.(flag2c+XT6B+XT8C))</condition>
+			</transition>
+			<step type="task" name="XT2B">
+				<action type="normal">
+					<text>T2</text>
+				</action>
+			</step>
+			<transition>
+				<condition>XT2_F</condition>
+			</transition>
+		</sequence>
+		<sequence id="30">
+			<step type="initial" name="X2_1" />
+			<transition>
+				<condition>X101</condition>
+			</transition>
+			<step type="task" name="XT1">
+				<action type="normal">
+					<text>T1</text>
+				</action>
+			</step>
+			<transition>
+				<condition>XT1_F</condition>
+				<action type="normal">
+					<text>flag1c:=p1_blue.blue1+<cpl>p1_blue</cpl>.<cpl>blue1</cpl></text>
+				</action>
+			</transition>
+			<step type="normal" name="X1_2" />
+		</sequence>
+		<sequence id="31">
+			<transition>
+				<condition> X30.<cpl>XT6B</cpl>.<cpl>XT8C</cpl>.(<cpl>flag_sim</cpl>+<cpl>X1_2</cpl>).(flag2c+<cpl>XT2B</cpl>.<cpl>XT4C</cpl>)</condition>
+			</transition>
+			<step type="task" name="XT6A">
+				<action type="normal">
+					<text>T6</text>
+				</action>
+			</step>
+			<transition>
+				<condition>XT6_F</condition>
+			</transition>
+		</sequence>
+		<sequence id="32">
+			<transition>
+				<condition>flag2c.<cpl>XT8A</cpl>.<cpl>XT8B</cpl>.<cpl>XT8C</cpl>.(<cpl>X30</cpl>.(X2.flag1c1+XT4A)+X30.X1_2.flag_sim.(flag1c+XT2B+XT4C))</condition>
+			</transition>
+			<step type="task" name="XT6B">
+				<action type="normal">
+					<text>T6</text>
+				</action>
+			</step>
+			<transition>
+				<condition>XT6_F</condition>
+			</transition>
+		</sequence>
+		<sequence id="33">
+			<step type="initial" name="X6_5" />
+			<transition>
+				<condition>X101</condition>
+			</transition>
+			<step type="task" name="XT5">
+				<action type="normal">
+					<text>T5</text>
+				</action>
+			</step>
+			<transition>
+				<condition>XT5_F</condition>
+				<action type="normal">
+					<text>flag2c:=p2_blue.blue2+<cpl>p2_blue</cpl>.<cpl>blue2</cpl></text>
+				</action>
+			</transition>
+			<step type="normal" name="X5_6" />
+		</sequence>
+		<hlink type="div or" seqid="20">
+			<node seqid="17" />
+			<node seqid="18" />
+		</hlink>
+		<hlink type="conv or" seqid="27">
+			<node seqid="11" />
+			<node seqid="14" />
+			<node seqid="10" />
+			<node seqid="6" />
+		</hlink>
+		<hlink type="div or" seqid="30">
+			<node seqid="29" />
+			<node seqid="28" />
+		</hlink>
+		<hlink type="conv or" seqid="30">
+			<node seqid="16" />
+			<node seqid="22" />
+		</hlink>
+		<hlink type="div or" seqid="33">
+			<node seqid="31" />
+			<node seqid="32" />
+		</hlink>
+		<hlink type="conv or" seqid="33">
+			<node seqid="19" />
+			<node seqid="5" />
+		</hlink>
+		<hlink type="div and" seqid="32">
+			<node seqid="4" />
+			<node seqid="25" />
+		</hlink>
+		<hlink type="div and" seqid="29">
+			<node seqid="24" />
+			<node seqid="2" />
+		</hlink>
+		<hlink type="div or" seqid="23">
+			<node seqid="22" />
+			<node seqid="21" />
+			<node seqid="19" />
+		</hlink>
+		<hlink type="conv or" seqid="20">
+			<node seqid="21" />
+			<node seqid="26" />
+		</hlink>
+		<hlink type="div or" seqid="17">
+			<node seqid="15" />
+			<node seqid="14" />
+		</hlink>
+		<hlink type="div and" seqid="15">
+			<node seqid="13" />
+			<node seqid="12" />
+		</hlink>
+		<hlink type="conv and" seqid="11">
+			<node seqid="13" />
+			<node seqid="12" />
+		</hlink>
+		<hlink type="div or" seqid="18">
+			<node seqid="10" />
+			<node seqid="9" />
+		</hlink>
+		<hlink type="div and" seqid="9">
+			<node seqid="8" />
+			<node seqid="7" />
+		</hlink>
+		<hlink type="conv and" seqid="6">
+			<node seqid="8" />
+			<node seqid="7" />
+		</hlink>
+		<hlink type="conv or" seqid="3">
+			<node seqid="31" />
+			<node seqid="4" />
+		</hlink>
+		<hlink type="conv or" seqid="1">
+			<node seqid="2" />
+			<node seqid="28" />
+		</hlink>
+		<jump seqid_from="27" seqid_to="26" />
+		<jump seqid_from="1" seqid_to="16" />
+		<jump seqid_from="3" seqid_to="5" />
+	</grafcet>
+	<grafcet type="normal" owner="" name="GT1" comment="">
+		<sequence id="1">
+			<step type="initial" name="XT1_1" />
+			<transition>
+				<condition>XT1</condition>
+				<action type="normal">
+					<text>p1_blue:=0</text>
+				</action>
+			</transition>
+			<step type="normal" name="X24">
+				<action type="normal">
+					<text>CE1</text>
+				</action>
+			</step>
+			<transition>
+				<condition>[dcc1=1]+[dcc1=4]</condition>
+				<action type="normal">
+					<text>p1_blue:=[dcc1=1]</text>
+				</action>
+			</transition>
+			<step type="normal" name="XT1_F" />
+			<transition>
+				<condition><cpl>XT1</cpl></condition>
+			</transition>
+		</sequence>
+		<jump seqid_from="1" seqid_to="1" />
+	</grafcet>
+	<grafcet type="normal" owner="" name="GT2" comment="">
+		<sequence id="1">
+			<step type="initial" name="XT2_1" />
+			<transition>
+				<condition>XT2A+XT2B</condition>
+			</transition>
+			<step type="normal" name="X14">
+				<action type="normal">
+					<text>CE1</text>
+				</action>
+				<action type="normal">
+					<text>C1</text>
+				</action>
+			</step>
+			<transition>
+				<condition>ec1</condition>
+			</transition>
+			<step type="normal" name="X26">
+				<action type="normal">
+					<text>CE1</text>
+				</action>
+				<action type="normal">
+					<text>C1</text>
+				</action>
+			</step>
+			<transition>
+				<condition><cpl>ec1</cpl></condition>
+			</transition>
+			<step type="normal" name="XT2_F" />
+			<transition>
+				<condition><cpl>XT2A+XT2B</cpl></condition>
+			</transition>
+		</sequence>
+		<jump seqid_from="1" seqid_to="1" />
+	</grafcet>
+	<grafcet type="normal" owner="" name="GT3O" comment="">
+		<sequence id="1">
+			<step type="initial" name="XT3_1" />
+			<transition>
+				<condition>XT3O.rpc1</condition>
+			</transition>
+			<step type="normal" name="X17">
+				<action type="normal">
+					<text>PC1</text>
+				</action>
+			</step>
+			<transition>
+				<condition>spc1</condition>
+			</transition>
+			<step type="normal" name="XT3_F" />
+			<transition>
+				<condition><cpl>XT3O</cpl></condition>
+			</transition>
+		</sequence>
+		<jump seqid_from="1" seqid_to="1" />
+	</grafcet>
+	<grafcet type="normal" owner="" name="GT3I" comment="">
+		<sequence id="1">
+			<step type="initial" name="XT3A1" />
+			<transition>
+				<condition>XT3I</condition>
+			</transition>
+			<step type="normal" name="X19" />
+			<transition>
+				<condition>rpc1</condition>
+			</transition>
+			<step type="normal" name="X3AF" />
+			<transition>
+				<condition><cpl>XT3I</cpl></condition>
+			</transition>
+		</sequence>
+		<jump seqid_from="1" seqid_to="1" />
+	</grafcet>
+	<grafcet type="normal" owner="" name="GT4" comment="">
+		<sequence id="1">
+			<step type="initial" name="XT4_1" />
+			<transition>
+				<condition>XT4A+XT4B+XT4C</condition>
+			</transition>
+			<step type="normal" name="X21">
+				<action type="normal">
+					<text>C1</text>
+				</action>
+			</step>
+			<transition>
+				<condition>fpc1</condition>
+			</transition>
+			<step type="normal" name="X5">
+				<action type="normal">
+					<text>C1</text>
+				</action>
+			</step>
+			<transition>
+				<condition><cpl>fpc1</cpl></condition>
+			</transition>
+			<step type="normal" name="XT4_F" />
+			<transition>
+				<condition><cpl>XT4A+XT4B+XT4C</cpl></condition>
+			</transition>
+		</sequence>
+		<jump seqid_from="1" seqid_to="1" />
+	</grafcet>
+	<grafcet type="normal" owner="" name="GT5" comment="">
+		<sequence id="1">
+			<step type="initial" name="XT5_1" />
+			<transition>
+				<condition>XT5</condition>
+				<action type="normal">
+					<text>p2_blue:=0</text>
+				</action>
+			</transition>
+			<step type="normal" name="X15">
+				<action type="normal">
+					<text>CE2</text>
+				</action>
+			</step>
+			<transition>
+				<condition>[dcc2=1]+[dcc2=4]</condition>
+				<action type="normal">
+					<text>p2_blue:=[dcc2=1]</text>
+				</action>
+			</transition>
+			<step type="normal" name="XT5_F" />
+			<transition>
+				<condition><cpl>XT5</cpl></condition>
+			</transition>
+		</sequence>
+		<jump seqid_from="1" seqid_to="1" />
+	</grafcet>
+	<grafcet type="normal" owner="" name="GT6" comment="">
+		<sequence id="1">
+			<step type="initial" name="XT6_1" />
+			<transition>
+				<condition>XT6A+XT6B</condition>
+			</transition>
+			<step type="normal" name="X16">
+				<action type="normal">
+					<text>CE2</text>
+				</action>
+				<action type="normal">
+					<text>C2</text>
+				</action>
+			</step>
+			<transition>
+				<condition>ec2</condition>
+			</transition>
+			<step type="normal" name="X7">
+				<action type="normal">
+					<text>CE2</text>
+				</action>
+				<action type="normal">
+					<text>C2</text>
+				</action>
+			</step>
+			<transition>
+				<condition><cpl>ec2</cpl></condition>
+			</transition>
+			<step type="normal" name="XT6_F" />
+			<transition>
+				<condition><cpl>XT6A+XT6B</cpl></condition>
+			</transition>
+		</sequence>
+		<jump seqid_from="1" seqid_to="1" />
+	</grafcet>
+	<grafcet type="normal" owner="" name="GT7O" comment="">
+		<sequence id="1">
+			<step type="initial" name="XT7_1" />
+			<transition>
+				<condition>XT7O.rpc2</condition>
+			</transition>
+			<step type="normal" name="X18">
+				<action type="normal">
+					<text>PC2</text>
+				</action>
+			</step>
+			<transition>
+				<condition>spc2</condition>
+			</transition>
+			<step type="normal" name="XT7_F" />
+			<transition>
+				<condition><cpl>XT7O</cpl></condition>
+			</transition>
+		</sequence>
+		<jump seqid_from="1" seqid_to="1" />
+	</grafcet>
+	<grafcet type="normal" owner="" name="GT7I" comment="">
+		<sequence id="1">
+			<step type="initial" name="XT7A1" />
+			<transition>
+				<condition>XT7I</condition>
+			</transition>
+			<step type="normal" name="X20" />
+			<transition>
+				<condition>rpc2</condition>
+			</transition>
+			<step type="normal" name="X7AF" />
+			<transition>
+				<condition><cpl>XT7I</cpl></condition>
+			</transition>
+		</sequence>
+		<jump seqid_from="1" seqid_to="1" />
+	</grafcet>
+	<grafcet type="normal" owner="" name="GT8" comment="">
+		<sequence id="1">
+			<step type="initial" name="XT8_1" />
+			<transition>
+				<condition>XT8B+XT8A+XT8C</condition>
+			</transition>
+			<step type="normal" name="X22">
+				<action type="normal">
+					<text>C2</text>
+				</action>
+			</step>
+			<transition>
+				<condition>fpc2</condition>
+			</transition>
+			<step type="normal" name="X8">
+				<action type="normal">
+					<text>C2</text>
+				</action>
+			</step>
+			<transition>
+				<condition><cpl>fpc2</cpl></condition>
+			</transition>
+			<step type="normal" name="XT8_F" />
+			<transition>
+				<condition><cpl>XT8B+XT8A+XT8C</cpl></condition>
+			</transition>
+		</sequence>
+		<jump seqid_from="1" seqid_to="1" />
+	</grafcet>
+</project>

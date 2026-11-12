@@ -158,3 +158,17 @@ describe('renvoi tracé en trait continu', () => {
     expect(layoutGrafcet(g, tw).views.find((v) => v.kind === 'jump')).not.toHaveProperty('line', true);
   });
 });
+
+describe('renvoi depuis une branche vide de divergence ET', () => {
+  const g = G(
+    [['q1', [S('s1', '1', true), T('t1', 1)]], ['q2', []], ['q3', [S('s2', '2')]], ['q4', [S('s0', '0')]]],
+    [{ id: 'l1', kind: 'div', op: 'and', base: 'q1', nodes: ['q2', 'q3'] }],
+    [{ id: 'j1', from: 'q2', to: 's0' }],
+  );
+  it('dessine la flèche de renvoi à la place du placeholder', () => {
+    const L = finite(g);
+    expect(L.views.some((v) => v.kind === 'jump' && v.id === 'j1')).toBe(true);
+    expect(L.views.some((v) => v.kind === 'seq' && v.id === 'q2')).toBe(false);
+    expect(overlaps(g)).toEqual([]);
+  });
+});

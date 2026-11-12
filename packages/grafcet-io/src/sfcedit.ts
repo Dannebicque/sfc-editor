@@ -1,4 +1,4 @@
-import { checkGraph, docOrder, indexOf, nodesOf, numberTransitions, type Action, type Grafcet, type Message, type Node, type Project, type Seq } from '@grafcet/core';
+import { checkGraph, isAndBranch, violations, docOrder, indexOf, nodesOf, numberTransitions, type Action, type Grafcet, type Message, type Node, type Project, type Seq } from '@grafcet/core';
 import { ImportError, type ExportResult, type ImportResult, type ReportEntry } from './contract';
 import { elements, esc, parseXml, textOf, type XNode } from './xml';
 
@@ -85,11 +85,20 @@ function importGrafcet(P: Project, gx: XNode, report: ReportEntry[], index: numb
     if (nodes.length < 2) { report.push(warn('rep_conv_missing', { g: g.name })); continue; }
     g.links.push({ id: nid('l'), kind: m[1]!.toLowerCase() as 'div' | 'conv', op: m[2]!.toLowerCase() as 'and' | 'or', base, nodes });
   }
+  const placeholderJumps: { from: Seq; to: Seq }[] = [];
   for (const j of elements(gx, 'jump')) {
-    const from = ref(j.attrs.seqid_from), to = seqs.get(j.attrs.seqid_to ?? '')?.items[0];
+    const from = ref(j.attrs.seqid_from), toSeq = seqs.get(j.attrs.seqid_to ?? ''), to = toSeq?.items[0];
     if (!from) continue;
+    const fromSeq = seqs.get(j.attrs.seqid_from ?? '')!;
+    if (!to && toSeq && !fromSeq.items.length) { placeholderJumps.push({ from: fromSeq, to: toSeq }); continue; }
     if (!to) report.push(err('rep_jump_target', { g: g.name }));
     g.jumps.push({ id: nid('j'), from, to: to?.id ?? null });
+  }
+  for (const pj of placeholderJumps) {
+    if (!resolvePlaceholderJump(g, pj.from, pj.to, nid)) {
+      report.push(err('rep_jump_target', { g: g.name }));
+      g.jumps.push({ id: nid('j'), from: pj.from.id, to: null });
+    } else report.push(info('rep_jump_resolved', { g: g.name }));
   }
   for (const t of gx.children) if (typeof t !== 'string' && !['sequence', 'hlink', 'jump'].includes(t.tag)) report.push(warn('rep_unknown_tag', { tag: t.tag }));
 
@@ -102,6 +111,37 @@ function importGrafcet(P: Project, gx: XNode, report: ReportEntry[], index: numb
   if (e) report.push(err('rep_structure', { g: g.name, e: { key: e } }));
   return g;
 }
+
+/**
+ * SFCEdit exprime « renvoi vers l'étape X » par un renvoi d'une séquence vide (base d'une convergence OU) vers une
+ * branche vide d'une convergence OU dont la base commence par X. On le traduit en renvois directs vers X depuis la fin
+ * de chaque branche de la première convergence (même sémantique : un OU puis un renvoi). Une branche vide de divergence ET
+ * porte alors directement le renvoi (la barre arrive sur l'étape). Les branches vides de la seconde convergence retirées
+ * ne sont plus nécessaires ; une convergence qui n'a plus qu'une branche est dissoute de la même façon.
+ * Le graphe n'est modifié que si le résultat reste valide ; sinon renvoie false et ne change rien.
+ */
+function resolvePlaceholderJump(g: Grafcet, from: Seq, to: Seq, nid: (p?: string) => string): boolean {
+  const target = g.links.find((l) => l.kind === 'conv' && l.base && l.nodes.includes(to.id));
+  const base = target?.base ? g.seqs.find((s) => s.id === target.base) : undefined;
+  const goal = base?.items[0];
+  const src = g.links.find((l) => l.kind === 'conv' && l.op === 'or' && l.base === from.id);
+  if (!target || !goal || goal.kind !== 'step' || !src) return false;
+  if (src.nodes.some((n) => !g.seqs.find((s) => s.id === n)?.items.length && !isAndBranch(g, n))) return false;
+  const copy = structuredClone({ seqs: g.seqs, links: g.links, jumps: g.jumps });
+  const trial: Grafcet = { ...g, ...copy };
+  const before = violationCount(g);
+  const tl = trial.links.find((l) => l.id === target.id)!;
+  tl.nodes = tl.nodes.filter((n) => n !== to.id);
+  trial.links = trial.links.filter((l) => l.id !== src.id);
+  trial.seqs = trial.seqs.filter((s) => s.id !== from.id && s.id !== to.id);
+  const jumps = [...src.nodes];
+  if (tl.nodes.length < 2) { jumps.push(...tl.nodes); trial.links = trial.links.filter((l) => l.id !== tl.id); }
+  for (const n of jumps) trial.jumps.push({ id: nid('j'), from: n, to: goal.id });
+  if (violationCount(trial) > before) return false;
+  g.seqs = trial.seqs; g.links = trial.links; g.jumps = trial.jumps;
+  return true;
+}
+const violationCount = (g: Grafcet): number => violations(g).length;
 
 function importAction(a: XNode, gname: string, report: ReportEntry[]): Action {
   const type = a.attrs.type ?? 'normal';

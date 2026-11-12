@@ -16,7 +16,7 @@
 - Le noyau ne contient aucun texte traduit : il renvoie des clés de message (locales dans `packages/editor/src/locales`, parité fr/en testée).
 
 ## Git
-- Branche de travail : `feat/graph-model` (réécriture du noyau ; David fusionne dans `main`).
+- Branche de travail : `dev` (David fusionne dans `main`). `feat/graph-model` est fusionnée dans `main` et n'est plus utilisée.
 - Fin des messages de commit : `Co-Authored-By: Claude <noreply@anthropic.com>`.
 
 ## Reste à faire (backlog)

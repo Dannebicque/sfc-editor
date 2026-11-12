@@ -60,3 +60,12 @@ describe('PLCopen XML (TC6 v2.01)', () => {
     }
   });
 });
+
+describe('PLCopen : renvoi depuis une branche vide de divergence ET', () => {
+  const sep = importSfcEditXml(readFileSync(new URL('../../../fixtures/sfcedit/separating-station.xml', import.meta.url), 'utf8'), { projectName: 'sep' }).model;
+  it('branche le renvoi sur la sortie de la barre, sans erreur d\'export', () => {
+    const r = exportPlcopenXml(sep, { now: NOW });
+    expect(r.report.entries.filter((e) => e.level === 'error')).toEqual([]);
+    expect(r.output).toMatch(/<jumpStep [^>]*targetName="X2_1"[^>]*><position[^>]*\/><connectionPointIn><connection refLocalId="\d+" formalParameter="\d+"\/>/);
+  });
+});

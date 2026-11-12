@@ -173,11 +173,17 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
       nodes.push(`<${tag} localId="${id}">${pos(cx, ys)}${l.nodes.map((n) => cpin(endOf(ix.seq.get(n)))).join('')}<connectionPointOut/></${tag}>`);
     }
   }
+  // Renvoi depuis une branche vide de divergence ET : il se branche directement sur la sortie de la barre.
+  const jumpSource = (s: Seq): Pred[] => {
+    if (s.items.length) return endOf(s);
+    const l = g.links.find((x) => x.kind === 'div' && x.op === 'and' && x.nodes.includes(s.id));
+    return l ? [{ id: plc.get(l.id)!, fp: String(l.nodes.indexOf(s.id)) }] : [];
+  };
   for (const j of g.jumps) {
     const from = ix.seq.get(j.from), t = j.to ? ix.node.get(j.to) : undefined;
     if (!t) report.push(err('rep_p_jump_target', { g: g.name }));
     else if (t.item.kind !== 'step') report.push(err('rep_p_jump_trans', { g: g.name }));
-    else if (from) nodes.push(`<jumpStep localId="${next++}" targetName="${esc(stepName(t.item.num))}">${pos(x(from), topOf(from) + from.items.length * ROW)}${cpin(endOf(from))}</jumpStep>`);
+    else if (from) nodes.push(`<jumpStep localId="${next++}" targetName="${esc(stepName(t.item.num))}">${pos(x(from), topOf(from) + from.items.length * ROW)}${cpin(jumpSource(from))}</jumpStep>`);
   }
   if (notes.edge) report.push(warn('rep_p_edge', { g: g.name }));
   if (notes.timer) report.push(info('rep_p_timer', { g: g.name }));

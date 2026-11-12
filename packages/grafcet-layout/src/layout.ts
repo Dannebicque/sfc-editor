@@ -133,7 +133,8 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
     const j = jumpOf.get(s.id);
     if (j) { const half = Math.max(14, tw(jumpLabel(j.to)) / 2 + 4); l = Math.max(l, half); r = Math.max(r, half); }
     const itemsH = h;
-    if (!s.items.length) { l = r = GEO.xBox / 2 + 4; h = GEO.xBox + 10; } else if (j) h += GEO.jumpH;
+    if (!s.items.length && j) { const half = Math.max(14, tw(jumpLabel(j.to)) / 2 + 4); l = r = half; h = GEO.jumpH; }
+    else if (!s.items.length) { l = r = GEO.xBox / 2 + 4; h = GEO.xBox + 10; } else if (j) h += GEO.jumpH;
     seqM.set(s.id, { l, r, h, items: itemsH });
   }
 
@@ -339,13 +340,13 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
   for (const s of seqs) {
     const cx = X(s), m = seqM.get(s.id)!;
     let y = topOf(s);
-    if (!s.items.length) {
+    const j = jumpOf.get(s.id);
+    if (!s.items.length && !j) {
       views.push({ kind: 'seq', id: s.id, x: cx, y, l: m.l, r: m.r, h: m.h });
       focus.push({ id: s.id, x: cx, y: y + 20, slot: { x: cx, y: y + 20 }, slotBefore: null });
     }
     for (const it of s.items) { drawNode(it, cx, y); y += mNode(it).h; }
-    const j = jumpOf.get(s.id);
-    if (j && s.items.length) {
+    if (j) {
       L(cx, y, cx, y + 24);
       views.push({ kind: 'jump', id: j.id, x: cx, y, l: m.l, r: m.r, h: GEO.jumpH, label: jumpLabel(j.to), broken: !j.to || !ix.node.has(j.to) });
       focus.push({ id: j.id, x: cx, y: y + 16, slot: null, slotBefore: null });

@@ -16,14 +16,16 @@
     "@grafcet/io": "workspace:*",
     "@grafcet/layout": "workspace:*",
     "@grafcet/simulation": "workspace:*",
-    "pinia": "^3.0.3",
+    "@vue/devtools-api": "^8.2.1",
+    "pinia": "^4.1.0",
     "vue": "^3.5.13",
     "vue-i18n": "^11.1.0"
   },
   "devDependencies": {
+    "@types/node": "^22.20.5",
     "@vue/test-utils": "^2.4.6",
-    "happy-dom": "^18.0.1",
-    "vitest": "^3.2.4",
+    "happy-dom": "^21.0.4",
+    "vitest": "^5.1.0",
     "vue-tsc": "^3.0.0"
   },
   "license": "MPL-2.0"

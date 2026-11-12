@@ -1,6 +1,6 @@
 export * from './types';
 export {
-  indexOf, nodesOf, stepsOf, findNode, seqContaining, first, last, alternate, checkGraph, docOrder, flatten,
+  indexOf, nodesOf, stepsOf, findNode, seqContaining, first, last, alternate, checkGraph, violations, isAndBranch, docOrder, flatten, type Violation,
   type GraphIndex, type FlatGraph, type FlatNode, type FlatLink,
 } from './graph';
 export {

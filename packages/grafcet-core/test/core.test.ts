@@ -2,7 +2,7 @@ import { describe as suite, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
   addBranch, addConvergence, addDivergence, addJump, capabilities, checkGraph, connect, createExpansion, describeId, docOrder, duplicateGrafcet,
-  flatten, indexOf, insertNode, mergeEnds, mergeStarts, migrateProject, newGrafcet, nodesOf, parseRecept, provablyExclusive, referencesTo,
+  flatten, tidy, indexOf, insertNode, mergeEnds, mergeStarts, migrateProject, newGrafcet, nodesOf, parseRecept, provablyExclusive, referencesTo,
   removeBranch, removeJump, removeLink, removeNode, renumber, setMacro, stats, syncLinks, treeToGraph, validateGrafcet,
   type Grafcet, type Node, type Project, type TreeGrafcet,
 } from '../src';
@@ -295,13 +295,16 @@ suite('validation, description', () => {
 });
 
 suite('réceptivités', () => {
-  it.each(['a . b', 'a + /b', '↑capteur', 'X3 . t1/X2/3s', '(a + b) . c', 'cpt >= 3', '1'])('accepte %s', (s) => {
+  it.each(['a . b', 'a + /b', '↑capteur', 'X3 . t1/X2/3s', '(a + b) . c', 'cpt >= 3', '1', '[dcc1=1]', '[dcc1=1]+[dcc1=4]', '([a>=3] + b) . /[c=0]'])('accepte %s', (s) => {
     expect(parseRecept(s).ok).toBe(true);
   });
-  it.each([['', 'p_empty'], ['a .', 'p_operand'], ['(a', 'p_paren'], ['a b', 'p_char'], ['#', 'p_char']])('refuse %j', (s, key) => {
+  it.each([['', 'p_empty'], ['a .', 'p_operand'], ['(a', 'p_paren'], ['[a=1', 'p_bracket'], ['[]', 'p_char'], ['a b', 'p_char'], ['#', 'p_char']])('refuse %j', (s, key) => {
     const r = parseRecept(s);
     expect(r.ok).toBe(false);
     expect(r.error?.key).toBe(key);
+  });
+  it('les variables d\'une comparaison entre crochets sont extraites', () => {
+    expect([...parseRecept('[dcc1=1]+[n>=m]').vars].sort()).toEqual(['dcc1', 'm', 'n']);
   });
   it('extrait variables et références', () => {
     const r = parseRecept('a . X3 + t1/X5/2s');
@@ -493,3 +496,42 @@ suite('négation', () => {
   });
 });
 
+
+suite('renvoi depuis une branche vide de divergence ET', () => {
+  // q1 : étape 1, transition 1, divergence ET vers q2 (vide) et q3 (étape 2) ; q4 : étape 0 cible du renvoi
+  const build = (op: 'and' | 'or' = 'and'): Grafcet => ({
+    id: 'g', name: 'g', nextStep: 9, nextTrans: 9,
+    seqs: [
+      { id: 'q1', items: op === 'and' ? [S('s1', '1', true), T('t1', 1)] : [S('s1', '1', true)] },
+      { id: 'q2', items: [] },
+      { id: 'q3', items: op === 'and' ? [S('s2', '2')] : [T('t2', 2), S('s2', '2')] },
+      { id: 'q4', items: [S('s0', '0')] },
+    ],
+    links: [{ id: 'l1', kind: 'div', op, base: 'q1', nodes: ['q2', 'q3'] }],
+    jumps: [{ id: 'j1', from: 'q2', to: 's0' }],
+  });
+  it('est valide quand la séquence vide est branche d\'une divergence ET', () => {
+    expect(checkGraph(build('and'))).toBeNull();
+  });
+  it('reste refusé hors divergence ET', () => {
+    expect(checkGraph(build('or'))).toBe('chk_jump_from');
+    const g = build('and');
+    g.links = [];
+    expect(checkGraph(g)).toBe('chk_jump_from');
+  });
+  it('refuse une cible de même nature que la barre (une transition)', () => {
+    const g = build('and');
+    g.seqs[3]!.items = [T('t0', 7), S('s0', '0')];
+    g.jumps[0]!.to = 't0';
+    expect(checkGraph(g)).toBe('chk_jump_kind');
+  });
+  it('tidy conserve ce renvoi', () => {
+    const g = build('and');
+    tidy(g);
+    expect(g.jumps).toHaveLength(1);
+    expect(g.seqs.map((q) => q.id)).toContain('q2');
+  });
+  it('flatten relie la transition avant la barre à l\'étape cible', () => {
+    expect(flatten(build('and')).links).toContainEqual({ from: 't1', to: 's0', jump: true });
+  });
+});
