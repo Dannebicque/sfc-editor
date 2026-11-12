@@ -1,4 +1,4 @@
-import { alternate, checkGraph, docOrder, first, indexOf, last, nodesOf } from './graph';
+import { alternate, docOrder, first, indexOf, last, nodesOf, violations } from './graph';
 import type { Grafcet, HLink, Jump, Node, Project, Seq } from './types';
 
 /** Génère un identifiant stable (chaîne opaque) à partir du compteur du projet : n (élément), q (séquence), l (lien), j (renvoi). */
@@ -13,11 +13,19 @@ const mkSeq = (P: Project, g: Grafcet, items: Node[]): Seq => { const s: Seq = {
  * Applique `fn` au GRAFCET ; si le résultat est refusé (null) ou rend la structure incohérente, tout est annulé.
  * Toutes les opérations d'édition passent par là : le modèle reste donc toujours valide.
  */
+/** Violations déjà présentes avant l'édition en cours (graphe importé imparfait) : elles ne bloquent pas l'édition. */
+let known = new Set<string>();
+const valid = (g: Grafcet): boolean => violations(g).every((v) => known.has(v.key + '|' + v.id));
+
 function trial<T>(P: Project, g: Grafcet, fn: () => T | null): T | null {
   const saved = JSON.stringify(g), counter = P.counter;
+  const outer = known;
+  known = new Set(violations(g).map((v) => v.key + '|' + v.id));
   let r: T | null = null;
   try { r = fn(); } catch { r = null; }
-  if (r !== null && !checkGraph(g)) return r;
+  const ok = r !== null && valid(g);
+  known = outer;
+  if (ok) return r;
   const back = JSON.parse(saved) as Grafcet;
   g.seqs = back.seqs; g.links = back.links; g.jumps = back.jumps; g.nextStep = back.nextStep; g.nextTrans = back.nextTrans;
   P.counter = counter;
@@ -98,7 +106,7 @@ export function insertNode(P: Project, g: Grafcet, id: string, kind: Node['kind'
       const snap = JSON.stringify({ s: seq.items, a: g.nextStep, b: g.nextTrans });
       const made = pat.map((k) => mk(P, g, k));
       seq.items.splice(at, 0, ...made);
-      if (!checkGraph(g)) return made[pat.indexOf(kind)]!.id;
+      if (valid(g)) return made[pat.indexOf(kind)]!.id;
       const o = JSON.parse(snap) as { s: Node[]; a: number; b: number };
       seq.items = o.s; g.nextStep = o.a; g.nextTrans = o.b;
     }
@@ -196,7 +204,7 @@ export function removeNode(g: Grafcet, id: string): RemoveResult {
       const gone = new Set(removed.map((r) => r.id));
       const hit = g.jumps.filter((j) => j.to && gone.has(j.to)).map((j) => [j, j.to] as const);
       for (const [j] of hit) j.to = null;
-      if (!checkGraph(g)) {
+      if (valid(g)) {
         const cand = seq.items[s - 1] ?? seq.items[s];
         nextSel = cand ? cand.id : seq.id;
         return true;

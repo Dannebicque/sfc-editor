@@ -1,4 +1,4 @@
-import { docOrder, indexOf, type Grafcet, type GraphIndex, type HLink, type Node, type Seq } from '@grafcet/core';
+import { docOrder, indexOf, type Grafcet, type GraphIndex, type HLink, type Jump, type Node, type Seq } from '@grafcet/core';
 
 export const GEO = { stepW: 44, stepH: 40, transH: 40, tick: 9, actH: 22, actGap: 14, pad: 18, bar: 6, seqGap: 40, ov: 6, jumpH: 46, arrivalH: 28, xBox: 30 } as const;
 
@@ -11,7 +11,8 @@ interface BoxBase { id: string; x: number; y: number; l: number; r: number; h: n
 /** `arrivals` : numéros des étapes d'où part un renvoi vers cet élément (affichés au-dessus, avec une flèche entrante). */
 export interface StepView extends BoxBase { kind: 'step'; num: string; w: number; macro: boolean; role: 'entry' | 'exit' | null; name: string; initial: boolean; acts: ActionView[]; arrivals: string[]; ay: number }
 export interface TransView extends BoxBase { kind: 'trans'; num: number; recept: string; arrivals: string[]; ay: number; acts: ActionView[] }
-export interface JumpView extends BoxBase { kind: 'jump'; label: string; broken: boolean }
+/** `line` : renvoi tracé comme un trait continu vers la séquence cible (pas de flèche ni d'étiquette). */
+export interface JumpView extends BoxBase { kind: 'jump'; label: string; broken: boolean; line?: boolean }
 /** Barre d'un lien : une ligne pour un lien OU, deux pour un lien ET. `open` : lien sans séquence amont (divergence) ou aval (convergence). */
 export interface BarView { kind: 'bar'; id: string; link: 'div' | 'conv'; op: 'or' | 'and'; open: boolean; ys: number[]; x1: number; x2: number }
 /** Emplacement « X » d'une séquence vide. */
@@ -55,8 +56,25 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
     for (const n of su.link.nodes) { const x = ix.seq.get(n); const r = x ? stepBefore(x, seen) : null; if (r) return r; }
     return null;
   };
+  /* ---- renvois tracés en trait continu : cible = début d'une séquence libre, atteinte par ce seul renvoi ---- */
+  const contJ = new Map<string, Jump>(), contTo = new Map<string, string>(); // source → renvoi ; cible → source
+  for (const j of g.jumps) {
+    const t = j.to ? ix.node.get(j.to) : undefined, from = ix.seq.get(j.from);
+    if (!t || !from || !from.items.length || t.idx !== 0 || t.seq.id === j.from) continue;
+    if (ix.startUse.has(t.seq.id) || contTo.has(t.seq.id) || contJ.has(j.from)) continue;
+    if (g.jumps.filter((o) => o.to === j.to).length !== 1) continue;
+    // la cible ne doit pas déjà être en amont de la source (boucle) : on la relie seulement si le dessin reste un arbre
+    const seen = new Set<string>();
+    let loops = false;
+    const walk = (id: string): void => { if (loops || seen.has(id)) return; seen.add(id); if (id === j.from) { loops = true; return; } const e = ix.endUse.get(id); const nx: string[] = []; if (e && 'link' in e) { if (e.role === 'base') nx.push(...e.link.nodes); else if (e.link.kind === 'conv' && e.link.base) nx.push(e.link.base); } const c = contJ.get(id); if (c?.to) { const tt = ix.node.get(c.to); if (tt) nx.push(tt.seq.id); } nx.forEach(walk); };
+    walk(t.seq.id);
+    if (loops) continue;
+    contJ.set(j.from, j); contTo.set(t.seq.id, j.from);
+  }
+
   const arrivalsOf = new Map<string, string[]>();
   for (const j of g.jumps) {
+    if (contJ.get(j.from) === j) continue;
     const from = ix.seq.get(j.from);
     const n = from ? stepBefore(from) : null;
     if (!j.to || n === null) continue;
@@ -107,7 +125,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
     memo.set(it.id, m);
     return m;
   }
-  const jumpOf = new Map(g.jumps.map((j) => [j.from, j] as const));
+  const jumpOf = new Map(g.jumps.filter((j) => contJ.get(j.from) !== j).map((j) => [j.from, j] as const));
   const seqM = new Map<string, Measure & { items: number }>();
   for (const s of seqs) {
     let l = 0, r = 0, h = 0;
@@ -117,6 +135,14 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
     const itemsH = h;
     if (!s.items.length) { l = r = GEO.xBox / 2 + 4; h = GEO.xBox + 10; } else if (j) h += GEO.jumpH;
     seqM.set(s.id, { l, r, h, items: itemsH });
+  }
+
+  // Une source et sa cible alignée forment une colonne : la source prend l'encombrement de la cible pour que l'alignement tienne.
+  for (let pass = 0; pass < contTo.size + 1; pass++) {
+    for (const [t, f] of contTo) {
+      const a = seqM.get(f)!, b = seqM.get(t)!;
+      a.l = Math.max(a.l, b.l); a.r = Math.max(a.r, b.r);
+    }
   }
 
   /* ---- hauteurs ---- */
@@ -138,7 +164,9 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
     if (hit !== undefined) return hit;
     let y = 0;
     const su = ix.startUse.get(s.id);
-    if (su && depth < 500) { depth++; y = barOf(su.link, depth) + barH(su.link) + GEO.pad; depth--; }
+    const cf = contTo.get(s.id);
+    if (cf && depth < 500) { depth++; y = bottom(ix.seq.get(cf)!) + GEO.pad; depth--; }
+    else if (su && depth < 500) { depth++; y = barOf(su.link, depth) + barH(su.link) + GEO.pad; depth--; }
     else if (!su && depth < 500) {
       // Branche libre d'une convergence (ex. « X » ajouté à côté) : son pied rejoint la barre, à la hauteur de ses voisines ancrées.
       const eu = ix.endUse.get(s.id);
@@ -188,11 +216,11 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
   const isBase = (s: Seq) => ix.startUse.get(s.id)?.role === 'base';
   /** Séquences qui ouvrent un arbre : début libre (hors bases de convergence). */
   const freeConv = (s: Seq): boolean => {
-    if (ix.startUse.has(s.id)) return false;
+    if (ix.startUse.has(s.id) || contTo.has(s.id)) return false;
     const eu = ix.endUse.get(s.id);
     return !!eu && 'link' in eu && eu.role === 'node' && eu.link.kind === 'conv' && eu.link.nodes.some((n) => n !== s.id && ix.startUse.has(n));
   };
-  const roots = seqs.filter((s) => !freeConv(s)).filter((s) => !ix.startUse.has(s.id) || (ix.startUse.get(s.id)!.role === 'child' && !ix.startUse.get(s.id)!.link.base));
+  const roots = seqs.filter((s) => !freeConv(s) && !contTo.has(s.id)).filter((s) => !ix.startUse.has(s.id) || (ix.startUse.get(s.id)!.role === 'child' && !ix.startUse.get(s.id)!.link.base));
   void shiftSet;
   // Les branches d'une divergence ouverte forment un arbre fictif : on les range côte à côte.
   let cursor = 0;
@@ -208,32 +236,48 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
     cursor = at + e.r + GEO.seqGap;
   };
   for (const s of roots) placeRoot(s);
-  // Branches libres d'une convergence : posées juste à côté de leur voisine, du côté de leur rang.
-  for (const s of seqs) {
-    if (placed.has(s.id) || !freeConv(s)) continue;
-    const lk = (ix.endUse.get(s.id) as { link: HLink }).link;
-    const i = lk.nodes.indexOf(s.id), m = seqM.get(s.id)!;
-    let at: number | null = null;
-    for (let k = i - 1; k >= 0 && at === null; k--) { const p = ix.seq.get(lk.nodes[k]!)!; if (x.has(p.id)) at = x.get(p.id)! + seqM.get(p.id)!.r + GEO.seqGap + m.l; }
-    for (let k = i + 1; k < lk.nodes.length && at === null; k++) { const p = ix.seq.get(lk.nodes[k]!)!; if (x.has(p.id)) at = x.get(p.id)! - seqM.get(p.id)!.l - GEO.seqGap - m.r; }
-    tree(s, at ?? cursor);
-    shift(s, (at ?? cursor) - x.get(s.id)!);
-  }
-  // Séquences aval de convergence : centrées sous leurs branches, avec leur propre arbre.
-  const bases = seqs.filter((s) => isBase(s));
-  for (let guard = 0; guard < bases.length + 5; guard++) {
-    let progress = false;
-    for (const b of bases) {
-      if (placed.has(b.id)) continue;
-      const lk = ix.startUse.get(b.id)!.link;
-      const ns = lk.nodes.map((n) => ix.seq.get(n)!);
-      if (!ns.every((n) => x.has(n.id))) continue;
-      const at = ns.reduce((a, n) => a + x.get(n.id)!, 0) / ns.length;
-      tree(b, at);
-      shift(b, at - x.get(b.id)!);
-      progress = true;
+  // Cible d'un renvoi tracé en trait continu : alignée sous sa source.
+  const placeCont = (): boolean => {
+    let any = false;
+    for (const [t, f] of contTo) {
+      if (placed.has(t) || !x.has(f)) continue;
+      const T = ix.seq.get(t)!;
+      tree(T, x.get(f)!);
+      shift(T, x.get(f)! - x.get(t)!);
+      any = true;
     }
-    if (!progress) break;
+    return any;
+  };
+  for (let round = 0; round < 6; round++) {
+    placeCont();
+    // Branches libres d'une convergence : posées juste à côté de leur voisine, du côté de leur rang.
+    for (const s of seqs) {
+      if (placed.has(s.id) || !freeConv(s)) continue;
+      const lk = (ix.endUse.get(s.id) as { link: HLink }).link;
+      const i = lk.nodes.indexOf(s.id), m = seqM.get(s.id)!;
+      let at: number | null = null;
+      for (let k = i - 1; k >= 0 && at === null; k--) { const p = ix.seq.get(lk.nodes[k]!)!; if (x.has(p.id)) at = x.get(p.id)! + seqM.get(p.id)!.r + GEO.seqGap + m.l; }
+      for (let k = i + 1; k < lk.nodes.length && at === null; k++) { const p = ix.seq.get(lk.nodes[k]!)!; if (x.has(p.id)) at = x.get(p.id)! - seqM.get(p.id)!.l - GEO.seqGap - m.r; }
+      tree(s, at ?? cursor);
+      shift(s, (at ?? cursor) - x.get(s.id)!);
+    }
+    // Séquences aval de convergence : centrées sous leurs branches, avec leur propre arbre.
+    const bases = seqs.filter((s) => isBase(s));
+    for (let guard = 0; guard < bases.length + 5; guard++) {
+      let progress = false;
+      for (const b of bases) {
+        if (placed.has(b.id)) continue;
+        const lk = ix.startUse.get(b.id)!.link;
+        const ns = lk.nodes.map((n) => ix.seq.get(n)!);
+        if (!ns.every((n) => x.has(n.id))) continue;
+        const at = ns.reduce((a, n) => a + x.get(n.id)!, 0) / ns.length;
+        tree(b, at);
+        shift(b, at - x.get(b.id)!);
+        progress = true;
+      }
+      if (!progress) break;
+    }
+
   }
   for (const s of seqs) if (!x.has(s.id)) { tree(s, cursor); cursor += 100; }
 
@@ -248,6 +292,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
       for (let k = 0; k < i; k++) {
         const s = order[k]!;
         if (y1(s) <= y0(t) || y1(t) <= y0(s)) continue;
+        if (contTo.get(t.id) === s.id || contTo.get(s.id) === t.id) continue;
         min = Math.max(min, x.get(s.id)! + seqM.get(s.id)!.r + GEO.seqGap + mt.l);
       }
       if (x.get(t.id)! < min) x.set(t.id, min);
@@ -305,6 +350,13 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
       views.push({ kind: 'jump', id: j.id, x: cx, y, l: m.l, r: m.r, h: GEO.jumpH, label: jumpLabel(j.to), broken: !j.to || !ix.node.has(j.to) });
       focus.push({ id: j.id, x: cx, y: y + 16, slot: null, slotBefore: null });
     }
+  }
+  for (const [t, f] of contTo) {
+    const F = ix.seq.get(f)!, T = ix.seq.get(t)!, j = contJ.get(f)!;
+    const y1 = bottom(F), y2 = topOf(T), mid = (y1 + y2) / 2, xf = X(F), xt = X(T);
+    if (Math.abs(xf - xt) < 0.5) L(xf, y1, xf, y2); else { L(xf, y1, xf, mid); L(xf, mid, xt, mid); L(xt, mid, xt, y2); }
+    views.push({ kind: 'jump', id: j.id, x: xf, y: y1, l: 12, r: 12, h: y2 - y1, label: jumpLabel(j.to), broken: false, line: true });
+    focus.push({ id: j.id, x: xf, y: mid, slot: null, slotBefore: null });
   }
   for (const l of g.links) {
     const by = barOf(l, 0), bh = barH(l), bys = l.op === 'and' ? [by + 1, by + bh - 1] : [by];

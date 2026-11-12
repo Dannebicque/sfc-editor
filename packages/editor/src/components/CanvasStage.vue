@@ -63,6 +63,11 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump', 'link'] a
               </g>
               <rect v-if="sel === v.id" class="ring" :x="v.x - 15" :y="v.y + 11" width="30" height="18" rx="4" />
             </g>
+            <g v-else-if="v.kind === 'jump' && v.line" class="el" @pointerdown.stop="ui.pick(v.id)">
+              <rect class="hit" :x="v.x - 12" :y="v.y" width="24" :height="v.h" />
+              <circle class="jdot" :cx="v.x" :cy="v.y + v.h / 2" r="3" />
+              <rect v-if="sel === v.id" class="ring" :x="v.x - 12" :y="v.y" width="24" :height="v.h" rx="5" />
+            </g>
             <g v-else-if="v.kind === 'jump'" class="el" @pointerdown.stop="ui.pick(v.id)">
               <rect class="hit" :x="v.x - v.l" :y="v.y" :width="v.l + v.r" :height="v.h" />
               <polygon class="arrow" :points="(v.x - 5) + ',' + (v.y + 22) + ' ' + (v.x + 5) + ',' + (v.y + 22) + ' ' + v.x + ',' + (v.y + 31)" />

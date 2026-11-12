@@ -60,58 +60,63 @@ export { other as alternate };
  *  - une fin de séquence n'est utilisée qu'une fois (base de divergence, branche de convergence ou renvoi), un début aussi ;
  *  - le graphe des liens n'a pas de cycle ; un lien a au moins deux branches.
  */
-export function checkGraph(g: Grafcet): string | null {
+export interface Violation { key: string; id: string }
+
+/** Toutes les violations structurelles (clé de message + identifiant concerné). Vide = graphe valide. */
+export function violations(g: Grafcet): Violation[] {
+  const out: Violation[] = [];
+  const bad = (key: string, id = ''): void => { out.push({ key, id }); };
   const ix = indexOf(g);
-  if (ix.seq.size !== g.seqs.length) return 'chk_dup';
+  if (ix.seq.size !== g.seqs.length) bad('chk_dup');
   const ids = new Set<string>();
   for (const s of g.seqs) for (let i = 0; i < s.items.length; i++) {
     const it = s.items[i]!;
-    if (ids.has(it.id)) return 'chk_dup';
+    if (ids.has(it.id)) bad('chk_dup', it.id);
     ids.add(it.id);
-    if (i > 0 && s.items[i - 1]!.kind === it.kind) return 'chk_alternation';
+    if (i > 0 && s.items[i - 1]!.kind === it.kind) bad('chk_alternation', it.id);
   }
   const startUsed = new Set<string>(), endUsed = new Set<string>();
   const kindIf = (s: Seq | undefined, which: 'first' | 'last', k: Node['kind']) => { const n = which === 'first' ? first(s) : last(s); return !n || n.kind === k; };
   for (const l of g.links) {
-    if (l.nodes.length < 2) return 'chk_min_branches';
-    if (new Set(l.nodes).size !== l.nodes.length) return 'chk_dup';
+    if (l.nodes.length < 2) bad('chk_min_branches', l.id);
+    if (new Set(l.nodes).size !== l.nodes.length) bad('chk_dup', l.id);
     const base = l.base ? ix.seq.get(l.base) : undefined;
-    if (l.base && !base) return 'chk_ref';
-    if (l.nodes.some((n) => !ix.seq.has(n)) || (l.base && l.nodes.includes(l.base))) return 'chk_ref';
+    if (l.base && !base) { bad('chk_ref', l.id); continue; }
+    if (l.nodes.some((n) => !ix.seq.has(n)) || (l.base && l.nodes.includes(l.base))) { bad('chk_ref', l.id); continue; }
     const or = l.op === 'or';
     if (l.kind === 'div') {
       if (base) {
-        if (endUsed.has(base.id)) return 'chk_end_used';
+        if (endUsed.has(base.id)) bad('chk_end_used', base.id);
         endUsed.add(base.id);
-        if (!kindIf(base, 'last', or ? 'step' : 'trans')) return or ? 'chk_div_or_base' : 'chk_div_and_base';
+        if (!kindIf(base, 'last', or ? 'step' : 'trans')) bad(or ? 'chk_div_or_base' : 'chk_div_and_base', l.id);
       }
       for (const n of l.nodes) {
-        if (startUsed.has(n)) return 'chk_start_used';
+        if (startUsed.has(n)) bad('chk_start_used', n);
         startUsed.add(n);
-        if (!kindIf(ix.seq.get(n), 'first', or ? 'trans' : 'step')) return or ? 'chk_start_or' : 'chk_start_and';
+        if (!kindIf(ix.seq.get(n), 'first', or ? 'trans' : 'step')) bad(or ? 'chk_start_or' : 'chk_start_and', n);
       }
     } else {
       for (const n of l.nodes) {
-        if (endUsed.has(n)) return 'chk_end_used';
+        if (endUsed.has(n)) bad('chk_end_used', n);
         endUsed.add(n);
-        if (!kindIf(ix.seq.get(n), 'last', or ? 'trans' : 'step')) return or ? 'chk_conv_or_end' : 'chk_conv_and_end';
+        if (!kindIf(ix.seq.get(n), 'last', or ? 'trans' : 'step')) bad(or ? 'chk_conv_or_end' : 'chk_conv_and_end', n);
       }
       if (base) {
-        if (startUsed.has(base.id)) return 'chk_start_used';
+        if (startUsed.has(base.id)) bad('chk_start_used', base.id);
         startUsed.add(base.id);
-        if (!kindIf(base, 'first', or ? 'step' : 'trans')) return or ? 'chk_conv_or_base' : 'chk_conv_and_base';
+        if (!kindIf(base, 'first', or ? 'step' : 'trans')) bad(or ? 'chk_conv_or_base' : 'chk_conv_and_base', l.id);
       }
     }
   }
   for (const j of g.jumps) {
     const s = ix.seq.get(j.from);
-    if (!s || !s.items.length) return 'chk_jump_from';
-    if (endUsed.has(j.from)) return 'chk_end_used';
+    if (!s || !s.items.length) { bad('chk_jump_from', j.id); continue; }
+    if (endUsed.has(j.from)) bad('chk_end_used', j.from);
     endUsed.add(j.from);
     if (j.to !== null) {
       const t = ix.node.get(j.to);
-      if (!t) return 'chk_ref';
-      if (t.item.kind === last(s)!.kind) return 'chk_jump_kind';
+      if (!t) bad('chk_ref', j.id);
+      else if (t.item.kind === last(s)!.kind) bad('chk_jump_kind', j.id);
     }
   }
   // Pas de cycle dans le graphe des liens (une boucle se fait avec un renvoi).
@@ -129,8 +134,13 @@ export function checkGraph(g: Grafcet): string | null {
     state.set(a, 2);
     return false;
   };
-  for (const s of g.seqs) if (dfs(s.id)) return 'chk_cycle';
-  return null;
+  for (const s of g.seqs) if (dfs(s.id)) { bad('chk_cycle', s.id); break; }
+  return out;
+}
+
+/** Première violation (clé de message), ou null si le graphe est valide. */
+export function checkGraph(g: Grafcet): string | null {
+  return violations(g)[0]?.key ?? null;
 }
 
 /**
