@@ -1,0 +1,22 @@
+{
+  "name": "@grafcet/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Serveur de partage par lien (ADR 0004).",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@grafcet/core": "workspace:*",
+    "@grafcet/io": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsx": "^4.20.0",
+    "vitest": "^5.1.0"
+  },
+  "license": "MPL-2.0"
+}
