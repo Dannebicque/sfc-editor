@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { nodesOf, violations } from '@grafcet/core';
+import { nodesOf, validateGrafcet, violations } from '@grafcet/core';
 import { exportSfcEditXml, importSfcEditXml } from '../src';
 
 const xml = readFileSync(new URL('../../../fixtures/sfcedit/separating-station.xml', import.meta.url), 'utf8');
@@ -28,6 +28,12 @@ describe('SFCEdit : Separating Station', () => {
   it('GAST est entièrement valide, sans erreur d\'import', () => {
     expect(violations(gast)).toEqual([]);
     expect(report.entries.filter((e) => e.level === 'error')).toEqual([]);
+  });
+  it('les réceptivités à crochets [dcc1=1] sont comprises (GT1, GT5)', () => {
+    for (const n of ['GT1', 'GT5']) {
+      const g = model.grafcets.find((x) => x.name === n)!;
+      expect(validateGrafcet(g).filter((i) => i.level === 'error')).toEqual([]);
+    }
   });
   it('aller-retour SFCEdit : GAST reste valide', () => {
     const out = exportSfcEditXml(model).output;

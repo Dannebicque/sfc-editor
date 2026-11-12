@@ -49,6 +49,7 @@ export function parseRecept(src: string, known?: ReadonlySet<string>): ReceptRes
     if (i >= s.length) fail('p_operand');
     const rest = s.slice(i);
     let m: RegExpMatchArray | null;
+    if (rest[0] === '[') { i++; expr(); ws(); if (s[i] !== ']') fail('p_bracket'); i++; return; }
     if (rest[0] === '(') { i++; expr(); ws(); if (s[i] !== ')') fail('p_paren'); i++; return; }
     if ((m = rest.match(/^(?:t\d*\/X\w+\/\d+(?:[.,]\d+)?\s?(?:ms|s|min)|\d+(?:[.,]\d+)?\s?(?:ms|s|min)\/X\w+)(?![\w])/i))) {
       i += m[0].length;

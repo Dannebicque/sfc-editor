@@ -295,13 +295,16 @@ suite('validation, description', () => {
 });
 
 suite('réceptivités', () => {
-  it.each(['a . b', 'a + /b', '↑capteur', 'X3 . t1/X2/3s', '(a + b) . c', 'cpt >= 3', '1'])('accepte %s', (s) => {
+  it.each(['a . b', 'a + /b', '↑capteur', 'X3 . t1/X2/3s', '(a + b) . c', 'cpt >= 3', '1', '[dcc1=1]', '[dcc1=1]+[dcc1=4]', '([a>=3] + b) . /[c=0]'])('accepte %s', (s) => {
     expect(parseRecept(s).ok).toBe(true);
   });
-  it.each([['', 'p_empty'], ['a .', 'p_operand'], ['(a', 'p_paren'], ['a b', 'p_char'], ['#', 'p_char']])('refuse %j', (s, key) => {
+  it.each([['', 'p_empty'], ['a .', 'p_operand'], ['(a', 'p_paren'], ['[a=1', 'p_bracket'], ['[]', 'p_char'], ['a b', 'p_char'], ['#', 'p_char']])('refuse %j', (s, key) => {
     const r = parseRecept(s);
     expect(r.ok).toBe(false);
     expect(r.error?.key).toBe(key);
+  });
+  it('les variables d\'une comparaison entre crochets sont extraites', () => {
+    expect([...parseRecept('[dcc1=1]+[n>=m]').vars].sort()).toEqual(['dcc1', 'm', 'n']);
   });
   it('extrait variables et références', () => {
     const r = parseRecept('a . X3 + t1/X5/2s');
