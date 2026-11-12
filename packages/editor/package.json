@@ -16,7 +16,7 @@
     "@grafcet/io": "workspace:*",
     "@grafcet/layout": "workspace:*",
     "@grafcet/simulation": "workspace:*",
-    "pinia": "^3.0.3",
+    "pinia": "^4.1.0",
     "vue": "^3.5.13",
     "vue-i18n": "^11.1.0"
   },
