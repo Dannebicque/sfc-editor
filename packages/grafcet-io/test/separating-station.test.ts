@@ -42,6 +42,29 @@ describe('SFCEdit : Separating Station', () => {
     expect(exportSfcEditXml(model).output).toContain('name="X2_1"');
     expect(validateGrafcet(gast).filter((i) => i.level === 'error')).toEqual([]);
   });
+  it('fronts <re/> <fe/> et types « on event » / « on deact » sont compris', () => {
+    const gmma = model.grafcets.find((g) => g.name === 'GMMA')!;
+    const acts = nodesOf(gmma).flatMap((n) => (n.kind === 'step' ? n.actions : []));
+    expect(acts.filter((a) => a.kind === 'deactivation').map((a) => a.label).sort()).toEqual(['Count1:=999', 'Count2:=999']);
+    expect(acts.filter((a) => a.kind === 'event').map((a) => a.cond)).toEqual(expect.arrayContaining(['↓fpc1', '↓fpc2']));
+    expect(nodesOf(gmma).some((n) => n.kind === 'trans' && n.recept === '↑bp_start')).toBe(true);
+    expect(report.entries.filter((e) => ['rep_unknown_tag', 'rep_action_type'].includes(e.message.key))).toEqual([]);
+  });
+  it('les 16 étapes « task » de GAST sont signalées en un seul avertissement', () => {
+    const w = report.entries.filter((e) => e.message.key === 'rep_step_type');
+    expect(w).toHaveLength(1);
+    expect(w[0]!.message.params).toMatchObject({ g: 'GAST', type: 'task', n: 16 });
+  });
+  it('aller-retour SFCEdit : fronts et types d\'action conservés', () => {
+    const out = exportSfcEditXml(model).output;
+    expect(out).toContain('<re />');
+    expect(out).toContain('<fe />');
+    expect(out).toContain('type="on deact"');
+    expect(out).toContain('type="on event"');
+    const again = importSfcEditXml(out, { projectName: 'sep' });
+    const a = (m: typeof model) => JSON.stringify(m.grafcets.find((g) => g.name === 'GMMA'));
+    expect(a(again.model)).toEqual(a(model));
+  });
   it('aller-retour SFCEdit : GAST reste valide', () => {
     const out = exportSfcEditXml(model).output;
     const again = importSfcEditXml(out, { projectName: 'sep' }).model.grafcets.find((g) => g.name === 'GAST')!;
