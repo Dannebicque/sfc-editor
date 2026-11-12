@@ -14,15 +14,28 @@ const closeMore = (e: KeyboardEvent): void => {
   d.open = false;
   d.querySelector('summary')?.focus();
 };
+/** Flèches gauche/droite (et Début/Fin) : passer d'un bouton actif à l'autre de la barre, comme le rôle « toolbar » le promet. */
+const arrows = (e: KeyboardEvent): void => {
+  const k = e.key;
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(k)) return;
+  const el = e.target as HTMLElement;
+  if (!el.matches('button, summary')) return;
+  const all = [...(e.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('.tb-row button:not(:disabled), .tb-ctx button:not(:disabled), .tb-ctx summary')];
+  const i = all.indexOf(el);
+  if (i < 0) return;
+  const j = k === 'Home' ? 0 : k === 'End' ? all.length - 1 : (i + (k === 'ArrowRight' ? 1 : -1) + all.length) % all.length;
+  e.preventDefault();
+  all[j]?.focus();
+};
 const pendingText = () => (pending.value ? T('pending_' + pending.value.kind) : '');
 </script>
 
 <template>
-  <div v-if="!sim.on && pending" class="insbar toolbar" role="toolbar" :aria-label="T('tb_aria')">
+  <div v-if="!sim.on && pending" class="insbar toolbar pending-bar" role="toolbar" :aria-label="T('tb_aria')">
     <span class="ins-none"><b>{{ pendingText() }}</b></span>
     <button class="tb" @click="ui.cancelPending(); ui.focusHost()" aria-keyshortcuts="Escape"><kbd aria-hidden="true">{{ T('kbd_esc') }}</kbd><span class="l">{{ T('pending_cancel') }}</span></button>
   </div>
-  <div v-else-if="!sim.on && sel && caps" class="insbar toolbar dock" role="toolbar" :aria-label="T('ins_aria', { t: selText })">
+  <div v-else-if="!sim.on && sel && caps" class="insbar toolbar dock" @keydown="arrows" role="toolbar" :aria-label="T('ins_aria', { t: selText })">
     <div class="tb-ctx">
       <span class="dotc"></span>
       <div v-if="selItem" class="seg wheresel" role="group" :aria-label="T('ins_mode_aria')">
