@@ -18,7 +18,7 @@ pnpm typecheck    # tsc / vue-tsc
 pnpm build        # build de production (apps/web/dist)
 ```
 
-Prérequis : Node ≥ 20, pnpm 10.
+Prérequis : Node ≥ 22.12, pnpm 10.
 
 ## Organisation
 

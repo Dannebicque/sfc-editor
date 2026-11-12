@@ -16,7 +16,8 @@
     "zod": "^4.1.0"
   },
   "devDependencies": {
-    "vitest": "^3.2.4"
+    "@types/node": "^22.20.5",
+    "vitest": "^5.1.0"
   },
   "license": "MPL-2.0"
 }

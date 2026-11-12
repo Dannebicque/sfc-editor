@@ -18,7 +18,7 @@ pnpm dev          # http://localhost:5173
 pnpm typecheck && pnpm test && pnpm build
 ```
 
-Prérequis : Node ≥ 20 et pnpm 10. Le dépôt est un monorepo : voir [README](README.md) et [docs/decoupage.md](docs/decoupage.md).
+Prérequis : Node ≥ 22.12 et pnpm 10. Le dépôt est un monorepo : voir [README](README.md) et [docs/decoupage.md](docs/decoupage.md).
 
 ## Principes à respecter
 
