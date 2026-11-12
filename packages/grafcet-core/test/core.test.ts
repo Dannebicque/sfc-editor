@@ -2,7 +2,7 @@ import { describe as suite, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
   addBranch, addConvergence, addDivergence, addJump, capabilities, checkGraph, connect, createExpansion, describeId, docOrder, duplicateGrafcet,
-  flatten, indexOf, insertNode, mergeEnds, mergeStarts, migrateProject, newGrafcet, nodesOf, parseRecept, provablyExclusive, referencesTo,
+  flatten, tidy, indexOf, insertNode, mergeEnds, mergeStarts, migrateProject, newGrafcet, nodesOf, parseRecept, provablyExclusive, referencesTo,
   removeBranch, removeJump, removeLink, removeNode, renumber, setMacro, stats, syncLinks, treeToGraph, validateGrafcet,
   type Grafcet, type Node, type Project, type TreeGrafcet,
 } from '../src';
@@ -493,3 +493,42 @@ suite('négation', () => {
   });
 });
 
+
+suite('renvoi depuis une branche vide de divergence ET', () => {
+  // q1 : étape 1, transition 1, divergence ET vers q2 (vide) et q3 (étape 2) ; q4 : étape 0 cible du renvoi
+  const build = (op: 'and' | 'or' = 'and'): Grafcet => ({
+    id: 'g', name: 'g', nextStep: 9, nextTrans: 9,
+    seqs: [
+      { id: 'q1', items: op === 'and' ? [S('s1', '1', true), T('t1', 1)] : [S('s1', '1', true)] },
+      { id: 'q2', items: [] },
+      { id: 'q3', items: op === 'and' ? [S('s2', '2')] : [T('t2', 2), S('s2', '2')] },
+      { id: 'q4', items: [S('s0', '0')] },
+    ],
+    links: [{ id: 'l1', kind: 'div', op, base: 'q1', nodes: ['q2', 'q3'] }],
+    jumps: [{ id: 'j1', from: 'q2', to: 's0' }],
+  });
+  it('est valide quand la séquence vide est branche d\'une divergence ET', () => {
+    expect(checkGraph(build('and'))).toBeNull();
+  });
+  it('reste refusé hors divergence ET', () => {
+    expect(checkGraph(build('or'))).toBe('chk_jump_from');
+    const g = build('and');
+    g.links = [];
+    expect(checkGraph(g)).toBe('chk_jump_from');
+  });
+  it('refuse une cible de même nature que la barre (une transition)', () => {
+    const g = build('and');
+    g.seqs[3]!.items = [T('t0', 7), S('s0', '0')];
+    g.jumps[0]!.to = 't0';
+    expect(checkGraph(g)).toBe('chk_jump_kind');
+  });
+  it('tidy conserve ce renvoi', () => {
+    const g = build('and');
+    tidy(g);
+    expect(g.jumps).toHaveLength(1);
+    expect(g.seqs.map((q) => q.id)).toContain('q2');
+  });
+  it('flatten relie la transition avant la barre à l\'étape cible', () => {
+    expect(flatten(build('and')).links).toContainEqual({ from: 't1', to: 's0', jump: true });
+  });
+});

@@ -1,4 +1,4 @@
-import { alternate, docOrder, first, indexOf, last, nodesOf, violations } from './graph';
+import { alternate, docOrder, first, indexOf, isAndBranch, last, nodesOf, violations } from './graph';
 import type { Grafcet, HLink, Jump, Node, Project, Seq } from './types';
 
 /** Génère un identifiant stable (chaîne opaque) à partir du compteur du projet : n (élément), q (séquence), l (lien), j (renvoi). */
@@ -69,7 +69,7 @@ export function tidy(g: Grafcet): void {
     const ids = new Set(nodesOf(g).map((n) => n.id));
     for (const j of g.jumps) if (j.to && !ids.has(j.to)) j.to = null;
     const seqById = new Map(g.seqs.map((s) => [s.id, s] as const));
-    g.jumps = g.jumps.filter((j) => { const s = seqById.get(j.from); return !!s && s.items.length > 0; });
+    g.jumps = g.jumps.filter((j) => { const s = seqById.get(j.from); return !!s && (s.items.length > 0 || isAndBranch(g, s.id)); });
     for (const l of g.links.slice()) {
       l.nodes = l.nodes.filter((n) => seqById.has(n));
       if (l.base && !seqById.has(l.base)) l.base = null;

@@ -1,4 +1,4 @@
-import { checkGraph, violations, docOrder, indexOf, nodesOf, numberTransitions, type Action, type Grafcet, type Message, type Node, type Project, type Seq } from '@grafcet/core';
+import { checkGraph, isAndBranch, violations, docOrder, indexOf, nodesOf, numberTransitions, type Action, type Grafcet, type Message, type Node, type Project, type Seq } from '@grafcet/core';
 import { ImportError, type ExportResult, type ImportResult, type ReportEntry } from './contract';
 import { elements, esc, parseXml, textOf, type XNode } from './xml';
 
@@ -115,7 +115,8 @@ function importGrafcet(P: Project, gx: XNode, report: ReportEntry[], index: numb
 /**
  * SFCEdit exprime « renvoi vers l'étape X » par un renvoi d'une séquence vide (base d'une convergence OU) vers une
  * branche vide d'une convergence OU dont la base commence par X. On le traduit en renvois directs vers X depuis la fin
- * de chaque branche de la première convergence (même sémantique : un OU puis un renvoi). Les branches vides retirées
+ * de chaque branche de la première convergence (même sémantique : un OU puis un renvoi). Une branche vide de divergence ET
+ * porte alors directement le renvoi (la barre arrive sur l'étape). Les branches vides de la seconde convergence retirées
  * ne sont plus nécessaires ; une convergence qui n'a plus qu'une branche est dissoute de la même façon.
  * Le graphe n'est modifié que si le résultat reste valide ; sinon renvoie false et ne change rien.
  */
@@ -125,7 +126,7 @@ function resolvePlaceholderJump(g: Grafcet, from: Seq, to: Seq, nid: (p?: string
   const goal = base?.items[0];
   const src = g.links.find((l) => l.kind === 'conv' && l.op === 'or' && l.base === from.id);
   if (!target || !goal || goal.kind !== 'step' || !src) return false;
-  if (src.nodes.some((n) => !g.seqs.find((s) => s.id === n)?.items.length)) return false;
+  if (src.nodes.some((n) => !g.seqs.find((s) => s.id === n)?.items.length && !isAndBranch(g, n))) return false;
   const copy = structuredClone({ seqs: g.seqs, links: g.links, jumps: g.jumps });
   const trial: Grafcet = { ...g, ...copy };
   const before = violationCount(g);
