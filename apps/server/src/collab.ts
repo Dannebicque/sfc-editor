@@ -254,6 +254,7 @@ export function createCollab(o: CollabOptions): Collab {
       if (!user) { refuse(socket, 401, 'Unauthorized'); return true; }
       const role = accounts.roleOf(m[1]!, user.id);
       if (!role) { refuse(socket, 404, 'Not Found'); return true; }
+      if (!accounts.collabAllowed(m[1]!, user.id)) { refuse(socket, 403, 'Forbidden'); return true; }
       track(db, 'collab_session');
       wss.handleUpgrade(req, socket, head, (ws) => connect(ws, m[1]!, user.id, user.name, cookie, role));
       return true;

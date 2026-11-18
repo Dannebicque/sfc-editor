@@ -14,6 +14,7 @@ export interface Content {
   langSwitch: { label: string; text: string; title: string };
   cta: { try: string; resume: string; account: string };
   hero: { kicker: string; title: string; lead: string; note: string; figure: string };
+  preview: { title: string; alt: string };
   features: { title: string; lead: string; items: { title: string; text: string }[] };
   audience: { title: string; items: { title: string; text: string }[] };
   plans: {
@@ -49,6 +50,7 @@ export const CONTENT: Record<Lang, Content> = {
       note: 'Aucune installation, aucun compte : vos projets restent dans votre navigateur.',
       figure: 'Exemple de GRAFCET : une étape initiale, une transition, une étape, puis une divergence en ET vers deux branches parallèles qui se rejoignent.',
     },
+    preview: { title: 'L’éditeur en un coup d’œil', alt: 'Capture de l’éditeur : liste des GRAFCET à gauche, dessin d’une station de tri au centre, propriétés de l’étape sélectionnée à droite, barre d’outils contextuelle en bas.' },
     features: {
       title: 'Tout ce qu’il faut pour un GRAFCET propre',
       lead: 'Conçu par un enseignant, pour les élèves, les enseignants et les automaticiens.',
@@ -141,6 +143,7 @@ export const CONTENT: Record<Lang, Content> = {
       note: 'No installation, no account: your projects stay in your browser.',
       figure: 'Example GRAFCET: an initial step, a transition, a step, then an AND divergence into two parallel branches that join again.',
     },
+    preview: { title: 'The editor at a glance', alt: 'Screenshot of the editor: GRAFCET list on the left, a sorting-station drawing in the centre, properties of the selected step on the right, a contextual toolbar at the bottom.' },
     features: {
       title: 'Everything for a clean GRAFCET',
       lead: 'Built by a teacher, for students, teachers and automation engineers.',

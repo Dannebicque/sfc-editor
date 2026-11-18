@@ -79,6 +79,14 @@ export function renderLanding(lang: Lang): string {
     <div class="hero-fig">${figure(c.hero.figure)}</div>
   </section>
 
+  <section class="wrap sec shot" aria-labelledby="h-shot">
+    <h2 id="h-shot">${c.preview.title}</h2>
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="/shots/editor-${lang}-dark.jpg" />
+      <img src="/shots/editor-${lang}-light.jpg" width="800" height="500" loading="lazy" alt="${esc(c.preview.alt)}" />
+    </picture>
+  </section>
+
   <section id="features" class="wrap sec" aria-labelledby="h-feat">
     <h2 id="h-feat">${c.features.title}</h2>
     <p class="sec-lead">${c.features.lead}</p>
@@ -114,11 +122,19 @@ export function renderLanding(lang: Lang): string {
 </div></footer>`;
 }
 
-export function renderHead(lang: Lang): string {
+/** `site` : adresse publique (sans barre finale), pour canonical, hreflang et Open Graph ; absente en développement. */
+export function renderHead(lang: Lang, site = ''): string {
   const c = CONTENT[lang];
+  const alt = site ? `
+    <link rel="canonical" href="${site}${c.path}" />
+    <link rel="alternate" hreflang="fr" href="${site}/" />
+    <link rel="alternate" hreflang="en" href="${site}/en/" />
+    <link rel="alternate" hreflang="x-default" href="${site}/" />
+    <meta property="og:url" content="${site}${c.path}" />
+    <meta property="og:locale" content="${lang === 'fr' ? 'fr_FR' : 'en_GB'}" />` : '';
   return `<title>${esc(c.title)}</title>
     <meta name="description" content="${esc(c.description)}" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="${esc(c.title)}" />
-    <meta property="og:description" content="${esc(c.description)}" />`;
+    <meta property="og:description" content="${esc(c.description)}" />${alt}`;
 }

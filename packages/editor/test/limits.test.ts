@@ -26,6 +26,13 @@ describe('limites de l\'essai sans compte', () => {
     expect(ui.limitHit).toBe('grafcets');
     expect(p.past.length).toBe(0);
   });
+  it('ne change pas de GRAFCET quand la limite refuse l\'ajout', () => {
+    const p = useProjectStore(); const ui = useUiStore();
+    p.limits = { ...GUEST_LIMITS, grafcets: p.project.grafcets.length };
+    p.activeId = p.project.grafcets[1]!.id;
+    ui.addGrafcet();
+    expect(p.activeId).toBe(p.project.grafcets[1]!.id);
+  });
   it('plafonne les étapes d\'un GRAFCET : un projet déjà au-delà reste éditable (retrait seulement)', () => {
     const p = useProjectStore(); const ui = useUiStore();
     p.limits = { grafcets: 99, steps: steps(p) };

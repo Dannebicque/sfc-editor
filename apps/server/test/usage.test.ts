@@ -91,6 +91,17 @@ describe('co-édition réservée à l\'offre classe', () => {
     db.prepare("UPDATE users SET plan = 'teacher' WHERE email = 'a@ex.fr'").run();
     expect((await invite(cookie, pid)).status).toBe(204);
   });
+  it('coupe aussi l\'accès des membres quand le propriétaire n\'a pas l\'offre', async () => {
+    make({ collabRequiresPlan: true });
+    const { pid } = await owner();
+    const ownerId = (db.prepare("SELECT id FROM users WHERE email = 'a@ex.fr'").get() as { id: string }).id;
+    db.prepare("INSERT INTO users (id,email,name,pw_hash,locale,created_at) VALUES ('u2','b@ex.fr','B','x','fr',1)").run();
+    db.prepare("INSERT INTO members (project_id,user_id,role,created_at) VALUES (?, 'u2', 'editor', 1)").run(pid);
+    expect(acc.collabAllowed(pid, ownerId)).toBe(true);
+    expect(acc.collabAllowed(pid, 'u2')).toBe(false);
+    db.prepare("UPDATE users SET plan = 'teacher' WHERE id = ?").run(ownerId);
+    expect(acc.collabAllowed(pid, 'u2')).toBe(true);
+  });
   it('reste ouverte par défaut (auto-hébergement)', async () => {
     const { cookie, pid } = await owner();
     expect((await invite(cookie, pid)).status).toBe(204);

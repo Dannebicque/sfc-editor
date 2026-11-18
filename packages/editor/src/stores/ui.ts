@@ -331,8 +331,10 @@ export const useUiStore = defineStore('ui', () => {
       project.persist();
     });
   }
-  const addGrafcet = () => openG(project.addGrafcet());
-  const dupGrafcet = () => openG(project.dupGrafcet());
+  // Si une limite a refusé l'ajout, l'identifiant renvoyé n'existe pas : on reste sur le GRAFCET en cours.
+  const openIfCreated = (id: string): void => { if (project.project.grafcets.some((g) => g.id === id)) openG(id); };
+  const addGrafcet = () => openIfCreated(project.addGrafcet());
+  const dupGrafcet = () => openIfCreated(project.dupGrafcet());
   function delGrafcet(): void {
     const next = project.delGrafcet();
     if (next) { openG(next); announce(T('a_g_deleted')); }

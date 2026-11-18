@@ -6,7 +6,8 @@ COPY . .
 RUN pnpm install --frozen-lockfile
 # Comptes et co-édition activés dans l'éditeur ; même origine que l'API (reverse proxy).
 ARG VITE_SHARE_URL=
-ENV VITE_ACCOUNTS=1 VITE_SHARE_URL=$VITE_SHARE_URL
+ARG VITE_SITE_URL=
+ENV VITE_ACCOUNTS=1 VITE_SHARE_URL=$VITE_SHARE_URL VITE_SITE_URL=$VITE_SITE_URL
 RUN pnpm --filter ./apps/web build
 
 FROM node:24-slim

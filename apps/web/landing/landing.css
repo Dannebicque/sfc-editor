@@ -116,3 +116,8 @@ details p{margin:0 0 16px;color:var(--ink-2)}
 .wait-msg.ok{color:var(--accent)}
 .wait-msg.err{color:#b3261e}
 @media (prefers-color-scheme: dark){.wait-msg.err{color:#ff8b80}}
+
+/* Aperçu */
+.shot{padding-block:24px 8px;text-align:center}
+.shot h2{margin-bottom:24px}
+.shot img{display:block;margin:0 auto;width:100%;max-width:960px;height:auto;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}

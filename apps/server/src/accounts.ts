@@ -104,6 +104,8 @@ export interface Accounts {
   userOf(req: Request): User | null;
   /** Rôle d'un utilisateur sur un projet. */
   roleOf(projectId: string, userId: string): Role | null;
+  /** La personne peut-elle collaborer sur ce projet ? Toujours vrai pour le propriétaire ; pour les autres, seulement si l'offre du propriétaire inclut la co-édition (COLLAB_REQUIRES_PLAN). */
+  collabAllowed(projectId: string, userId: string): boolean;
   cookieName: string;
 }
 
@@ -158,6 +160,8 @@ export function createAccounts(o: AccountsOptions): Accounts {
   };
 
   const toUser = (r: UserRow): User => ({ id: r.id, email: r.email, name: r.name, locale: r.locale, emailVerified: r.email_verified_at !== null });
+  const ownerPlanOk = (projectId: string): boolean => !o.collabRequiresPlan
+    || (db.prepare("SELECT u.plan FROM members m JOIN users u ON u.id = m.user_id WHERE m.project_id = ? AND m.role = 'owner'").get(projectId) as { plan: string } | undefined)?.plan === 'teacher';
   const getRole = (projectId: string, userId: string): Role | null => (q.role.get(projectId, userId) as { role: Role } | undefined)?.role ?? null;
 
   const parseCookies = (h: string | null): Record<string, string> => {
@@ -408,6 +412,7 @@ export function createAccounts(o: AccountsOptions): Accounts {
       if (method === 'DELETE') { q.delInvite.run(id); return send(204); }
       if (method !== 'POST') return fail(405, 'method');
       if (!u.emailVerified) return fail(403, 'email_not_verified');
+      if (!ownerPlanOk(inv.project_id)) return fail(403, 'plan_required');
       tx(db, () => {
         if (getRole(inv.project_id, u.id) !== 'owner') q.insMember.run(inv.project_id, u.id, inv.role, now());
         q.delInvite.run(id);
@@ -530,6 +535,7 @@ export function createAccounts(o: AccountsOptions): Accounts {
     cookieName,
     userOf: (req) => sessionOf(req)?.user ?? null,
     roleOf: getRole,
+    collabAllowed: (pid, uid) => getRole(pid, uid) === 'owner' || ownerPlanOk(pid),
   };
 }
 

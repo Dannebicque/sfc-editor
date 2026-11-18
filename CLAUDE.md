@@ -31,6 +31,9 @@
 - Fin des messages de commit : `Co-Authored-By: Claude <noreply@anthropic.com>`.
 
 ## Reste à faire (backlog)
+- Offre « classe » : espaces de classe (enseignant, classe, comptes élèves en lot, rendu de projet), puis SSO ; paiement seulement sur demande d'un établissement.
+- Landing : image Open Graph (PNG), exemples de TP prêts à ouvrir, captures à refaire en plus haute définition.
+- Test Docker de bout en bout (le build local a échoué : disque de la VM Docker plein), puis SMTP réel.
 - Dessin d'un graphe importé invalide (ex. convergence OU dont une branche finit par une étape : étape 14 qui chevauche la barre) — besoin du XML SFCEdit de David pour reproduire.
 - Saisir/importer le grand schéma réel (1_2, 30, 5_6, convergences ET, étape 30 partagée) et corriger ce qui manque.
 - Tester les exports dans de vrais outils (Beremiz, CODESYS).

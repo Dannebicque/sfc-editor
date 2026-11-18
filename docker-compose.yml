@@ -1,7 +1,10 @@
 # Production auto-hébergée : Caddy (TLS automatique) + application. Voir docs/deploiement.md.
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_SITE_URL: ${PUBLIC_URL:-}   # canonical, hreflang et sitemap de la landing
     restart: unless-stopped
     env_file: .env          # PUBLIC_URL, SMTP_URL, MAIL_FROM… (modèle : .env.example)
     volumes:
