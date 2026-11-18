@@ -6,7 +6,9 @@ export const GEO = { stepW: 44, stepH: 40, transH: 40, tick: 9, actH: 22, actGap
 export type TextWidth = (s: string) => number;
 
 export interface Line { x1: number; y1: number; x2: number; y2: number }
-export interface ActionView { i: number; x: number; y: number; condW: number; labW: number; cond: string; text: string; cell: boolean }
+/** `mark` : pictogramme du déclenchement (drapeau : sur événement ; ▲ : à l'activation ; ▼ : à la désactivation), dessiné dans une marge de la case `markCell`. */
+export type ActionMark = 'event' | 'activation' | 'deactivation';
+export interface ActionView { i: number; x: number; y: number; condW: number; labW: number; cond: string; text: string; cell: boolean; mark: ActionMark | null; markCell: 'cond' | 'label'; labPad: number }
 interface BoxBase { id: string; x: number; y: number; l: number; r: number; h: number }
 /** `arrivals` : numéros des étapes d'où part un renvoi vers cet élément (affichés au-dessus, avec une flèche entrante). */
 export interface StepView extends BoxBase { kind: 'step'; num: string; w: number; macro: boolean; role: 'entry' | 'exit' | null; name: string; initial: boolean; acts: ActionView[]; arrivals: string[]; ay: number }
@@ -28,7 +30,7 @@ export interface Focus {
 }
 export interface Layout { lines: Line[]; views: View[]; focus: Focus[]; bounds: { x: number; y: number; w: number; h: number } }
 
-interface Measure { l: number; r: number; h: number; ag?: { condW: number; labW: number; w: number } | null }
+interface Measure { l: number; r: number; h: number; ag?: { condW: number; labW: number; w: number; labPad: number } | null }
 
 /**
  * Mise en page d'un GRAFCET : les positions sont CALCULÉES depuis les séquences et les liens, jamais stockées.
@@ -86,20 +88,28 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
   const arrTop = (id: string): number => (arrivals(id).length ? GEO.arrivalH : 0);
   const arrHalf = (id: string): number => (arrivals(id).length ? tw(arrivals(id).join(', ')) / 2 + 4 : 0);
 
-  const actText = (a: { kind: string; label: string }) => (a.kind === 'activation' ? '↑ ' : a.kind === 'deactivation' ? '↓ ' : '') + (a.label || '?');
+  const actText = (a: { kind: string; label: string }) => a.label || '?';
+  const MARK_W = 16;
+  const markOf = (a: { kind: string }, onTrans: boolean): ActionMark | null => (onTrans || a.kind === 'event' ? 'event' : a.kind === 'activation' ? 'activation' : a.kind === 'deactivation' ? 'deactivation' : null);
   const jumpLabel = (to: string | null) => {
     const t = to ? ix.node.get(to)?.item : undefined;
     return !t ? '?' : t.kind === 'step' ? String(t.num) : '(' + t.num + ')';
   };
   const sw = (it: Extract<Node, { kind: 'step' }>) => Math.max(GEO.stepW, Math.ceil(tw(it.num)) + 16);
-  const actGeom = (it: { actions?: { kind: string; label: string; cond: string }[] }) => {
+  const actGeom = (it: { actions?: { kind: string; label: string; cond: string }[] }, onTrans = false) => {
     const acts = it.actions ?? [];
     if (!acts.length) return null;
-    const hasCond = (a: { kind: string; cond: string }) => a.kind === 'conditional' || a.kind === 'event';
+    const hasCond = (a: { kind: string; cond: string }) => (onTrans ? !!a.cond.trim() : a.kind === 'conditional' || a.kind === 'event');
+    const inCond = (a: { kind: string; cond: string }) => markOf(a, onTrans) === 'event' && hasCond(a);
     const hasC = acts.some(hasCond);
-    const condW = hasC ? Math.max(28, ...acts.map((a) => (hasCond(a) ? tw(a.cond || '?') + 14 : 0))) : 0;
-    const labW = Math.max(44, ...acts.map((a) => tw(actText(a)) + 16));
-    return { condW, labW, w: condW + labW };
+    const condPad = acts.some(inCond) ? MARK_W : 0, labPad = acts.some((a) => markOf(a, onTrans) && !inCond(a)) ? MARK_W : 0;
+    const condW = hasC ? Math.max(28, ...acts.map((a) => (hasCond(a) ? tw(a.cond || '?') + 14 : 0))) + condPad : 0;
+    const labW = Math.max(44, ...acts.map((a) => tw(actText(a)) + 16)) + labPad;
+    return { condW, labW, w: condW + labW, labPad };
+  };
+  const actView = (a: { kind: string; label: string; cond: string }, i: number, x: number, y: number, ag: { condW: number; labW: number; labPad: number }, onTrans: boolean): ActionView => {
+    const mark = markOf(a, onTrans), cell = onTrans ? !!a.cond.trim() : a.kind === 'conditional' || a.kind === 'event';
+    return { i, x, y, condW: ag.condW, labW: ag.labW, cond: a.cond || '', text: actText(a), cell, mark, markCell: mark === 'event' && cell ? 'cond' : 'label', labPad: ag.labPad };
   };
 
   /* ---- mesures ---- */
@@ -115,7 +125,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
         h: arrTop(it.id) + Math.max(GEO.stepH, it.actions.length * GEO.actH + 10), ag,
       };
     } else {
-      const ag = actGeom(it);
+      const ag = actGeom(it, true);
       m = {
         l: Math.max(GEO.tick + 8 + tw('(' + it.num + ')'), arrHalf(it.id)),
         r: Math.max(GEO.tick + 8 + tw(it.recept || '?') + (ag ? GEO.actGap + ag.w : 0), arrHalf(it.id)),
@@ -319,7 +329,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
       const acts: ActionView[] = [];
       if (m.ag) {
         const ax = cx + sw(it) / 2 + GEO.actGap;
-        it.actions.forEach((a, i) => acts.push({ i, x: ax, y: y + 9 + i * GEO.actH, condW: m.ag!.condW, labW: m.ag!.labW, cond: a.cond || '', text: actText(a), cell: a.kind === 'conditional' || a.kind === 'event' }));
+        it.actions.forEach((a, i) => acts.push(actView(a, i, ax, y + 9 + i * GEO.actH, m.ag!, false)));
         L(cx + sw(it) / 2, y + 20, ax, y + 20);
       }
       if (m.h > GEO.stepH) L(cx, y + GEO.stepH, cx, y + m.h);
@@ -330,7 +340,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
       const acts: ActionView[] = [];
       if (m.ag) {
         const rx = cx + GEO.tick + 8 + tw(it.recept || '?') + 4, ax = rx + GEO.actGap;
-        (it.actions ?? []).forEach((a, i) => acts.push({ i, x: ax, y: y + 9 + i * GEO.actH, condW: m.ag!.condW, labW: m.ag!.labW, cond: a.cond || '', text: actText(a), cell: !!(a.cond || '').trim() }));
+        (it.actions ?? []).forEach((a, i) => acts.push(actView(a, i, ax, y + 9 + i * GEO.actH, m.ag!, true)));
         L(rx, y + 20, ax, y + 20);
       }
       views.push({ kind: 'trans', id: it.id, x: cx, y, l: m.l, r: m.r, h: m.h, num: it.num, recept: it.recept, arrivals: arrivals(it.id), ay, acts });

@@ -20,7 +20,7 @@ Le prototype (`prototype/editeur-grafcet.html`, ~1900 lignes, un seul fichier) a
 - `renumber` réécrit aussi les références `Xn` des **conditions d'actions** (le prototype ne le faisait que pour les réceptivités).
 - La duplication d'un GRAFCET attribue de **nouveaux identifiants** aux éléments (et réécrit les renvois) ; le prototype conservait les mêmes ids.
 - Nouveau **format natif** (`grafcet-studio-project`, `schemaVersion` 1.0.0) avec sérialisation déterministe, onglet « Projet (.grafcet) » et bouton de téléchargement. L'import accepte toujours le JSON libre du prototype.
-- Clé de stockage local : `grafcet-studio-v1` (les projets du prototype ne sont pas migrés automatiquement : les ré-importer par l'onglet Données).
+- Clé de stockage local : `grafcet-studio-v1` (les projets du prototype ne sont pas migrés automatiquement : les ré-importer par la fenêtre Exporter).
 
 ## Inchangé
 Grammaire de construction guidée, mise en page, raccourcis (E T O A R / S T O A J), simulation à jetons, annonces ARIA, thème clair/sombre/auto.

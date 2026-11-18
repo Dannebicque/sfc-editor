@@ -5,13 +5,22 @@ import { useUiStore } from '../stores/ui';
 import { useViewStore } from '../stores/view';
 import { computed } from 'vue';
 import Icon from './Icon.vue';
+import type { ActionView } from '@grafcet/layout';
+
+/** Pictogramme de déclenchement, dans la marge gauche de sa case : drapeau (événement), ▲ (activation), ▼ (désactivation). */
+function actMark(a: ActionView): string {
+  const x = a.markCell === 'cond' ? a.x : a.x + a.condW, y = a.y;
+  if (a.mark === 'event') return `${x + 3},${y + 11} ${x + 12},${y + 5} ${x + 12},${y + 17}`;
+  if (a.mark === 'activation') return `${x + 3},${y + 16} ${x + 13},${y + 16} ${x + 8},${y + 6}`;
+  return `${x + 3},${y + 6} ${x + 13},${y + 6} ${x + 8},${y + 16}`;
+}
 import Toolbar from './Toolbar.vue';
 
 const ui = useUiStore();
 const view = useViewStore();
 const { host } = storeToRefs(view);
 const { shapes, layout, gTransform, gridStyle } = storeToRefs(view);
-const { sel, sim, simActive, simEnabled, slotPos, sharedNum, citingActive, pending } = storeToRefs(ui);
+const { sel, sim, simActive, simEnabled, simForceable, simFrozenNow, simFrozenNames, simUnresolved, slotPos, sharedNum, citingActive, pending } = storeToRefs(ui);
 const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump', 'link'] as const).map((k) => K.value[k]).join(', '));
 </script>
 
@@ -26,7 +35,7 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump', 'link'] a
         <g :transform="gTransform">
           <line v-for="(l, i) in layout.lines" :key="'l' + i" class="lk" :x1="l.x1" :y1="l.y1" :x2="l.x2" :y2="l.y2" />
           <template v-for="v in shapes" :key="v.id">
-            <g v-if="v.kind === 'step'" class="el" :class="{ active: simActive.has(v.id), linked: sharedNum !== null && v.num === sharedNum, cites: citingActive.has(v.id) }" @pointerdown.stop="ui.pick(v.id)" @dblclick.stop="v.macro && ui.openExpansion(v.id)">
+            <g v-if="v.kind === 'step'" class="el" :class="{ active: simActive.has(v.id), linked: sharedNum !== null && v.num === sharedNum, cites: citingActive.has(v.id) }" @pointerdown.stop="$event.shiftKey && sim.on ? ui.simToggleStep(v.id) : ui.pick(v.id)" @dblclick.stop="v.macro && ui.openExpansion(v.id)">
               <rect class="hit" :x="v.x - v.l" :y="v.ay" :width="v.l + v.r" :height="v.h + v.y - v.ay" />
               <g v-if="v.arrivals.length" class="arrival">
                 <text class="jtxt" :x="v.x" :y="v.ay + 11" text-anchor="middle">{{ v.arrivals.join(', ') }}</text>
@@ -39,10 +48,11 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump', 'link'] a
               <text v-if="v.name" class="st-name" :x="v.x - v.w / 2 - 8" :y="v.y + 24" text-anchor="end">{{ v.name }}</text>
               <circle v-if="simActive.has(v.id)" class="tok" :cx="v.x" :cy="v.y + 33" r="3.4" />
               <g v-for="a in v.acts" :key="a.i">
-                <rect v-if="a.cell" class="act-box" :x="a.x" :y="a.y" :width="a.condW" height="22" />
-                <text v-if="a.cell" class="act-txt" :x="a.x + a.condW / 2" :y="a.y + 15" text-anchor="middle">{{ a.cond || '?' }}</text>
+                <rect v-if="a.cell" class="act-box act-cond" :x="a.x" :y="a.y" :width="a.condW" height="22" />
+                <text v-if="a.cell" class="act-txt act-cond-txt" :x="a.x + a.condW / 2 + (a.markCell === 'cond' && a.mark ? 8 : 0)" :y="a.y + 15" text-anchor="middle">{{ a.cond || '?' }}</text>
                 <rect class="act-box" :x="a.x + a.condW" :y="a.y" :width="a.labW" height="22" />
-                <text class="act-txt" :x="a.x + a.condW + 8" :y="a.y + 15">{{ a.text }}</text>
+                <polygon v-if="a.mark" class="act-mark" :points="actMark(a)"><title>{{ T('act_mark_' + a.mark) }}</title></polygon>
+                <text class="act-txt" :x="a.x + a.condW + 8 + a.labPad" :y="a.y + 15">{{ a.text }}</text>
               </g>
               <rect v-if="sel === v.id" class="ring" :x="v.x - v.w / 2 - 5" :y="v.y - 5" :width="v.w + 10" height="50" rx="5" />
             </g>
@@ -56,10 +66,11 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump', 'link'] a
               <text class="tnum" :x="v.x - 17" :y="v.y + 24" text-anchor="end">({{ v.num }})</text>
               <text class="rec" :class="{ empty: !v.recept }" :x="v.x + 17" :y="v.y + 24">{{ v.recept || '?' }}</text>
               <g v-for="a in v.acts" :key="a.i">
-                <rect v-if="a.cell" class="act-box" :x="a.x" :y="a.y" :width="a.condW" height="22" />
-                <text v-if="a.cell" class="act-txt" :x="a.x + a.condW / 2" :y="a.y + 15" text-anchor="middle">{{ a.cond || '?' }}</text>
+                <rect v-if="a.cell" class="act-box act-cond" :x="a.x" :y="a.y" :width="a.condW" height="22" />
+                <text v-if="a.cell" class="act-txt act-cond-txt" :x="a.x + a.condW / 2 + (a.markCell === 'cond' && a.mark ? 8 : 0)" :y="a.y + 15" text-anchor="middle">{{ a.cond || '?' }}</text>
                 <rect class="act-box" :x="a.x + a.condW" :y="a.y" :width="a.labW" height="22" />
-                <text class="act-txt" :x="a.x + a.condW + 8" :y="a.y + 15">{{ a.text }}</text>
+                <polygon v-if="a.mark" class="act-mark" :points="actMark(a)"><title>{{ T('act_mark_' + a.mark) }}</title></polygon>
+                <text class="act-txt" :x="a.x + a.condW + 8 + a.labPad" :y="a.y + 15">{{ a.text }}</text>
               </g>
               <rect v-if="sel === v.id" class="ring" :x="v.x - 15" :y="v.y + 11" width="30" height="18" rx="4" />
             </g>
@@ -99,8 +110,16 @@ const keyList = computed(() => (['step', 'trans', 'or', 'and', 'jump', 'link'] a
 
     <Toolbar />
     <div v-if="sim.on" class="simbar">
-      <p><b>{{ T('sim') }}</b>{{ T('colon') }}{{ T('sim_help') }}</p>
+      <p><b>{{ T('sim') }}</b>{{ T('colon') }}{{ T('sim_help') }} {{ T('sim_force_help') }}</p>
       <button class="btn solid" @click="ui.simReset()"><Icon n="reset" />{{ T('sim_reset') }}</button>
+      <p v-if="simFrozenNames.length" class="simnote" role="status">{{ T('sim_frozen', { g: simFrozenNames.join(', ') }) }}</p>
+      <p v-if="simUnresolved.length" class="simnote warn">{{ T('sim_unresolved', { a: simUnresolved.join(', ') }) }}</p>
+      <div class="simforce" role="group" :aria-label="T('sim_force')">
+        <span class="tb-title">{{ T('sim_force') }}</span>
+        <button class="btn solid" :disabled="!simForceable" :title="T('sim_force_init_hint')" @click="ui.simForce({ kind: 'init' })"><code>{INIT}</code></button>
+        <button class="btn solid" :disabled="!simForceable" :title="T('sim_force_empty_hint')" @click="ui.simForce({ kind: 'empty' })"><code>{}</code></button>
+        <button class="btn solid" :disabled="!simForceable" :aria-pressed="simFrozenNow" :title="T('sim_force_freeze_hint')" @click="ui.simForce({ kind: simFrozenNow ? 'release' : 'freeze' })"><code>{*}</code></button>
+      </div>
     </div>
   </section>
 </template>

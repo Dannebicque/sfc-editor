@@ -1,3 +1,4 @@
+import { SHARES_KEY } from '../src/share';
 import { describe, expect, it } from 'vitest';
 import { expand, LEGAL, LEGAL_DOC_IDS, LEGAL_DOCS, missingFields, type LegalBlock } from '../src/legal';
 
@@ -28,7 +29,9 @@ describe('textes légaux', () => {
     const cookies = LEGAL_DOCS.fr.find((d) => d.id === 'cookies')!;
     const table = cookies.blocks.find((b) => 'table' in b) as Extract<LegalBlock, { table: unknown }>;
     const keys = table.table.rows.map((r) => r[0]);
-    expect(keys).toEqual(['grafcet-studio-v1', 'grafcet-studio-v1-lang', 'grafcet-studio-v1-theme']);
+    expect(keys).toEqual(['grafcet-studio-v1', 'grafcet-studio-v1-lang', 'grafcet-studio-v1-theme', SHARES_KEY]);
+    const en = (LEGAL_DOCS.en.find((d) => d.id === 'cookies')!.blocks.find((b) => 'table' in b) as Extract<LegalBlock, { table: unknown }>).table.rows.map((r) => r[0]);
+    expect(en).toEqual(keys);
   });
 });
 

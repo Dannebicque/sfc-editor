@@ -4,11 +4,13 @@ import { T, lang } from '../i18n';
 import { useProjectStore } from '../stores/project';
 import { useUiStore } from '../stores/ui';
 import { useViewStore } from '../stores/view';
+import { useAccountStore } from '../stores/account';
 import Icon from './Icon.vue';
 
 const project = useProjectStore();
 const ui = useUiStore();
 const view = useViewStore();
+const account = useAccountStore();
 const { past, future } = storeToRefs(project);
 const { sim, theme, themeLabel } = storeToRefs(ui);
 </script>
@@ -30,6 +32,18 @@ const { sim, theme, themeLabel } = storeToRefs(ui);
       <button class="btn icon" :title="T('fit_t')" @click="view.fit(true)"><Icon n="fit" /><span class="sr">{{ T('fit') }}</span></button>
     </div>
     <div class="spacer"></div>
+    <div class="tools" role="toolbar" :aria-label="T('data_title')">
+      <button class="btn solid" type="button" :title="T('nav_import_t')" @click="ui.dataDialog = 'import'"><Icon n="upload" /><span class="txt">{{ T('nav_import') }}</span></button>
+      <button class="btn solid" type="button" :title="T('nav_export_t')" @click="ui.dataDialog = 'export'"><Icon n="download" /><span class="txt">{{ T('nav_export') }}</span></button>
+      <button class="btn solid" type="button" :title="T('nav_share_t')" @click="ui.dataView = 'share'; ui.dataDialog = 'export'"><Icon n="share" /><span class="txt">{{ T('nav_share') }}</span></button>
+    </div>
+    <div v-if="account.enabled && account.ready" class="tools" role="toolbar" :aria-label="T('acc_label')">
+      <template v-if="account.user">
+        <button class="btn solid" type="button" :title="T('acc_projects_t')" @click="account.open('projects')"><span class="txt">{{ T('acc_projects') }}</span><span v-if="account.invitations.length" class="badge warn" aria-hidden="true">{{ account.invitations.length }}</span></button>
+        <button class="btn solid" type="button" :title="T('acc_user_t', { x: account.user.name })" @click="account.open('account')"><span class="txt">{{ account.user.name }}</span></button>
+      </template>
+      <button v-else class="btn solid" type="button" :title="T('acc_signin_t')" @click="account.open('auth', 'login')"><span class="txt">{{ T('acc_signin') }}</span></button>
+    </div>
     <button class="btn solid" :class="{ on: sim.on }" :aria-pressed="sim.on" @click="ui.toggleSim()"><Icon :n="sim.on ? 'stop' : 'play'" /><span class="txt">{{ sim.on ? T('sim_stop') : T('sim') }}</span></button>
     <div class="seg langseg" role="group" :aria-label="T('lang_label')">
       <button type="button" lang="fr" title="Français" :aria-pressed="lang === 'fr'" @click="ui.setLang('fr')">FR</button>

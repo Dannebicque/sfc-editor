@@ -1,0 +1,24 @@
+{
+  "name": "@grafcet/collab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Représentation Yjs d'un projet GRAFCET (ADR 0005), partagée par le serveur et l'éditeur.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@grafcet/core": "workspace:*",
+    "lib0": "^0.2.120",
+    "yjs": "^13.6.33"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "vitest": "^5.1.0"
+  },
+  "license": "MPL-2.0"
+}
