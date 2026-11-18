@@ -29,6 +29,7 @@
 ## Git
 - Branche de travail : `dev` (David fusionne dans `main`). `feat/graph-model` est fusionnée dans `main` et n'est plus utilisée.
 - Fin des messages de commit : `Co-Authored-By: Claude <noreply@anthropic.com>`.
+- Espaces de classe (ADR 0006) : `apps/server/src/classes.ts` (routes `/api/classes`, branchées dans `accounts.ts`), migration 5, store `stores/classes.ts`, `components/ClassesDialog.vue`. Les copies d'élèves sont des projets ordinaires (`submissions.project_id`), l'accès de l'enseignant·e passe par `members`.
 
 ## Reste à faire (backlog)
 - Offre « classe » : espaces de classe (enseignant, classe, comptes élèves en lot, rendu de projet), puis SSO ; paiement seulement sur demande d'un établissement.

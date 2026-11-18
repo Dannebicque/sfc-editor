@@ -333,6 +333,12 @@ dialog.acc{width:min(640px,94vw)}
 .acc-form label{font-weight:600;font-size:13px}
 .acc-form input[type=text],.acc-form input[type=email],.acc-form input[type=password],.acc-form select,dialog.acc select{font:inherit;padding:7px 9px;border:1px solid var(--line-2);border-radius:8px;background:var(--canvas);color:var(--ink);min-width:0}
 .acc-form .hint,.acc .hint{margin:0}
+.acc-form textarea{font:inherit;padding:7px 9px;border:1px solid var(--line-2);border-radius:8px;background:var(--canvas);color:var(--ink);min-width:0;resize:vertical}
+.cls-title{margin:6px 0;font-size:17px}.cls-title:focus-visible,.acc-h:focus-visible{outline:2px solid var(--accent,currentColor);outline-offset:3px}
+.cls-text{white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.cls-scroll{overflow-x:auto}.cls-table{border-collapse:collapse;width:100%;font-size:13px}
+.cls-table th,.cls-table td{text-align:left;vertical-align:top;padding:6px 8px;border-bottom:1px solid var(--line)}
+.cls-table thead th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
 .acc-h{margin:6px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
 .acc-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .acc-list>li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--canvas)}

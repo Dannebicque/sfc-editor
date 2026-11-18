@@ -104,11 +104,11 @@ export const CONTENT: Record<Lang, Content> = {
         },
         {
           id: 'paid', name: 'Classe et établissement', tag: 'Bientôt',
-          text: 'Pour les enseignants et les établissements. Pistes envisagées, forfait annuel par classe ou par établissement (tarifs à venir) :',
-          points: ['Co-édition en temps réel, rôles et invitations', 'Espaces de classe et comptes élèves créés en masse', 'Rendu et correction de TP', 'Connexion par l’ENT ou l’annuaire de l’établissement (SSO)', 'Hébergement garanti et support'],
+          text: 'Pour les enseignants et les établissements. Les fonctions ci-dessous sont développées ; l’offre ouvrira avec un forfait annuel par classe ou par établissement (tarifs à venir) :',
+          points: ['Co-édition en temps réel, rôles et invitations', 'Classes : comptes élèves créés à partir d’une liste (nom, email), l’élève choisit son mot de passe', 'Sujets : un modèle copié à chaque élève, rendus suivis, commentaires de l’enseignant·e', 'Ouvrir la copie d’un élève en lecture seule ou en édition', 'À venir : connexion par l’ENT ou l’annuaire de l’établissement (SSO), hébergement garanti et support'],
         },
       ],
-      foot: 'Le contenu de l’offre payante n’est pas arrêté : l’édition et les fonctions gratuites décrites ci-dessus le resteront.',
+      foot: 'Le tarif de l’offre payante n’est pas arrêté : l’édition et les fonctions gratuites décrites ci-dessus le resteront.',
       waitlist: {
         title: 'Être prévenu·e de l’ouverture', email: 'Adresse email', kind: 'Vous êtes',
         kinds: { teacher: 'Enseignant·e', school: 'Établissement', other: 'Autre' },
@@ -200,11 +200,11 @@ export const CONTENT: Record<Lang, Content> = {
         },
         {
           id: 'paid', name: 'Classroom and school', tag: 'Coming soon',
-          text: 'For teachers and schools. Ideas under consideration, yearly flat fee per class or per school (prices to come):',
-          points: ['Real-time co-editing, roles and invitations', 'Class spaces and student accounts created in bulk', 'Assignment hand-in and marking', 'Sign-in through the school’s SSO', 'Guaranteed hosting and support'],
+          text: 'For teachers and schools. The features below are built; the plan will open with a yearly flat fee per class or per school (prices to come):',
+          points: ['Real-time co-editing, roles and invitations', 'Classes: pupil accounts created from a list (name, email), pupils choose their own password', 'Assignments: a template copied to each pupil, hand-ins tracked, teacher comments', 'Open a pupil’s copy read-only or for editing', 'Coming: sign-in through the school’s SSO, guaranteed hosting and support'],
         },
       ],
-      foot: 'The content of the paid plan is not settled: editing and the free features described above will stay free.',
+      foot: 'The price of the paid plan is not settled: editing and the free features described above will stay free.',
       waitlist: {
         title: 'Get notified when it opens', email: 'Email address', kind: 'You are',
         kinds: { teacher: 'A teacher', school: 'A school', other: 'Other' },

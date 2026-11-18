@@ -85,6 +85,63 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free' CHECK (plan IN ('free','teacher'));
   `,
+  // 5 : espaces de classe (ADR 0006). Les copies d'élèves sont des `projects` ordinaires ; `submissions.project_id` les relie au sujet.
+  `
+  CREATE TABLE classes (
+    id TEXT PRIMARY KEY,
+    teacher_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX classes_teacher ON classes(teacher_id);
+  CREATE TABLE class_students (
+    class_id TEXT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    joined_at INTEGER NOT NULL,
+    PRIMARY KEY (class_id, user_id)
+  );
+  CREATE INDEX class_students_user ON class_students(user_id);
+  CREATE TABLE class_invites (
+    id TEXT PRIMARY KEY,
+    class_id TEXT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    invited_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    UNIQUE (class_id, email)
+  );
+  CREATE INDEX class_invites_email ON class_invites(email);
+  CREATE TABLE assignments (
+    id TEXT PRIMARY KEY,
+    class_id TEXT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    instructions TEXT NOT NULL DEFAULT '',
+    template TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    due_at INTEGER
+  );
+  CREATE INDEX assignments_class ON assignments(class_id);
+  CREATE TABLE submissions (
+    assignment_id TEXT NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+    student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'todo' CHECK (status IN ('todo','submitted')),
+    submitted_at INTEGER,
+    PRIMARY KEY (assignment_id, student_id)
+  );
+  CREATE UNIQUE INDEX submissions_project ON submissions(project_id);
+  CREATE INDEX submissions_student ON submissions(student_id);
+  CREATE TABLE submission_comments (
+    id TEXT PRIMARY KEY,
+    assignment_id TEXT NOT NULL,
+    student_id TEXT NOT NULL,
+    author_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (assignment_id, student_id) REFERENCES submissions(assignment_id, student_id) ON DELETE CASCADE
+  );
+  CREATE INDEX comments_sub ON submission_comments(assignment_id, student_id);
+  `,
 ];
 
 export function migrate(db: Db): void {

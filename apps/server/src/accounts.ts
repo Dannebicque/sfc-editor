@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { tx, type Db } from './db';
 import { isClientEvent, track } from './usage';
 import { compose, type Mailer } from './mailer';
+import { createClasses } from './classes';
 import { DEFAULT_COST, hashPassword, passwordProblem, verifyPassword, type ScryptCost } from './password';
 
 export type Role = 'owner' | 'editor' | 'viewer';
@@ -164,6 +165,16 @@ export function createAccounts(o: AccountsOptions): Accounts {
     || (db.prepare("SELECT u.plan FROM members m JOIN users u ON u.id = m.user_id WHERE m.project_id = ? AND m.role = 'owner'").get(projectId) as { plan: string } | undefined)?.plan === 'teacher';
   const getRole = (projectId: string, userId: string): Role | null => (q.role.get(projectId, userId) as { role: Role } | undefined)?.role ?? null;
 
+  /** Copie d'élève dans une classe (ADR 0006) : `teacher` est l'enseignant·e de la classe. */
+  const classCopy = (projectId: string): { teacher: string } | null => {
+    const r = db.prepare('SELECT c.teacher_id FROM submissions s JOIN assignments a ON a.id = s.assignment_id JOIN classes c ON c.id = a.class_id WHERE s.project_id = ?').get(projectId) as { teacher_id: string } | undefined;
+    return r ? { teacher: r.teacher_id } : null;
+  };
+  const classRoutes = createClasses({
+    db, mailer, base, now, maxProjectBytes: maxProject, requiresPlan: !!o.collabRequiresPlan,
+    activationToken: (userId, ttl) => newToken(userId, 'reset', ttl),
+  });
+
   const parseCookies = (h: string | null): Record<string, string> => {
     const out: Record<string, string> = {};
     for (const part of (h ?? '').split(';')) { const i = part.indexOf('='); if (i > 0) out[part.slice(0, i).trim()] = part.slice(i + 1).trim(); }
@@ -195,10 +206,10 @@ export function createAccounts(o: AccountsOptions): Accounts {
     return cookie(tok, SESSION_SLIDE / 1000);
   }
 
-  function newToken(userId: string, kind: 'verify' | 'reset'): string {
+  function newToken(userId: string, kind: 'verify' | 'reset', ttl = kind === 'verify' ? 24 * HOUR : HOUR): string {
     const tok = rid(32);
     q.delTokensOf.run(userId, kind);
-    q.insToken.run(sha256(tok), userId, kind, now() + (kind === 'verify' ? 24 * HOUR : HOUR));
+    q.insToken.run(sha256(tok), userId, kind, now() + ttl);
     return tok;
   }
 
@@ -210,6 +221,11 @@ export function createAccounts(o: AccountsOptions): Accounts {
   /** Les invitations en attente pour cet email deviennent des droits seulement quand l'email est vérifié (acceptation explicite). */
   const pendingInvites = (u: User): unknown[] => (u.emailVerified ? (q.myInvites.all(u.email, now()) as Array<Record<string, unknown>>).map((i) => ({
     id: i.id, role: i.role, project: i.project, invitedBy: i.invited_by, expiresAt: new Date(i.expires_at as number).toISOString(),
+  })) : []);
+
+  const pendingClassInvites = (u: User): unknown[] => (u.emailVerified ? (db.prepare(`SELECT i.id, i.expires_at, c.name AS class, w.name AS invited_by FROM class_invites i
+    JOIN classes c ON c.id = i.class_id JOIN users w ON w.id = i.invited_by WHERE i.email = ? AND i.expires_at > ? ORDER BY i.created_at DESC`).all(u.email, now()) as Array<Record<string, any>>).map((i) => ({
+    id: i.id, class: i.class, invitedBy: i.invited_by, expiresAt: new Date(i.expires_at).toISOString(),
   })) : []);
 
   const handler: Handler = async (req, ctx = {}) => {
@@ -364,7 +380,7 @@ export function createAccounts(o: AccountsOptions): Accounts {
     // ───────────── mon compte ─────────────
     if (path === '/api/me') {
       const u = need(); if (isRes(u)) return u;
-      if (method === 'GET') return send(200, { user: u, invitations: pendingInvites(u) });
+      if (method === 'GET') return send(200, { user: u, invitations: pendingInvites(u), classInvitations: pendingClassInvites(u) });
       if (method === 'PATCH') {
         const b = await body(S.patchMe); if (!b.ok) return b.res;
         db.prepare('UPDATE users SET name = COALESCE(?, name), locale = COALESCE(?, locale) WHERE id = ?').run(b.data.name ?? null, b.data.locale ?? null, u.id);
@@ -420,6 +436,16 @@ export function createAccounts(o: AccountsOptions): Accounts {
       return send(200, { projectId: inv.project_id, role: inv.role });
     }
 
+    // ───────────── classes (ADR 0006) ─────────────
+    if (path.startsWith('/api/classes') || path.startsWith('/api/class-invitations/')) {
+      const u = need(); if (isRes(u)) return u;
+      const r = await classRoutes({
+        u, method, seg: path.split('/').slice(2), ip, send: (st, b) => send(st, b), fail: (st, e) => fail(st, e),
+        body, limited: (key, max, win) => limiter.hit(key, max, win),
+      });
+      return r ?? fail(404, 'not_found');
+    }
+
     // ───────────── projets ─────────────
     if (path === '/api/projects') {
       const u = need(); if (isRes(u)) return u;
@@ -458,6 +484,7 @@ export function createAccounts(o: AccountsOptions): Accounts {
         }
         if (method === 'DELETE') {
           if (!atLeast(my, 'owner')) return fail(403, 'forbidden');
+          if (classCopy(pid!)) return fail(409, 'class_managed'); // une copie de classe se supprime en quittant la classe ou via l'enseignant·e
           q.delProject.run(pid!);
           return send(204);
         }
@@ -479,6 +506,7 @@ export function createAccounts(o: AccountsOptions): Accounts {
         if (!target) return fail(404, 'not_found');
         if (method === 'DELETE') {
           if (subId !== u.id && !atLeast(my, 'owner')) return fail(403, 'forbidden');
+          if (subId !== u.id && classCopy(pid!)?.teacher === subId) return fail(409, 'class_managed');
           if (target === 'owner') return fail(409, 'owner_cannot_leave');
           q.delMember.run(pid!, subId);
           return send(204);
@@ -486,6 +514,7 @@ export function createAccounts(o: AccountsOptions): Accounts {
         if (method === 'PUT') {
           if (!atLeast(my, 'owner')) return fail(403, 'forbidden');
           if (target === 'owner') return fail(409, 'owner_role_fixed');
+          if (classCopy(pid!)?.teacher === subId) return fail(409, 'class_managed');
           const b = await body(S.setRole); if (!b.ok) return b.res;
           q.setRole.run(b.data.role, pid!, subId);
           return send(204);
@@ -517,6 +546,7 @@ export function createAccounts(o: AccountsOptions): Accounts {
         if (!atLeast(my, 'owner')) return fail(403, 'forbidden');
         const b = await body(S.transfer); if (!b.ok) return b.res;
         if (b.data.userId === u.id || !getRole(pid!, b.data.userId)) return fail(400, 'invalid_target');
+        if (classCopy(pid!)) return fail(409, 'class_managed');
         tx(db, () => {
           q.reown.run(b.data.userId, pid!);
           q.insMember.run(pid!, b.data.userId, 'owner', now());
@@ -535,7 +565,7 @@ export function createAccounts(o: AccountsOptions): Accounts {
     cookieName,
     userOf: (req) => sessionOf(req)?.user ?? null,
     roleOf: getRole,
-    collabAllowed: (pid, uid) => getRole(pid, uid) === 'owner' || ownerPlanOk(pid),
+    collabAllowed: (pid, uid) => getRole(pid, uid) === 'owner' || ownerPlanOk(pid) || !!classCopy(pid),
   };
 }
 
@@ -543,6 +573,8 @@ export function createAccounts(o: AccountsOptions): Accounts {
 /** Supprime un compte : projets dont il est propriétaire transférés à un autre membre (éditeur d'abord) ou supprimés, puis le compte. */
 export function eraseUser(db: Db, userId: string, t: number): void {
   tx(db, () => {
+    // Copies de classe de la personne : supprimées (RGPD), jamais transférées à l'enseignant·e (ADR 0006).
+    db.prepare('DELETE FROM projects WHERE id IN (SELECT project_id FROM submissions WHERE student_id = ?)').run(userId);
     for (const p of db.prepare('SELECT id FROM projects WHERE owner_id = ?').all(userId) as Array<{ id: string }>) {
       const next = db.prepare("SELECT user_id FROM members WHERE project_id = ? AND user_id <> ? ORDER BY CASE role WHEN 'editor' THEN 0 ELSE 1 END, created_at LIMIT 1").get(p.id, userId) as { user_id: string } | undefined;
       if (next) {
@@ -582,4 +614,5 @@ export function sweepAccounts(db: Db, now: number): void {
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now);
   db.prepare('DELETE FROM tokens WHERE expires_at <= ?').run(now);
   db.prepare('DELETE FROM invites WHERE expires_at <= ?').run(now);
+  db.prepare('DELETE FROM class_invites WHERE expires_at <= ?').run(now);
 }

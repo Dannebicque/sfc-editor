@@ -14,6 +14,7 @@ import AuthDialog from './components/AuthDialog.vue';
 import ProjectsDialog from './components/ProjectsDialog.vue';
 import AccountDialog from './components/AccountDialog.vue';
 import MembersDialog from './components/MembersDialog.vue';
+import ClassesDialog from './components/ClassesDialog.vue';
 import CollabBar from './components/CollabBar.vue';
 import { useAccountStore } from './stores/account';
 import { useCollabStore } from './stores/collab';
@@ -45,7 +46,7 @@ onMounted(() => { ui.init(); share.init(); void account.init((id) => { void coll
     <DataDialog />
     <ShareDialog v-if="share.enabled" />
     <template v-if="account.enabled">
-      <AuthDialog /><ProjectsDialog /><AccountDialog /><MembersDialog />
+      <AuthDialog /><ProjectsDialog /><AccountDialog /><MembersDialog /><ClassesDialog />
     </template>
     <div class="sr" role="status" aria-live="polite">{{ liveMsg }}</div>
   </div>
