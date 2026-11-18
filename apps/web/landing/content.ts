@@ -6,6 +6,8 @@ export interface Content {
   htmlLang: Lang;
   path: string;
   altPath: string;
+  legalPath: string;
+  altLegalPath: string;
   title: string;
   description: string;
   skip: string;
@@ -25,6 +27,7 @@ export interface Content {
   };
   faq: { title: string; items: { q: string; a: string }[] };
   final: { title: string; text: string };
+  legalPage: { title: string; description: string; back: string; todo: string; navAria: string; updated: string };
   footer: { license: string; legal: string; privacy: string; terms: string };
 }
 
@@ -36,6 +39,8 @@ export const CONTENT: Record<Lang, Content> = {
     htmlLang: 'fr',
     path: '/',
     altPath: '/en/',
+    legalPath: '/legal/',
+    altLegalPath: '/en/legal/',
     title: 'SFC Editor — éditeur GRAFCET (IEC 60848) dans le navigateur',
     description: 'Dessinez, validez et simulez vos GRAFCET dans le navigateur : construction guidée, validation continue, simulation, export PLCopen. Essai gratuit sans compte.',
     skip: 'Aller au contenu',
@@ -123,12 +128,15 @@ export const CONTENT: Record<Lang, Content> = {
       ],
     },
     final: { title: 'Prêt à dessiner votre premier GRAFCET ?', text: 'Ouvrez l’éditeur : un exemple est déjà chargé pour explorer.' },
+    legalPage: { title: 'Informations légales — SFC Editor', description: 'Mentions légales, confidentialité, cookies et stockage local, conditions d’utilisation et licence de SFC Editor.', back: 'Retour à l’accueil', todo: '[à compléter]', navAria: 'Documents juridiques', updated: 'Dernière mise à jour' },
     footer: { license: 'Code sous licence MPL-2.0', legal: 'Mentions légales', privacy: 'Confidentialité', terms: 'Conditions d’utilisation' },
   },
   en: {
     htmlLang: 'en',
     path: '/en/',
     altPath: '/',
+    legalPath: '/en/legal/',
+    altLegalPath: '/legal/',
     title: 'SFC Editor — GRAFCET (IEC 60848) editor in your browser',
     description: 'Draw, validate and simulate GRAFCET in your browser: guided construction, continuous validation, simulation, PLCopen export. Free trial, no account needed.',
     skip: 'Skip to content',
@@ -216,6 +224,7 @@ export const CONTENT: Record<Lang, Content> = {
       ],
     },
     final: { title: 'Ready to draw your first GRAFCET?', text: 'Open the editor: an example is already loaded for you to explore.' },
+    legalPage: { title: 'Legal information — SFC Editor', description: 'Legal notice, privacy, cookies and local storage, terms of use and licence of SFC Editor.', back: 'Back to home', todo: '[to be completed]', navAria: 'Legal documents', updated: 'Last updated' },
     footer: { license: 'Code under MPL-2.0 licence', legal: 'Legal notice', privacy: 'Privacy', terms: 'Terms of use' },
   },
 };

@@ -13,7 +13,10 @@ beforeAll(async () => {
   const dist = join(root, 'dist');
   mkdirSync(join(dist, 'assets'), { recursive: true });
   mkdirSync(join(dist, 'app'), { recursive: true });
-  mkdirSync(join(dist, 'en'), { recursive: true });
+  mkdirSync(join(dist, 'en', 'legal'), { recursive: true });
+  mkdirSync(join(dist, 'legal'), { recursive: true });
+  writeFileSync(join(dist, 'legal', 'index.html'), '<!doctype html><title>legal-fr</title>');
+  writeFileSync(join(dist, 'en', 'legal', 'index.html'), '<!doctype html><title>legal-en</title>');
   writeFileSync(join(dist, 'index.html'), '<!doctype html><title>landing-fr</title>');
   writeFileSync(join(dist, 'en', 'index.html'), '<!doctype html><title>landing-en</title>');
   writeFileSync(join(dist, 'app', 'index.html'), '<!doctype html><title>editor</title>');
@@ -27,7 +30,7 @@ afterAll(() => { server.closeAllConnections(); server.close(); });
 
 describe('éditeur servi par le serveur', () => {
   it('sert la landing à la racine, la landing anglaise sous /en/ et l\'éditeur sous /app/', async () => {
-    const cases: [string, string][] = [['/', 'landing-fr'], ['/en/', 'landing-en'], ['/app/', 'editor'], ['/app/projets/abc', 'editor'], ['/en/x', 'landing-en'], ['/inconnue', 'landing-fr']];
+    const cases: [string, string][] = [['/', 'landing-fr'], ['/en/', 'landing-en'], ['/app/', 'editor'], ['/app/projets/abc', 'editor'], ['/en/x', 'landing-en'], ['/legal/', 'legal-fr'], ['/en/legal/', 'legal-en'], ['/inconnue', 'landing-fr']];
     for (const [p, title] of cases) {
       const r = await fetch(base + p);
       expect(r.status).toBe(200);
@@ -37,7 +40,7 @@ describe('éditeur servi par le serveur', () => {
     }
   });
   it('ajoute la barre finale à /app et /en (leurs liens sont relatifs)', async () => {
-    for (const p of ['/app', '/en']) {
+    for (const p of ['/app', '/en', '/legal', '/en/legal']) {
       const r = await fetch(base + p + '?x=1', { redirect: 'manual' });
       expect(r.status).toBe(301);
       expect(r.headers.get('location')).toBe(p + '/?x=1');

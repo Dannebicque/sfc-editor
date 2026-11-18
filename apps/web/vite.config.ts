@@ -12,7 +12,7 @@ export default defineConfig({
   base: './',
   build: {
     target: 'es2022',
-    rollupOptions: { input: { landing: resolve(__dirname, 'index.html'), landingEn: resolve(__dirname, 'en/index.html'), app: resolve(__dirname, 'app/index.html') } },
+    rollupOptions: { input: { landing: resolve(__dirname, 'index.html'), landingEn: resolve(__dirname, 'en/index.html'), legal: resolve(__dirname, 'legal/index.html'), legalEn: resolve(__dirname, 'en/legal/index.html'), app: resolve(__dirname, 'app/index.html') } },
   },
   server: { proxy: { '/api': { target: api }, '/ws': { target: api, ws: true } } },
 });

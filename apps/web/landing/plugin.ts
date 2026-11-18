@@ -1,5 +1,6 @@
 import type { Plugin } from 'vite';
 import { renderHead, renderLanding } from './render';
+import { renderLegal, renderLegalHead } from './legal';
 
 /** Adresse publique de l'instance (VITE_SITE_URL, sans barre finale) : sans elle, pas de canonical ni de sitemap. */
 const site = (process.env.VITE_SITE_URL ?? '').trim().replace(/\/+$/, '');
@@ -13,6 +14,7 @@ export function landingPlugin(): Plugin {
       handler(html, ctx) {
         if (!ctx.filename.endsWith('index.html') || ctx.filename.includes('/app/')) return html;
         const lang = ctx.filename.includes('/en/') ? 'en' : 'fr';
+        if (ctx.filename.includes('/legal/')) return html.replace('<!--head-->', renderLegalHead(lang, /^https?:\/\//.test(site) ? site : '')).replace('<!--landing-->', renderLegal(lang));
         return html.replace('<!--head-->', renderHead(lang, /^https?:\/\//.test(site) ? site : '')).replace('<!--landing-->', renderLanding(lang));
       },
     },
@@ -20,8 +22,8 @@ export function landingPlugin(): Plugin {
       const ok = /^https?:\/\//.test(site);
       this.emitFile({ type: 'asset', fileName: 'robots.txt', source: `User-agent: *\nDisallow: /api/\nDisallow: /ws/\n${ok ? `Sitemap: ${site}/sitemap.xml\n` : ''}` });
       if (ok) {
-        const url = (p: string): string => `  <url><loc>${site}${p}</loc><xhtml:link rel="alternate" hreflang="fr" href="${site}/"/><xhtml:link rel="alternate" hreflang="en" href="${site}/en/"/></url>`;
-        this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${url('/')}\n${url('/en/')}\n</urlset>\n` });
+        const url = (p: string, fr = '/', en = '/en/'): string => `  <url><loc>${site}${p}</loc><xhtml:link rel="alternate" hreflang="fr" href="${site}${fr}"/><xhtml:link rel="alternate" hreflang="en" href="${site}${en}"/></url>`;
+        this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${url('/')}\n${url('/en/')}\n${url('/legal/', '/legal/', '/en/legal/')}\n${url('/en/legal/', '/legal/', '/en/legal/')}\n</urlset>\n` });
       }
     },
   };

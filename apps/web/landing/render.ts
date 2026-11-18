@@ -118,7 +118,7 @@ export function renderLanding(lang: Lang): string {
 </main>
 <footer class="foot"><div class="wrap">
   <p>SFC Editor · ${c.footer.license}</p>
-  <nav aria-label="Legal"><a href="/app/#/legal/mentions">${c.footer.legal}</a><a href="/app/#/legal/privacy">${c.footer.privacy}</a><a href="/app/#/legal/terms">${c.footer.terms}</a></nav>
+  <nav aria-label="Legal"><a href="${c.legalPath}#mentions">${c.footer.legal}</a><a href="${c.legalPath}#privacy">${c.footer.privacy}</a><a href="${c.legalPath}#terms">${c.footer.terms}</a></nav>
 </div></footer>`;
 }
 

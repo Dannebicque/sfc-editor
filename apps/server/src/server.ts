@@ -65,7 +65,7 @@ export function buildServer(o: ServerOptions): Server {
     try {
       const url = new URL(req.url ?? '/', 'http://x');
       const handler = route(url.pathname.replace(/\/+$/, '') || '/');
-      if (o.staticDir && (req.method === 'GET' || req.method === 'HEAD') && (url.pathname === '/app' || url.pathname === '/en')) {
+      if (o.staticDir && (req.method === 'GET' || req.method === 'HEAD') && ['/app', '/en', '/legal', '/en/legal'].includes(url.pathname)) {
         // Les liens relatifs de ces pages supposent la barre finale.
         res.writeHead(301, { Location: url.pathname + '/' + url.search }).end();
         return;

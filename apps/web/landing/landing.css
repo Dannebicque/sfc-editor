@@ -121,3 +121,21 @@ details p{margin:0 0 16px;color:var(--ink-2)}
 .shot{padding-block:24px 8px;text-align:center}
 .shot h2{margin-bottom:24px}
 .shot img{display:block;margin:0 auto;width:100%;max-width:960px;height:auto;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+
+/* Page légale */
+.legal-page{padding-block:40px 64px;max-width:860px}
+.legal-page h1{font-size:clamp(28px,4vw,40px);margin:0 0 6px}
+.legal-page article{margin-top:44px;scroll-margin-top:76px}
+.legal-page h2{font-size:26px;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.legal-page h3{font-size:18px;margin:26px 0 6px}
+.legal-page p,.legal-page li{color:var(--ink-2)}
+.legal-page ul{padding-left:22px}
+.legal-nav ul{list-style:none;padding:0;margin:20px 0 0;display:flex;gap:10px;flex-wrap:wrap}
+.legal-nav a{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:5px 14px;text-decoration:none;background:var(--panel)}
+.legal-table{overflow-x:auto;margin:10px 0}
+.legal-table table{border-collapse:collapse;width:100%;font-size:15px}
+.legal-table th,.legal-table td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+.legal-table th{background:var(--alt)}
+mark.todo{background:#f8e9c4;color:#5a3a00;padding:0 4px;border-radius:4px}
+@media (prefers-color-scheme: dark){mark.todo{background:#372c0f;color:#e6b64f}}
+.nav-back{margin-left:auto;color:var(--ink-2);font-size:15px}
