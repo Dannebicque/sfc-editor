@@ -8,7 +8,7 @@ import ModalDialog from './ModalDialog.vue';
 
 const account = useAccountStore();
 const collab = useCollabStore();
-const { panel, projects, invitations, busy, error, user } = storeToRefs(account);
+const { panel, projects, invitations, busy, error, info, user } = storeToRefs(account);
 watch(panel, (p) => { if (p === 'projects') void account.loadProjects(); });
 const fmt = (iso: string): string => new Date(iso).toLocaleString();
 
@@ -26,6 +26,11 @@ async function answer(id: string, accept: boolean): Promise<void> { await accoun
 <template>
   <ModalDialog id="projects" :open="panel === 'projects'" :title="T('acc_projects_title')" @close="account.close()">
     <p v-if="error" class="msg err" role="alert">{{ error }}</p>
+    <p v-if="info" class="msg ok" role="status">{{ info }}</p>
+    <div v-if="user && !user.emailVerified" class="msg warn" role="status">
+      <p>{{ T('acc_verify_to_accept') }}</p>
+      <button class="btn solid" type="button" :disabled="busy" @click="account.resendVerification()">{{ T('acc_resend') }}</button>
+    </div>
     <section v-if="invitations.length" aria-labelledby="inv-h">
       <h3 id="inv-h" class="acc-h">{{ T('acc_invitations') }}</h3>
       <ul class="acc-list">
@@ -38,7 +43,6 @@ async function answer(id: string, accept: boolean): Promise<void> { await accoun
         </li>
       </ul>
     </section>
-    <p v-else-if="user && !user.emailVerified" class="hint">{{ T('acc_verify_to_accept') }}</p>
     <section aria-labelledby="proj-h">
       <h3 id="proj-h" class="acc-h">{{ T('acc_projects') }}</h3>
       <p v-if="!projects.length" class="hint">{{ T('acc_projects_empty') }}</p>

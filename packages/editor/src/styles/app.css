@@ -200,7 +200,7 @@ kbd{font-family:var(--font-mono);font-size:11px;font-weight:500;border:1px solid
 pre.code{margin:0 0 10px;max-height:290px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--canvas);padding:10px;font:12px/1.5 var(--font-mono);white-space:pre}
 .imp{min-height:84px;font-family:var(--font-mono);font-size:12px;resize:vertical}
 .msg{font-size:12.5px;margin:6px 0}
-.msg.err{color:var(--err)}.msg.ok{color:var(--ok)}
+.msg.warn{border:1px solid var(--line);border-left:4px solid currentColor;border-radius:6px;padding:8px 10px;display:grid;gap:6px;justify-items:start}.msg.warn p{margin:0}.msg.err{color:var(--err)}.msg.ok{color:var(--ok)}
 .status{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:6px max(12px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px));background:var(--panel);border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-2)}
 .status .grow{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .status b{color:var(--ink);font-weight:600}
