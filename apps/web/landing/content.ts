@@ -1,4 +1,4 @@
-import { FREE_ONLINE_PROJECTS, GUEST_LIMITS } from '../../../packages/editor/src/limits-config';
+import { FREE_ONLINE_PROJECTS, GUEST_LIMITS } from '../../../packages/editor/src/limits-config.ts';
 
 export type Lang = 'fr' | 'en';
 

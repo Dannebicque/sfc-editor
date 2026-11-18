@@ -1,9 +1,9 @@
-import { en } from '../../../packages/editor/src/legal/en';
-import { fr } from '../../../packages/editor/src/legal/fr';
-import { LEGAL } from '../../../packages/editor/src/legal/config';
-import { expand } from '../../../packages/editor/src/legal/render';
-import type { LegalBlock } from '../../../packages/editor/src/legal/types';
-import { CONTENT, type Lang } from './content';
+import { en } from '../../../packages/editor/src/legal/en.ts';
+import { fr } from '../../../packages/editor/src/legal/fr.ts';
+import { LEGAL } from '../../../packages/editor/src/legal/config.ts';
+import { expand } from '../../../packages/editor/src/legal/render.ts';
+import type { LegalBlock } from '../../../packages/editor/src/legal/types.ts';
+import { CONTENT, type Lang } from './content.ts';
 
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 // Les liens relatifs des textes (./licenses/…) sont relatifs à l'éditeur : sur ce site, ils partent de la racine.

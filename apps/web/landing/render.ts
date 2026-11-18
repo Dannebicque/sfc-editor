@@ -1,4 +1,4 @@
-import { CONTENT, type Content, type Lang } from './content';
+import { CONTENT, type Content, type Lang } from './content.ts';
 
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 

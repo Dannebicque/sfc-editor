@@ -1,6 +1,6 @@
 import type { Plugin } from 'vite';
-import { renderHead, renderLanding } from './render';
-import { renderLegal, renderLegalHead } from './legal';
+import { renderHead, renderLanding } from './render.ts';
+import { renderLegal, renderLegalHead } from './legal.ts';
 
 /** Adresse publique de l'instance (VITE_SITE_URL, sans barre finale) : sans elle, pas de canonical ni de sitemap. */
 const site = (process.env.VITE_SITE_URL ?? '').trim().replace(/\/+$/, '');
