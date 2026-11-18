@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { exportNative } from '@grafcet/io';
+import { clearAll } from '../collab/offline';
 import { T, lang } from '../i18n';
 import {
   accountsEnabled, api, ApiError, KNOWN_ERRORS, parseHash,
@@ -98,6 +99,7 @@ export const useAccountStore = defineStore('account', () => {
   async function logout(): Promise<void> {
     try { await api('POST', '/api/auth/logout', {}); } catch { /* la session expirera de toute façon */ }
     user.value = null; projects.value = []; invitations.value = [];
+    void clearAll();
     panel.value = null;
     ui.announce(T('acc_signed_out'));
   }
@@ -120,7 +122,7 @@ export const useAccountStore = defineStore('account', () => {
   }
   async function deleteAccount(password: string): Promise<void> {
     await run(() => api('DELETE', '/api/me', { password }));
-    if (!error.value) { user.value = null; projects.value = []; panel.value = null; ui.announce(T('acc_deleted')); }
+    if (!error.value) { user.value = null; projects.value = []; void clearAll(); panel.value = null; ui.announce(T('acc_deleted')); }
   }
 
   async function loadProjects(): Promise<void> {

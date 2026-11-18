@@ -32,6 +32,6 @@
 - Tester les exports dans de vrais outils (Beremiz, CODESYS).
 - Audit accessibilité de la barre d'outils et du mode « connecter » (clavier, lecteur d'écran, contrastes).
 - Simulation : forçages, GRAFCETs partiels, étapes englobantes.
-- Comptes : textes légaux (politique de confidentialité pour comptes/cookie de session), persistance IndexedDB hors ligne, SSO (OIDC/CAS), tests E2E à deux navigateurs.
+- Comptes : relecture des textes légaux (renseigner `mailHost` dans `packages/editor/src/legal/config.ts`), ouverture d'un projet hors ligne, SSO (OIDC/CAS), tests E2E à deux navigateurs.
 - Mentions légales : placeholders « [à compléter] » à remplir par David (ne rien inventer).
 - Vérifier les règles normatives contre la norme ; docs finales (README).

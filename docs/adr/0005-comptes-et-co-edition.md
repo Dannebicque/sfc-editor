@@ -63,8 +63,12 @@ base **SQLite** ; rôles **propriétaire / éditeur / lecteur**. Hébergement au
   Une fusion plus fine (champs textuels : réceptivité, nom, actions) pourra être ajoutée plus tard sans changer le protocole.
 - Le nom du projet, l'ordre des GRAFCETs et les compteurs d'identifiants sont dans des `Y.Map` à part. Les nouveaux identifiants de
   GRAFCET reçoivent un suffixe aléatoire en mode collaboratif (pas de collision entre deux clients hors ligne).
-- Hors ligne : le client continue d'éditer dans le document Yjs en mémoire et se resynchronise à la reconnexion (propriété de Yjs) ; **limite actuelle :
-  si l'onglet est fermé hors ligne, les modifications non envoyées sont perdues** (persistance IndexedDB à ajouter, `y-indexeddb`).
+- Hors ligne : le client continue d'éditer dans le document Yjs et se resynchronise à la reconnexion (propriété de Yjs). Une **copie locale
+  IndexedDB** (`y-indexeddb`, base `grafcet-studio-collab-<compte>-<projet>`) garde les modifications non envoyées si l'onglet est fermé ou
+  plante : elles sont rechargées dans le document **avant** la connexion et fusionnées à la prochaine ouverture du projet. Elle est effacée à la
+  fermeture du projet quand on est synchronisé, si le droit est retiré / le projet supprimé / l'état refusé par le serveur (sinon on
+  renverrait un état invalide), et à la déconnexion ou la suppression du compte. Limite : on ne peut pas **ouvrir** un projet hors ligne
+  (la session et le rôle se vérifient auprès du serveur).
 - Annuler/rétablir en collaboration : annule **mes** modifications seulement (on ne restaure que le GRAFCET concerné, sans écraser le travail des autres).
 - Persistance : le serveur applique, valide et enregistre l'état toutes les quelques secondes après modification et à la fermeture
   du dernier client ; taille maximale par projet (2 Mo) et limite de messages par seconde et par connexion.

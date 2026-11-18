@@ -98,6 +98,7 @@ export const en: LegalDoc[] = [
           ['__Host-sid', 'Random session identifier (the server only keeps its fingerprint)', 'Keep you signed in', '30 days sliding, 90 days at most, or until you sign out'],
         ],
       } },
+      { p: 'When you open an online project, a temporary copy is also kept in your browser’s IndexedDB (names starting with “grafcet-studio-collab-”) so that changes made while offline are not lost. It is deleted when you close the project once everything is synchronised, when you sign out and when you delete your account.' },
       { h: 'Erasing it' },
       { p: 'In your browser settings, delete this site’s data (“cookies and site data”). Export your projects first (Export window, Download button): erasing is permanent.' },
     ],

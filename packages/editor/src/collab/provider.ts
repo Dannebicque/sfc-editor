@@ -44,10 +44,12 @@ export class CollabProvider {
     this.send(this.msg(MSG_AWARENESS, (e) => encoding.writeVarUint8Array(e, awarenessProtocol.encodeAwarenessUpdate(this.awareness, [...added, ...updated, ...removed]))));
   };
 
-  constructor(private url: string, private ev: ProviderEvents = {}, private WS: WS = WebSocket) {
+  /** `ready` : appelé avec le document avant la première connexion (chargement de la copie locale) ; sans lui on se connecte aussitôt. */
+  constructor(private url: string, private ev: ProviderEvents = {}, private WS: WS = WebSocket, ready?: (doc: Y.Doc) => Promise<void>) {
     this.doc.on('update', this.onDoc);
     this.awareness.on('update', this.onAwareness);
-    this.open();
+    if (ready) void ready(this.doc).catch(() => undefined).then(() => this.open());
+    else this.open();
   }
 
   private msg(type: number, fill: (e: encoding.Encoder) => void): Uint8Array {

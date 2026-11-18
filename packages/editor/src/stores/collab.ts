@@ -3,6 +3,7 @@ import { defineStore, storeToRefs } from 'pinia';
 import { LOCAL_ORIGIN, readProject, writeProject } from '@grafcet/collab';
 import { T } from '../i18n';
 import { api, ApiError, KNOWN_ERRORS, wsUrl, type Member } from '../api';
+import { attach, clearProject } from '../collab/offline';
 import { CollabProvider, type EndReason, type LinkStatus } from '../collab/provider';
 import { useAccountStore } from './account';
 import { useProjectStore } from './project';
@@ -29,6 +30,7 @@ export const useCollabStore = defineStore('collab', () => {
   const opening = ref(false);
   const provider = shallowRef<CollabProvider | null>(null);
   let stops: Array<() => void> = [];
+  let local: { destroy(): Promise<void> } | null = null;
 
   /** Autres personnes (une entrée par personne, même avec plusieurs onglets). */
   const others = computed(() => {
@@ -50,12 +52,17 @@ export const useCollabStore = defineStore('collab', () => {
     stops = [];
     provider.value?.destroy();
     provider.value = null;
+    void local?.destroy();
+    local = null;
     peers.value = [];
   }
 
   function close(announce = true): void {
     if (!current.value && !provider.value) return;
+    // Plus de modification en attente quand on est synchronisé : pas de copie locale à garder.
+    const forget = current.value && link.value === 'synced' ? current.value.id : null;
     teardown();
+    if (forget && account.user) void clearProject(account.user.id, forget);
     opening.value = false;
     project.leaveOnline();
     current.value = null;
@@ -65,6 +72,8 @@ export const useCollabStore = defineStore('collab', () => {
   }
 
   function end(why: EndReason, id: string): void {
+    // Droit retiré, projet supprimé ou état refusé par le serveur : la copie locale ne doit pas être renvoyée.
+    if (account.user) void clearProject(account.user.id, id);
     if (why === 'reload') { ui.announce(T('collab_reload')); opening.value = false; void open(id); return; }
     close(false);
     ui.announce(T(why === 'denied' ? 'collab_denied' : 'collab_gone'));
@@ -77,6 +86,7 @@ export const useCollabStore = defineStore('collab', () => {
     let me: { role: string; members: Member[] };
     try { me = await api('GET', `/api/projects/${id}/members`); } catch (e) {
       opening.value = false;
+      if (e instanceof ApiError && (e.code === 'not_found' || e.code === 'forbidden')) void clearProject(account.user.id, id);
       ui.announce(T('acc_err_' + (e instanceof ApiError && KNOWN_ERRORS.has(e.code) ? e.code : 'server')));
       return;
     }
@@ -84,6 +94,7 @@ export const useCollabStore = defineStore('collab', () => {
     link.value = 'connecting';
     const role = me.role as 'owner' | 'editor' | 'viewer';
     let first = true;
+    const uid = account.user.id;
     const p: CollabProvider = new CollabProvider(wsUrl(id), {
       status: (s) => { link.value = s; if (!first) ui.announce(T(s === 'synced' ? 'collab_back' : s === 'offline' ? 'collab_lost' : 'collab_connecting')); },
       ended: (why) => end(why, id),
@@ -98,7 +109,7 @@ export const useCollabStore = defineStore('collab', () => {
         ui.announce(T(readonly ? 'collab_opened_ro' : 'collab_opened', { name: project.project.name }));
         bind(p);
       },
-    });
+    }, undefined, async (doc) => { const l = attach(uid, id, doc); local = l; await l.loaded; });
     provider.value = p;
     // Garde-fou : si la connexion n'aboutit pas, on ne reste pas « en cours d'ouverture ».
     const t = setTimeout(() => { if (first) { opening.value = false; teardown(); link.value = 'idle'; ui.announce(T('acc_err_network')); } }, 15_000);

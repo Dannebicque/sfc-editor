@@ -98,6 +98,7 @@ export const fr: LegalDoc[] = [
           ['__Host-sid', 'Identifiant de session aléatoire (le serveur n’en garde que l’empreinte)', 'Vous maintenir connecté·e', '30 jours glissants, 90 jours au plus, ou jusqu’à la déconnexion'],
         ],
       } },
+      { p: 'Quand vous ouvrez un projet en ligne, une copie temporaire est aussi gardée dans la base IndexedDB de votre navigateur (noms commençant par « grafcet-studio-collab- ») afin de ne pas perdre les modifications faites hors connexion. Elle est supprimée à la fermeture du projet quand tout est synchronisé, à la déconnexion et à la suppression du compte.' },
       { h: 'Les effacer' },
       { p: 'Dans les réglages de votre navigateur, supprimez les données du site (« cookies et données de sites »). Pensez d’abord à exporter vos projets (fenêtre Exporter, bouton Télécharger) : l’effacement est définitif.' },
     ],
