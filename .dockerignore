@@ -1,0 +1,7 @@
+**/node_modules
+**/dist
+.git
+.turbo
+data
+apps/web/.env.local
+prototype

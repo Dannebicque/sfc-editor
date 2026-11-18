@@ -15,6 +15,13 @@
 - Anciens fichiers 1.x (arbre) : migrés à la lecture (`migrateProject`).
 - Le noyau ne contient aucun texte traduit : il renvoie des clés de message (locales dans `packages/editor/src/locales`, parité fr/en testée).
 
+## Comptes et co-édition (ADR 0005)
+- Mode local par défaut ; comptes et projets en ligne seulement si l'éditeur est construit avec `VITE_ACCOUNTS=1` et le serveur lancé avec `PUBLIC_URL`.
+- Serveur (`apps/server`) : API REST (`accounts.ts`), SQLite via `node:sqlite` (`db.ts`, migrations par `user_version`), WebSocket Yjs (`collab.ts`), éditeur statique (`server.ts`).
+- `packages/grafcet-collab` : projet ↔ document Yjs ; **un GRAFCET entier est l'unité de fusion** (valeur JSON atomique) pour garder les invariants structurels.
+- Client : `stores/account.ts`, `stores/collab.ts`, `collab/provider.ts` ; le store `project` a un mode `online` / `readOnly` (jamais écrit dans le stockage local).
+- Dev : `PUBLIC_URL=http://localhost:5173 pnpm --filter @grafcet/server start` puis `VITE_ACCOUNTS=1 pnpm dev` (voir `docs/deploiement.md`).
+
 ## Git
 - Branche de travail : `dev` (David fusionne dans `main`). `feat/graph-model` est fusionnée dans `main` et n'est plus utilisée.
 - Fin des messages de commit : `Co-Authored-By: Claude <noreply@anthropic.com>`.
@@ -25,5 +32,6 @@
 - Tester les exports dans de vrais outils (Beremiz, CODESYS).
 - Audit accessibilité de la barre d'outils et du mode « connecter » (clavier, lecteur d'écran, contrastes).
 - Simulation : forçages, GRAFCETs partiels, étapes englobantes.
+- Comptes : textes légaux (politique de confidentialité pour comptes/cookie de session), persistance IndexedDB hors ligne, SSO (OIDC/CAS), tests E2E à deux navigateurs.
 - Mentions légales : placeholders « [à compléter] » à remplir par David (ne rien inventer).
 - Vérifier les règles normatives contre la norme ; docs finales (README).

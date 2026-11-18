@@ -63,7 +63,7 @@ export const en: LegalDoc[] = [
       } },
       { p: 'This data stays on your device, is not transmitted, and is used for no advertising, audience measurement or tracking. To our knowledge, these uses are strictly necessary for the service you requested or are preferences you choose yourself: they do not require consent (CNIL guidelines on trackers). That is why no consent banner is shown.' },
       { h: 'Erasing it' },
-      { p: 'In your browser settings, delete this site’s data (“cookies and site data”). Export your projects first (Data tab, Download button): erasing is permanent.' },
+      { p: 'In your browser settings, delete this site’s data (“cookies and site data”). Export your projects first (Export window, Download button): erasing is permanent.' },
     ],
   },
   {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Grafcet, Node } from '@grafcet/core';
-import { layoutGrafcet, type BarView, type StepView, type TransView } from '../src';
+import { layoutGrafcet, renderSvg, type BarView, type StepView, type TransView } from '../src';
 import { demoProject } from '../../grafcet-core/test/helpers';
 
 const tw = (s: string) => s.length * 7;
@@ -170,5 +170,18 @@ describe('renvoi depuis une branche vide de divergence ET', () => {
     expect(L.views.some((v) => v.kind === 'jump' && v.id === 'j1')).toBe(true);
     expect(L.views.some((v) => v.kind === 'seq' && v.id === 'q2')).toBe(false);
     expect(overlaps(g)).toEqual([]);
+  });
+});
+
+describe('rendu SVG statique', () => {
+  it('produit un SVG autonome, bien formé, sans élément d\'interface', () => {
+    const t = { ...(T('t1', 1, '↑bp & <x>') as Extract<Node, { kind: 'trans' }>), actions: [{ kind: 'event' as const, label: 'B:=0', cond: 'X5' }] };
+    const L = layoutGrafcet(G([['q', [S('s0', '0', true), t, S('s1', '1')]]]), tw);
+    const { svg, width, height } = renderSvg(L, { title: 'g' });
+    expect(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true);
+    expect(width).toBeGreaterThan(40); expect(height).toBeGreaterThan(40);
+    expect(svg).toContain('↑bp &amp; &lt;x&gt;');
+    expect(svg).toContain('B:=0');
+    expect(svg).not.toMatch(/class=|pointer|NaN|undefined/);
   });
 });

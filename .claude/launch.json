@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "server-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd apps/server && PUBLIC_URL=http://localhost:5173 DATA_DIR=/private/tmp/claude-501/sfc-dev-data exec pnpm exec tsx src/main.ts"],
+      "port": 8787
+    },
+    {
+      "name": "web-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd apps/web && VITE_ACCOUNTS=1 exec pnpm exec vite --port 5173 --strictPort"],
+      "port": 5173
+    }
+  ]
+}

@@ -3,18 +3,24 @@ import { defineStore, storeToRefs } from 'pinia';
 import {
   addBranch as addBranchCmd, addConvergence, addDivergence, addJump, addOpenLink, capabilities, connect, describeId, findNode, indexOf, insertNode,
   jumpTargets as jumpTargetsOf, mergeEnds, mergeStarts, moveBranch as moveBranchCmd, newSeq, nodesOf, parseRecept, removeBranch, removeJump, removeLink,
-  removeNode, removeSeq, renumber, resolveLink, setJumpTarget, type Node, type Capabilities,
+  removeNode, removeSeq, renumber, resolveLink, setJumpTarget, type Node, type Capabilities, type Grafcet,
 } from '@grafcet/core';
 import { createExpansion, macrosOf, referencesTo, setMacro } from '@grafcet/core';
 import { exportArchive, exportFolder, importArchive, importFolder, looksLikeZip, type FolderFile, exportNative, exportSfcEditXml, FORMAT_ID, importJson, importNative, importSfcEditXml, looksLikeSfcEditXml, exportPlcopenXml, importPlcopenXml, looksLikePlcopenXml, ImportError, type ReportEntry } from '@grafcet/io';
 import { applyForcing, buildSimulation, enabledTransitions, fire, frozenGrafcets, macroActive, settle, type Forcing } from '@grafcet/simulation';
+import { layoutGrafcet, renderSvg } from '@grafcet/layout';
+import { svgToPng, printSvgs } from '../exportImage';
 import { describeText, renderMessage } from '../format';
 import { isLegalDocId, type LegalDocId } from '../legal';
 import { applyLang, kindLabel, KEYMAP, LS_PREFIX, T, lang, type Lang } from '../i18n';
 import { useProjectStore } from './project';
 import { useViewStore } from './view';
 
-export type TabId = 'props' | 'issues' | 'text' | 'data';
+export type TabId = 'props' | 'issues' | 'text';
+/** Fenêtre d'import/export : section ouverte, ou null si fermée. */
+export type DataSection = 'export' | 'import';
+/** Formats proposés dans la fenêtre d'export. */
+export type ExportFormat = 'native' | 'sfcedit' | 'plcopen' | 'zip' | 'folder' | 'svg' | 'png' | 'pdf' | 'share' | 'json' | 'graph';
 export type Theme = 'auto' | 'light' | 'dark';
 export type InsertWhere = 'before' | 'after';
 
@@ -26,8 +32,11 @@ export const useUiStore = defineStore('ui', () => {
 
   const sel = ref<string | null>(null);
   const tab = ref<TabId>('props');
+  const dataDialog = ref<DataSection | null>(null);
   const theme = ref<Theme>('auto');
-  const dataView = ref<'json' | 'graph' | 'native' | 'sfcedit' | 'plcopen'>('json');
+  /** GRAFCET écartés de l'export (par défaut : aucun, donc tous les GRAFCET du projet sont exportés). */
+  const exportExcluded = ref<string[]>([]);
+  const dataView = ref<ExportFormat>('native');
   /** Côté d'insertion choisi pour les éléments simples (les blocs imposent le leur : barre = avant, convergence = après). */
   const insertWhere = ref<InsertWhere>('after');
   const sim = reactive({ on: false, active: [] as string[], root: '', frozen: [] as string[] });
@@ -128,7 +137,7 @@ export const useUiStore = defineStore('ui', () => {
   ]);
   const tabs = computed(() => [
     { id: 'props' as const, label: T('tab_props') }, { id: 'issues' as const, label: T('tab_issues') },
-    { id: 'text' as const, label: T('tab_text') }, { id: 'data' as const, label: T('tab_data') },
+    { id: 'text' as const, label: T('tab_text') },
   ]);
 
   watch(sel, (v) => { if (v) announce(describeText(describeId(activeG.value, v))); });
@@ -426,10 +435,19 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   /* ----- données : vue, copie, import ----- */
+  /** GRAFCET choisis pour l'export (natif, SFCEdit, PLCopen, images, PDF), dans l'ordre du projet. */
+  const exportGrafcets = computed(() => projectRef.value.grafcets.filter((g) => !exportExcluded.value.includes(g.id)));
+  const exportAll = computed(() => exportGrafcets.value.length === projectRef.value.grafcets.length);
+  /** Projet réduit aux GRAFCET choisis (le projet entier tant qu'aucun n'est choisi, pour garder un aperçu valide). */
+  const exportable = computed(() => (exportAll.value || !exportGrafcets.value.length ? projectRef.value : { ...projectRef.value, grafcets: exportGrafcets.value }));
+  function toggleExport(id: string, on: boolean): void {
+    exportExcluded.value = on ? exportExcluded.value.filter((x) => x !== id) : [...exportExcluded.value, id];
+  }
+  function selectExport(all: boolean): void { exportExcluded.value = all ? [] : projectRef.value.grafcets.map((g) => g.id); }
   const dataText = computed(() => {
-    if (dataView.value === 'native') return exportNative(projectRef.value).output;
-    if (dataView.value === 'sfcedit') return exportSfcEditXml(projectRef.value).output;
-    if (dataView.value === 'plcopen') return exportPlcopenXml(projectRef.value).output;
+    if (dataView.value === 'native') return exportNative(exportable.value).output;
+    if (dataView.value === 'sfcedit') return exportSfcEditXml(exportable.value).output;
+    if (dataView.value === 'plcopen') return exportPlcopenXml(exportable.value).output;
     return JSON.stringify(dataView.value === 'json' ? activeG.value : flat.value, null, 1);
   });
   const copyMsg = reactive({ text: '', cls: '' });
@@ -439,33 +457,33 @@ export const useUiStore = defineStore('ui', () => {
   const importReport = ref<{ level: ReportEntry['level']; text: string }[]>([]);
   const toLines = (es: ReportEntry[]) => es.map((e) => ({ level: e.level, text: renderMessage(e.message) }));
   const exportReport = computed(() =>
-    dataView.value === 'sfcedit' ? toLines(exportSfcEditXml(projectRef.value).report.entries)
-    : dataView.value === 'plcopen' ? toLines(exportPlcopenXml(projectRef.value).report.entries) : []);
+    dataView.value === 'sfcedit' ? toLines(exportSfcEditXml(exportable.value).report.entries)
+    : dataView.value === 'plcopen' ? toLines(exportPlcopenXml(exportable.value).report.entries) : []);
   function copyData(): void {
     const done = (ok: boolean) => { copyMsg.text = ok ? T('copied') : T('copy_fail'); copyMsg.cls = ok ? 'ok' : 'err'; };
     try { navigator.clipboard.writeText(dataText.value).then(() => done(true), () => done(false)); } catch { done(false); }
   }
   /** Télécharge le projet au format natif (un fichier JSON déterministe). */
   function downloadNative(): void {
-    const blob = new Blob([exportNative(projectRef.value).output], { type: 'application/json' });
+    const blob = new Blob([exportNative(exportable.value).output], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = (projectRef.value.name || 'projet').replace(/[^\w\-.]+/g, '_') + '.grafcet.json';
+    a.download = fileBase() + '.grafcet.json';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
   /** Télécharge le projet au format XML de SFCEdit. */
   function downloadSfcEdit(): void {
-    const blob = new Blob([exportSfcEditXml(projectRef.value).output], { type: 'application/xml' });
+    const blob = new Blob([exportSfcEditXml(exportable.value).output], { type: 'application/xml' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = (projectRef.value.name || 'projet').replace(/[^\w\-.]+/g, '_') + '.xml';
+    a.download = fileBase() + '.xml';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
   /** Télécharge le projet au format PLCopen XML (TC6 v2.01). */
   function downloadPlcopen(): void {
-    saveAs(new Blob([exportPlcopenXml(projectRef.value).output], { type: 'application/xml' }), baseName() + '.plcopen.xml');
+    saveAs(new Blob([exportPlcopenXml(exportable.value).output], { type: 'application/xml' }), fileBase() + '.plcopen.xml');
   }
   function applyImport(fileName?: string): void {
     importReport.value = [];
@@ -508,7 +526,32 @@ export const useUiStore = defineStore('ui', () => {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
-  const baseName = () => (projectRef.value.name || 'projet').replace(/[^\w\-.]+/g, '_');
+  const safe = (x: string) => (x || 'projet').replace(/[^\w\-.]+/g, '_');
+  const baseName = () => safe(projectRef.value.name);
+  /** Nom de base d'un fichier exporté : le projet, suivi du GRAFCET actif si la portée est restreinte. */
+  const fileBase = () => baseName() + (exportAll.value ? '' : exportGrafcets.value.length === 1 ? '-' + safe(exportGrafcets.value[0]!.name) : '-selection');
+  const svgOf = (g: Grafcet) => renderSvg(layoutGrafcet(g, viewStore.tw), { title: g.name });
+  /** Aperçu (SVG autonome) du premier GRAFCET choisi. */
+  const previewSvg = computed(() => (exportGrafcets.value[0] ? svgOf(exportGrafcets.value[0]).svg : ''));
+  /** Images SVG des GRAFCET choisis (un fichier par GRAFCET). */
+  function downloadSvg(): void {
+    for (const g of exportGrafcets.value) saveAs(new Blob([svgOf(g).svg], { type: 'image/svg+xml' }), baseName() + '-' + safe(g.name) + '.svg');
+  }
+  /** Images PNG (×2) des GRAFCET choisis (un fichier par GRAFCET). */
+  async function downloadPng(): Promise<void> {
+    try {
+      for (const g of exportGrafcets.value) {
+        const r = svgOf(g);
+        saveAs(await svgToPng(r.svg, r.width, r.height, 2), baseName() + '-' + safe(g.name) + '.png');
+      }
+      copyMsg.text = ''; copyMsg.cls = '';
+    } catch { copyMsg.text = T('png_fail'); copyMsg.cls = 'err'; }
+  }
+  /** PDF via la boîte d'impression : un GRAFCET choisi par page. */
+  function printPdf(): void {
+    printSvgs(projectRef.value.name || 'GRAFCET', exportGrafcets.value.map((g) => ({ name: g.name, svg: svgOf(g).svg })), lang.value);
+    copyMsg.text = T('pdf_hint'); copyMsg.cls = '';
+  }
   /** Remplace le projet par un modèle déjà validé et affiche le résultat. */
   function commitImport(model: ReturnType<typeof importArchive>['model'], entries: ReportEntry[] = []): void {
     importReport.value = toLines(entries);
@@ -620,7 +663,7 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   return {
-    sel, tab, tabs, linkedNum, linkedIn, sharedNum, citingActive, citedIn, theme, themeLabel, dataView, sim, liveMsg, announce, insertWhere, whereNow,
+    sel, tab, tabs, dataDialog, exportExcluded, previewSvg, exportGrafcets, exportAll, toggleExport, selectExport, downloadSvg, downloadPng, printPdf, linkedNum, linkedIn, sharedNum, citingActive, citedIn, theme, themeLabel, dataView, sim, liveMsg, announce, insertWhere, whereNow,
     selItem, selEnds, selLink, selJump, selEmpty, selBranch, selText, selShort, caps, slotPos, jumpTargets, recFb, tokens, pending,
     moveBranch, canMoveBranch, insertKind, addLinkAt, addJumpSel, removeSel, setField, setAction, addAction, delAction, addToken, addBranch, delBranch, setJump,
     startPending, cancelPending, completePending, addFree, doRenumber,

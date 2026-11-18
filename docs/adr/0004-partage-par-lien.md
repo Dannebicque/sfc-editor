@@ -44,7 +44,7 @@ Les réponses portent `Cache-Control: no-store` (sauf `GET` d'un partage : `priv
 et l'origine autorisée est celle de `ALLOWED_ORIGIN` (jamais `*`).
 
 ## Hors périmètre (étapes suivantes)
-1. ~~**Client**~~ **(fait)** : « Partager par lien… » dans l'onglet Données (confirmation explicite de ce qui part), lien affiché, liste des
+1. ~~**Client**~~ **(fait)** : « Partager par lien… » dans la fenêtre Exporter (confirmation explicite de ce qui part), lien affiché, liste des
    partages de cet appareil avec suppression (identifiant et jeton dans `grafcet-studio-v1-shares`, déclaré dans la page « Cookies et stockage
    local »), route `#/s/<id>` qui propose d'ouvrir une **copie** (remplace le projet, annulable par Ctrl+Z ; pas de mode lecture seule).
    Les requêtes n'envoient ni cookies ni référent ; l'identifiant reste dans le fragment de l'adresse.

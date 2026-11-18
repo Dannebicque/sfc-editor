@@ -50,6 +50,14 @@ describe('SFCEdit : Separating Station', () => {
     expect(nodesOf(gmma).some((n) => n.kind === 'trans' && n.recept === '↑bp_start')).toBe(true);
     expect(report.entries.filter((e) => ['rep_unknown_tag', 'rep_action_type'].includes(e.message.key))).toEqual([]);
   });
+  it('GMMA : les actions liées à la transition bp_start sont importées et réexportées', () => {
+    const gmma = model.grafcets.find((g) => g.name === 'GMMA')!;
+    const t = nodesOf(gmma).find((n) => n.kind === 'trans' && n.recept === '↑bp_start');
+    expect(t && t.kind === 'trans' ? t.actions?.map((a) => a.label) : []).toEqual(['Count1:=0', 'Count2:=0', 'blue1:=blue01', 'blue2:=blue02']);
+    const back = importSfcEditXml(exportSfcEditXml(model).output, { projectName: 'sep' }).model.grafcets.find((g) => g.name === 'GMMA')!;
+    const t2 = nodesOf(back).find((n) => n.kind === 'trans' && n.recept === '↑bp_start');
+    expect(t2 && t2.kind === 'trans' ? t2.actions?.length : 0).toBe(4);
+  });
   it('les 16 étapes « task » de GAST sont signalées en un seul avertissement', () => {
     const w = report.entries.filter((e) => e.message.key === 'rep_step_type');
     expect(w).toHaveLength(1);

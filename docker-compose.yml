@@ -1,0 +1,22 @@
+# Production auto-hébergée : Caddy (TLS automatique) + application. Voir docs/deploiement.md.
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env          # PUBLIC_URL, SMTP_URL, MAIL_FROM… (modèle : .env.example)
+    volumes:
+      - data:/data           # base SQLite + partages : à sauvegarder
+    expose: ["8787"]
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [app]
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:?définir DOMAIN dans .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+volumes:
+  data:
+  caddy_data:

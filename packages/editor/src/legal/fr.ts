@@ -63,7 +63,7 @@ export const fr: LegalDoc[] = [
       } },
       { p: 'Ces données restent sur votre appareil, ne sont pas transmises et ne servent ni à la publicité, ni à la mesure d’audience, ni au suivi. À notre connaissance, ces usages sont strictement nécessaires au service demandé ou relèvent de préférences que vous choisissez vous-même : ils n’exigent pas de consentement (lignes directrices de la CNIL sur les traceurs). C’est pourquoi aucun bandeau de consentement n’est affiché.' },
       { h: 'Les effacer' },
-      { p: 'Dans les réglages de votre navigateur, supprimez les données du site (« cookies et données de sites »). Pensez d’abord à exporter vos projets (onglet Données, bouton Télécharger) : l’effacement est définitif.' },
+      { p: 'Dans les réglages de votre navigateur, supprimez les données du site (« cookies et données de sites »). Pensez d’abord à exporter vos projets (fenêtre Exporter, bouton Télécharger) : l’effacement est définitif.' },
     ],
   },
   {

@@ -4,10 +4,12 @@ import { macrosOf } from '@grafcet/core';
 import { T } from '../i18n';
 import { useProjectStore } from '../stores/project';
 import { useUiStore } from '../stores/ui';
+import { useCollabStore } from '../stores/collab';
 import Icon from './Icon.vue';
 
 const project = useProjectStore();
 const ui = useUiStore();
+const collab = useCollabStore();
 const { project: proj, activeId, sums } = storeToRefs(project);
 const { linkedIn, linkedNum, citedIn } = storeToRefs(ui);
 const cited = (gid: string) => citedIn.value.find((c) => c.gid === gid);
@@ -18,12 +20,13 @@ const val = (e: Event) => (e.target as HTMLInputElement).value;
 
 <template>
   <aside class="side left" :aria-label="T('project_aria')">
-    <div class="side-h"><label class="sr" for="pname">{{ T('project_name') }}</label><input id="pname" class="pname" type="text" :value="proj.name" @input="project.renameProject(val($event))" /></div>
+    <div class="side-h"><label class="sr" for="pname">{{ T('project_name') }}</label><input id="pname" class="pname" type="text" :value="proj.name" :readonly="project.readOnly" @input="project.renameProject(val($event))" /></div>
     <div class="side-title">GRAFCET <span>{{ proj.grafcets.length }}</span></div>
     <ul class="glist">
       <li v-for="g in proj.grafcets" :key="g.id">
         <button class="gitem" :class="{ on: g.id === activeId, linked: shared(g.id) || !!cited(g.id) }" :aria-current="g.id === activeId ? 'true' : undefined" @click="ui.openG(g.id)">
           <span class="gname">{{ g.name }}</span>
+          <span v-if="collab.editors[g.id]?.length" class="gmeta peer-edit">{{ T('collab_editing', { x: collab.editors[g.id]!.join(', ') }) }}</span>
           <span v-for="p in parents(g.id)" :key="p.itemId" class="gmeta">{{ T('gmeta_expansion', { n: p.num }) }}</span>
           <span class="gmeta">{{ T('meta', { s: sums[g.id]!.steps, t: sums[g.id]!.trans }) }}</span>
           <span v-if="cited(g.id)" class="shared" :title="T('cite_title', { n: linkedNum! })">{{ T('cite_badge', { n: linkedNum!, c: cited(g.id)!.count }) }}</span>

@@ -4,6 +4,7 @@ import {
   checkGraph, DEFAULT_PROFILE, describeId, isProfile, duplicateGrafcet, flatten, migrateProject, newGrafcet, nodesOf, parseRecept, stats as statsOf, validateGrafcet,
   type Grafcet, type Project, type TreeProject, type ValidationProfile,
 } from '@grafcet/core';
+import { collabGrafcetId } from '@grafcet/collab';
 import { LS_PREFIX, T, lang } from '../i18n';
 import { demoProject, syncDemo } from '../demo';
 import { useUiStore } from './ui';
@@ -83,8 +84,42 @@ export const useProjectStore = defineStore('project', () => {
     return [...set].sort((a, b) => a.localeCompare(b));
   });
 
+  /**
+   * Projet en ligne (ADR 0005) : le projet affiché vient du serveur. On ne l'écrit jamais dans le stockage local (il écraserait le
+   * projet local de la personne) et, en lecture seule, aucune modification n'est appliquée.
+   */
+  const online = ref(false);
+  const readOnly = ref(false);
+  let stash: { project: Project; activeId: string } | null = null;
+  function enterOnline(p: Project, readonly: boolean): void {
+    if (!online.value) stash = { project: project.value, activeId: activeId.value };
+    clearTimeout(persistTimer);
+    online.value = true;
+    readOnly.value = readonly;
+    project.value = p;
+    activeId.value = p.grafcets.some((g) => g.id === activeId.value) ? activeId.value : p.grafcets[0]!.id;
+    past.value = []; future.value = []; coalesce.key = null;
+  }
+  /** Revient au projet local d'avant l'ouverture du projet en ligne. */
+  function leaveOnline(): void {
+    if (!online.value) return;
+    online.value = false; readOnly.value = false;
+    const back = stash ?? loadSaved();
+    stash = null;
+    project.value = back ? back.project : demoProject(lang.value);
+    activeId.value = back && project.value.grafcets.some((g) => g.id === back.activeId) ? back.activeId : project.value.grafcets[0]!.id;
+    past.value = []; future.value = []; coalesce.key = null;
+  }
+  /** Mise à jour reçue du serveur : n'entre pas dans l'historique annuler/rétablir (qui ne concerne que mes modifications). */
+  function applyRemote(p: Project): void {
+    if (!online.value || JSON.stringify(p) === JSON.stringify(project.value)) return;
+    project.value = p;
+    if (!p.grafcets.some((g) => g.id === activeId.value)) activeId.value = p.grafcets[0]!.id;
+  }
+
   let persistTimer: ReturnType<typeof setTimeout> | undefined;
   function persist(): void {
+    if (online.value) return;
     clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ project: project.value, activeId: activeId.value })); } catch { /* ignoré */ }
@@ -99,6 +134,7 @@ export const useProjectStore = defineStore('project', () => {
     const g = draft.grafcets.find((x) => x.id === activeId.value)!;
     const res = fn(g, draft);
     if (JSON.stringify(draft) === before) return res;
+    if (readOnly.value) { ui.announce(T('collab_readonly_blocked')); return res; }
     const now = performance.now();
     if (!(opts.key && coalesce.key === opts.key && now - coalesce.t < 900)) {
       past.value.push({ p: before, sel: ui.sel, a: activeId.value });
@@ -114,7 +150,18 @@ export const useProjectStore = defineStore('project', () => {
 
   function restore(e: HistoryEntry): void {
     const ui = useUiStore();
-    project.value = JSON.parse(e.p);
+    const back = JSON.parse(e.p) as Project;
+    if (online.value) {
+      // En collaboration, annuler ne défait que MES modifications : on ne remet que le GRAFCET concerné, sans écraser le travail des autres.
+      const cur: Project = JSON.parse(JSON.stringify(project.value));
+      const was = back.grafcets.find((g) => g.id === e.a), i = cur.grafcets.findIndex((g) => g.id === e.a);
+      if (was && i >= 0) cur.grafcets[i] = was;
+      else if (was) cur.grafcets.push(was);
+      else if (i >= 0 && cur.grafcets.length > 1) cur.grafcets.splice(i, 1);
+      cur.name = back.name;
+      cur.counter = Math.max(cur.counter, back.counter); cur.gcount = Math.max(cur.gcount, back.gcount);
+      project.value = cur;
+    } else project.value = back;
     activeId.value = project.value.grafcets.some((g) => g.id === e.a) ? e.a : project.value.grafcets[0]!.id;
     ui.sel = e.sel && describeId(activeG.value, e.sel) ? e.sel : null;
     coalesce.key = null;
@@ -122,6 +169,7 @@ export const useProjectStore = defineStore('project', () => {
   }
   function undo(): void {
     const ui = useUiStore();
+    if (readOnly.value) return;
     const e = past.value.pop();
     if (!e) return;
     future.value.push({ p: JSON.stringify(project.value), sel: ui.sel, a: activeId.value });
@@ -130,6 +178,7 @@ export const useProjectStore = defineStore('project', () => {
   }
   function redo(): void {
     const ui = useUiStore();
+    if (readOnly.value) return;
     const e = future.value.pop();
     if (!e) return;
     past.value.push({ p: JSON.stringify(project.value), sel: ui.sel, a: activeId.value });
@@ -140,6 +189,7 @@ export const useProjectStore = defineStore('project', () => {
   /** Remplace le projet en conservant l'historique (utilisé par l'import). */
   function replaceProject(next: Project): void {
     const ui = useUiStore();
+    if (readOnly.value) { ui.announce(T('collab_readonly_blocked')); return; }
     past.value.push({ p: JSON.stringify(project.value), sel: ui.sel, a: activeId.value });
     future.value = [];
     project.value = next;
@@ -151,6 +201,7 @@ export const useProjectStore = defineStore('project', () => {
   function addGrafcet(): string {
     return mutate((_g, P) => {
       const ng = newGrafcet(P, 'GRAFCET ' + (P.grafcets.length + 1));
+      if (online.value) ng.id = collabGrafcetId(P.gcount);
       P.grafcets.push(ng);
       return ng.id;
     });
@@ -158,6 +209,7 @@ export const useProjectStore = defineStore('project', () => {
   function dupGrafcet(): string {
     return mutate((g, P) => {
       const c = duplicateGrafcet(P, g, g.name + T('g_copy'));
+      if (online.value) c.id = collabGrafcetId(P.gcount);
       P.grafcets.push(c);
       return c.id;
     });
@@ -185,6 +237,7 @@ export const useProjectStore = defineStore('project', () => {
 
   return {
     project, activeId, activeG, profile, setProfile, knownSteps, past, future, issues, issueErr, flat, stats, sums, varList,
+    online, readOnly, enterOnline, leaveOnline, applyRemote,
     persist, mutate, undo, redo, replaceProject, renameGrafcet, renameProject, addGrafcet, dupGrafcet, delGrafcet, syncDemoLanguage,
   };
 });

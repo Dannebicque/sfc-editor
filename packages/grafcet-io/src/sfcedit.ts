@@ -72,7 +72,9 @@ function importGrafcet(P: Project, gx: XNode, report: ReportEntry[], index: numb
         seq.items.push(step);
       } else if (c.tag === 'transition') {
         const cond = elements(c, 'condition')[0];
-        seq.items.push({ id: nid(), kind: 'trans', num: 0, recept: cond ? convertCondition(cond, report) : '' });
+        // Actions liées à la transition (exécutées à son franchissement) : type « sur événement » dans le modèle.
+        const tActs = elements(c, 'action').map((a) => ({ ...importAction(a, g.name, report), kind: 'event' as const }));
+        seq.items.push({ id: nid(), kind: 'trans', num: 0, recept: cond ? convertCondition(cond, report) : '', ...(tActs.length ? { actions: tActs } : {}) });
       } else report.push(warn('rep_unknown_tag', { tag: c.tag }));
     }
     seqs.set(sx.attrs.id ?? String(seqs.size + 1), seq);
@@ -256,8 +258,8 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
   }
   const nodeXml = (it: Node): string => {
     if (it.kind === 'step') return stepXml(it);
-    if (it.actions?.length) report.push(warn('rep_trans_action', { g: g.name, n: it.num }));
-    return `\t\t\t<transition>\n\t\t\t\t<condition>${toSfcCondition(it.recept, notes)}</condition>\n\t\t\t</transition>`;
+    const tActs = (it.actions ?? []).map((a) => `\t\t\t\t<action type="normal">${a.cond.trim() ? `<condition>${toSfcCondition(a.cond, notes)}</condition>` : ''}<text>${esc(a.label)}</text></action>`);
+    return `\t\t\t<transition>\n\t\t\t\t<condition>${toSfcCondition(it.recept, notes)}</condition>${tActs.length ? '\n' + tActs.join('\n') : ''}\n\t\t\t</transition>`;
   };
 
   const body = order.map((s) => `\t\t<sequence id="${num.get(s.id)}">${s.items.length ? '\n' + s.items.map(nodeXml).join('\n') + '\n\t\t' : ''}</sequence>`);
