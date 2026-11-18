@@ -565,7 +565,7 @@
   "acc_err_not_found": "Introuvable, ou vous n'y avez pas accès.",
   "acc_err_too_large": "Le projet est trop volumineux.",
   "acc_err_invalid_document": "Le projet n'est pas valide.",
-  "acc_err_too_many_projects": "Nombre maximal de projets atteint.",
+  "acc_err_too_many_projects": "Nombre maximal de projets en ligne atteint pour un compte gratuit : supprimez-en un ou exportez-le d'abord.",
   "acc_err_email_not_verified": "Confirmez d'abord votre adresse email.",
   "acc_err_owner_cannot_leave": "Le propriétaire ne peut pas quitter le projet : transférez-le d'abord.",
   "acc_err_owner_role_fixed": "Le rôle du propriétaire ne peut pas être changé.",
@@ -645,5 +645,13 @@
   "collab_opened": "Projet « {x} » ouvert en ligne.",
   "collab_opened_ro": "Projet « {x} » ouvert en lecture seule.",
   "collab_conflict": "{x} édite aussi ce GRAFCET : en cas de modifications simultanées, la dernière enregistrée l'emporte.",
-  "collab_editing": "édité par {x}"
+  "collab_editing": "édité par {x}",
+  "lim_grafcets": "L'essai sans compte est limité à {n} GRAFCET par projet.",
+  "lim_steps": "L'essai sans compte est limité à {n} étapes par GRAFCET.",
+  "lim_cta_text": "Créez un compte gratuit pour lever cette limite.",
+  "lim_cta": "Créer un compte",
+  "lim_dismiss": "Plus tard",
+  "lim_account": "avec un compte",
+  "lim_export_locked": "Ce format est réservé aux comptes. Le JSON natif, les images (SVG, PNG) et le PDF restent disponibles sans compte.",
+  "acc_err_plan_required": "La co-édition (inviter des membres) fait partie de l'offre « classe et établissement », bientôt disponible."
 }

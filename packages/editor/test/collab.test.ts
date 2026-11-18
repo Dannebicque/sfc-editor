@@ -67,6 +67,7 @@ describe('aides de l\'interface', () => {
     expect(parseHash('#/verify/abcdefghij1234')).toEqual({ kind: 'verify', token: 'abcdefghij1234' });
     expect(parseHash('#/reset/abcdefghij1234')).toEqual({ kind: 'reset', token: 'abcdefghij1234' });
     expect(parseHash('#/invitations')).toEqual({ kind: 'invitations' });
+    expect(parseHash('#/register')).toEqual({ kind: 'register' });
     expect(parseHash('#/p/' + 'a'.repeat(22))).toEqual({ kind: 'project', id: 'a'.repeat(22) });
     expect(parseHash('#/p/court')).toBeNull();
     expect(parseHash('#/s/' + 'a'.repeat(22))).toBeNull();

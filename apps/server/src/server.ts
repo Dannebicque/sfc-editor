@@ -27,16 +27,21 @@ async function serveStatic(root: string, pathname: string): Promise<{ body: Buff
   try { rel = decodeURIComponent(pathname); } catch { return null; }
   if (rel.includes('\0')) return null;
   const tryFile = async (r: string): Promise<{ body: Buffer; type: string; cache: string } | null> => {
-    const full = normalize(join(root, r));
+    let full = normalize(join(root, r));
     if (full !== root && !full.startsWith(root + sep)) return null;
     try {
+      // Un dossier sert son index.html (/app/ → app/index.html, /en/ → en/index.html).
+      if ((await stat(full)).isDirectory()) full = join(full, 'index.html');
       if (!(await stat(full)).isFile()) return null;
       const ext = extname(full).toLowerCase();
       // Fichiers à nom haché (assets/…) : cache long ; le reste doit être revalidé (index, service worker, manifeste).
       return { body: await readFile(full), type: MIME[ext] ?? 'application/octet-stream', cache: /^\/?assets\//.test(r) ? 'public, max-age=31536000, immutable' : 'no-cache' };
     } catch { return null; }
   };
-  return (await tryFile(rel === '/' ? 'index.html' : rel)) ?? (extname(rel) ? null : await tryFile('index.html'));
+  const hit = await tryFile(rel);
+  if (hit || extname(rel)) return hit;
+  // Repli des routes sans extension sur la page de leur section : l'éditeur (/app/…), la landing anglaise (/en/…), sinon la landing française.
+  return tryFile(/^\/app(\/|$)/.test(rel) ? 'app/index.html' : /^\/en(\/|$)/.test(rel) ? 'en/index.html' : 'index.html');
 }
 
 export type { Handler };
@@ -60,6 +65,11 @@ export function buildServer(o: ServerOptions): Server {
     try {
       const url = new URL(req.url ?? '/', 'http://x');
       const handler = route(url.pathname.replace(/\/+$/, '') || '/');
+      if (o.staticDir && (req.method === 'GET' || req.method === 'HEAD') && (url.pathname === '/app' || url.pathname === '/en')) {
+        // Les liens relatifs de ces pages supposent la barre finale.
+        res.writeHead(301, { Location: url.pathname + '/' + url.search }).end();
+        return;
+      }
       if (!handler || !url.pathname.startsWith('/api/')) {
         const file = o.staticDir && !url.pathname.startsWith('/api/') && (req.method === 'GET' || req.method === 'HEAD') && !url.pathname.startsWith('/ws/') ? await serveStatic(o.staticDir, url.pathname) : null;
         if (file) { res.writeHead(200, { 'Content-Type': file.type, 'Cache-Control': file.cache, 'X-Content-Type-Options': 'nosniff' }).end(req.method === 'HEAD' ? undefined : file.body); return; }

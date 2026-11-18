@@ -7,6 +7,8 @@ import {
 import { collabGrafcetId } from '@grafcet/collab';
 import { LS_PREFIX, T, lang } from '../i18n';
 import { demoProject, syncDemo } from '../demo';
+import { track } from '../usage';
+import { exceeded, overLimit, type LimitKind, type Limits } from '../limits';
 import { useUiStore } from './ui';
 
 const STORAGE_KEY = LS_PREFIX;
@@ -89,6 +91,9 @@ export const useProjectStore = defineStore('project', () => {
    * projet local de la personne) et, en lecture seule, aucune modification n'est appliquée.
    */
   const online = ref(false);
+  /** Limites de l'essai sans compte ; `null` : aucune. Posées par le store `account`. */
+  const limits = ref<Limits | null>(null);
+  const limitMsg = (k: LimitKind): string => T('lim_' + k, { n: limits.value![k] });
   const readOnly = ref(false);
   let stash: { project: Project; activeId: string } | null = null;
   function enterOnline(p: Project, readonly: boolean): void {
@@ -135,6 +140,8 @@ export const useProjectStore = defineStore('project', () => {
     const res = fn(g, draft);
     if (JSON.stringify(draft) === before) return res;
     if (readOnly.value) { ui.announce(T('collab_readonly_blocked')); return res; }
+    const over = exceeded(JSON.parse(before) as Project, draft, limits.value);
+    if (over) { ui.announce(limitMsg(over)); ui.limitHit = over; track('limit_' + over as 'limit_grafcets' | 'limit_steps'); return res; }
     const now = performance.now();
     if (!(opts.key && coalesce.key === opts.key && now - coalesce.t < 900)) {
       past.value.push({ p: before, sel: ui.sel, a: activeId.value });
@@ -187,9 +194,11 @@ export const useProjectStore = defineStore('project', () => {
   }
 
   /** Remplace le projet en conservant l'historique (utilisé par l'import). */
-  function replaceProject(next: Project): void {
+  function replaceProject(next: Project, opts: { enforce?: boolean } = {}): void {
     const ui = useUiStore();
     if (readOnly.value) { ui.announce(T('collab_readonly_blocked')); return; }
+    const over = opts.enforce ? overLimit(next, limits.value) : null;
+    if (over) { ui.limitHit = over; track('limit_' + over as 'limit_grafcets' | 'limit_steps'); throw new Error(limitMsg(over)); }
     past.value.push({ p: JSON.stringify(project.value), sel: ui.sel, a: activeId.value });
     future.value = [];
     project.value = next;
@@ -237,7 +246,7 @@ export const useProjectStore = defineStore('project', () => {
 
   return {
     project, activeId, activeG, profile, setProfile, knownSteps, past, future, issues, issueErr, flat, stats, sums, varList,
-    online, readOnly, enterOnline, leaveOnline, applyRemote,
+    online, readOnly, limits, enterOnline, leaveOnline, applyRemote,
     persist, mutate, undo, redo, replaceProject, renameGrafcet, renameProject, addGrafcet, dupGrafcet, delGrafcet, syncDemoLanguage,
   };
 });

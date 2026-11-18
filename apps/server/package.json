@@ -6,6 +6,8 @@
   "description": "Serveur de partage par lien (ADR 0004).",
   "scripts": {
     "start": "tsx src/main.ts",
+    "stats": "tsx src/stats.ts",
+    "plan": "tsx src/plan.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json"
   },

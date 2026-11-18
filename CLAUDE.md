@@ -22,6 +22,10 @@
 - Client : `stores/account.ts`, `stores/collab.ts`, `collab/provider.ts` ; le store `project` a un mode `online` / `readOnly` (jamais écrit dans le stockage local).
 - Dev : `PUBLIC_URL=http://localhost:5173 pnpm --filter @grafcet/server start` puis `VITE_ACCOUNTS=1 pnpm dev` (voir `docs/deploiement.md`).
 
+## Landing et essai sans compte
+- `apps/web` : landing statique (`index.html` fr, `en/index.html` en, générées par `landing/plugin.ts` depuis `landing/content.ts`) et éditeur sous `/app/` (SW et manifeste dans `public/app/`).
+- Limites de l'essai : `packages/editor/src/limits-config.ts` (partagé avec la landing) ; appliquées dans `stores/project.ts` (`limits`, posées par `stores/account.ts` quand `guest`) ; exports verrouillés dans `DataDialog.vue`. Offres : Essai / Compte gratuit (5 projets en ligne, sans co-édition si `COLLAB_REQUIRES_PLAN=1`, `MAX_PROJECTS_PER_USER`) / Classe et établissement (co-édition, colonne `users.plan = teacher` attribuée via `pnpm --filter @grafcet/server plan` ; « Bientôt », liste d'attente `POST /api/waitlist`, aucun prix inventé). Compteurs anonymes : `apps/server/src/usage.ts` (`pnpm --filter @grafcet/server stats`).
+
 ## Git
 - Branche de travail : `dev` (David fusionne dans `main`). `feat/graph-model` est fusionnée dans `main` et n'est plus utilisée.
 - Fin des messages de commit : `Co-Authored-By: Claude <noreply@anthropic.com>`.

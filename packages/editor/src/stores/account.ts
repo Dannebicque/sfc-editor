@@ -1,8 +1,10 @@
-import { computed, ref } from 'vue';
+import { computed, ref, watchEffect } from 'vue';
 import { defineStore } from 'pinia';
 import { exportNative } from '@grafcet/io';
 import { clearAll } from '../collab/offline';
 import { T, lang } from '../i18n';
+import { GUEST_LIMITS } from '../limits';
+import { track } from '../usage';
 import {
   accountsEnabled, api, ApiError, KNOWN_ERRORS, parseHash,
   type Invitation, type Member, type PendingInvite, type ProjectSummary, type UserInfo,
@@ -31,6 +33,9 @@ export const useAccountStore = defineStore('account', () => {
   const invitations = ref<Invitation[]>([]);
   const members = ref<{ role: string; members: Member[]; invites: PendingInvite[] } | null>(null);
   const signedIn = computed(() => !!user.value);
+  /** Essai sans compte : avec les comptes activés, personne de connecté et projet local. Une instance sans comptes reste sans limite. */
+  const guest = computed(() => enabled && !user.value && !project.online);
+  watchEffect(() => { project.limits = guest.value ? GUEST_LIMITS : null; });
   /** Action à reprendre après connexion (ex. enregistrer le projet). */
   let afterLogin: (() => void) | null = null;
 
@@ -180,6 +185,7 @@ export const useAccountStore = defineStore('account', () => {
     if (r.kind === 'verify') { token.value = r.token; clear(); open('auth', 'verify'); void verify(); }
     else if (r.kind === 'reset') { token.value = r.token; clear(); open('auth', 'reset'); }
     else if (r.kind === 'forgot') { clear(); open('auth', 'forgot'); }
+    else if (r.kind === 'register') { clear(); if (!user.value) open('auth', 'register'); }
     else if (r.kind === 'invitations') { clear(); requireLogin(() => { open('projects'); void loadProjects(); }); }
     else if (r.kind === 'project') requireLogin(() => openProject(r.id));
   }
@@ -188,12 +194,14 @@ export const useAccountStore = defineStore('account', () => {
     if (!enabled) return;
     await refresh();
     ready.value = true;
+    // Un chargement de l'éditeur sans compte = une « session d'essai » (compteur anonyme, rien n'est stocké dans le navigateur ; voir usage.ts).
+    if (!user.value) track('guest_session');
     routeFromHash(openProject);
     window.addEventListener('hashchange', () => routeFromHash(openProject));
   }
 
   return {
-    enabled, user, ready, signedIn, panel, authMode, token, busy, error, info, projects, invitations, members,
+    enabled, user, ready, signedIn, guest, panel, authMode, token, busy, error, info, projects, invitations, members,
     open, close, requireLogin, init, refresh, login, register, forgot, reset, verify, resendVerification, logout, saveProfile, changePassword,
     exportData, deleteAccount, loadProjects, saveCurrent, deleteProject, answerInvitation, loadMembers, invite, setRole, removeMember, cancelInvite, transfer,
   };

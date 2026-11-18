@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { exportNative, importNative } from '@grafcet/io';
 import { z } from 'zod';
 import { tx, type Db } from './db';
+import { isClientEvent, track } from './usage';
 import { compose, type Mailer } from './mailer';
 import { DEFAULT_COST, hashPassword, passwordProblem, verifyPassword, type ScryptCost } from './password';
 
@@ -24,6 +25,8 @@ export interface AccountsOptions {
   maxProjectsPerUser?: number;
   /** Inscriptions ouvertes ? (fermées : seules les personnes invitées peuvent créer un compte.) */
   allowRegistration?: boolean;
+  /** Co-édition réservée à l'offre « classe » (`plan = teacher`) : sans elle, inviter des membres est refusé. Faux par défaut (instance auto-hébergée). */
+  collabRequiresPlan?: boolean;
 }
 
 export interface Ctx { ip?: string }
@@ -55,6 +58,8 @@ const S = {
   invite: z.object({ email, role }),
   setRole: z.object({ role }),
   transfer: z.object({ userId: z.string() }),
+  waitlist: z.object({ email, kind: z.enum(['teacher', 'school', 'other']), locale: locale.optional(), consent: z.literal(true) }),
+  usage: z.object({ event: z.string().max(40) }),
 };
 
 /** Compteurs glissants en mémoire (rien n'est écrit : ni adresses IP ni emails). */
@@ -108,6 +113,7 @@ export function createAccounts(o: AccountsOptions): Accounts {
   const cost = o.scryptCost ?? DEFAULT_COST;
   const maxProject = o.maxProjectBytes ?? 2_000_000;
   const maxProjects = o.maxProjectsPerUser ?? 200;
+  const count = (e: Parameters<typeof track>[1]): void => track(db, e, now());
   const cookieName = o.secureCookies ? '__Host-sid' : 'sid';
   const limiter = new Limiter(now);
   const base = o.publicUrl.replace(/\/+$/, '');
@@ -239,6 +245,25 @@ export function createAccounts(o: AccountsOptions): Accounts {
     const need = (): User | Response => session?.user ?? fail(401, 'unauthenticated');
     const isRes = (x: unknown): x is Response => x instanceof Response;
 
+    // ───────────── public : liste d'attente et compteurs anonymes ─────────────
+    if (path === '/api/waitlist' && method === 'POST') {
+      if (limiter.hit('wait-ip:' + ip, 10, HOUR)) return fail(429, 'rate_limit');
+      const b = await body(S.waitlist);
+      if (!b.ok) return b.res;
+      const w = b.data as { email: string; kind: 'teacher' | 'school' | 'other'; locale?: string };
+      // Réponse identique que l'adresse soit déjà inscrite ou non (pas d'énumération).
+      const r = db.prepare('INSERT OR IGNORE INTO waitlist (email, kind, locale, created_at) VALUES (?, ?, ?, ?)').run(w.email, w.kind, w.locale ?? 'fr', now());
+      if (Number(r.changes) > 0) count('waitlist');
+      return send(202, { ok: true });
+    }
+    if (path === '/api/usage' && method === 'POST') {
+      // Balise anonyme : aucun cookie lu, aucune adresse conservée ; l'IP ne sert qu'à borner le débit, en mémoire.
+      if (limiter.hit('usage-ip:' + ip, 120, HOUR)) return send(204);
+      const b = await body(S.usage, 200);
+      if (b.ok && isClientEvent(b.data.event)) count(b.data.event);
+      return send(204);
+    }
+
     // ───────────── authentification ─────────────
     if (path === '/api/auth/register' && method === 'POST') {
       if (limiter.hit('reg:' + ip, 10, HOUR)) return fail(429, 'rate_limit');
@@ -259,7 +284,7 @@ export function createAccounts(o: AccountsOptions): Accounts {
         await mailer.send(compose('exists', existing.locale, em, { url: `${base}/#/forgot` }));
       } else {
         const id = rid(), hash = await hashPassword(password, cost);
-        try { q.insUser.run(id, em, nm, hash, loc ?? 'fr', now()); } catch { return send(202, { ok: true }); }
+        try { q.insUser.run(id, em, nm, hash, loc ?? 'fr', now()); count('register'); } catch { return send(202, { ok: true }); }
         await sendVerify(q.userById.get(id) as unknown as UserRow);
       }
       return send(202, { ok: true });
@@ -291,6 +316,7 @@ export function createAccounts(o: AccountsOptions): Accounts {
       const r = q.takeToken.get(sha256(b.data.token), 'verify', now()) as { user_id: string } | undefined;
       if (!r) return fail(400, 'invalid_token');
       db.prepare('UPDATE users SET email_verified_at = ? WHERE id = ?').run(now(), r.user_id);
+      count('verify');
       return send(204);
     }
 
@@ -409,6 +435,7 @@ export function createAccounts(o: AccountsOptions): Accounts {
         q.insProject.run(id, u.id, imported.name, t, t, exportNative(imported).output);
         q.insMember.run(id, u.id, 'owner', t);
       });
+      count('project_created');
       return send(201, { id, name: imported.name, role: 'owner' });
     }
 
@@ -464,11 +491,13 @@ export function createAccounts(o: AccountsOptions): Accounts {
       if (sub === 'invites' && !subId && method === 'POST') {
         if (!atLeast(my, 'owner')) return fail(403, 'forbidden');
         const b = await body(S.invite); if (!b.ok) return b.res;
+        if (o.collabRequiresPlan && (db.prepare('SELECT plan FROM users WHERE id = ?').get(u.id) as { plan: string } | undefined)?.plan !== 'teacher') return fail(403, 'plan_required');
         if (limiter.hit('invite:' + u.id, 50, HOUR)) return fail(429, 'rate_limit');
         const target = q.userByEmail.get(b.data.email) as unknown as UserRow | undefined;
         if (target && getRole(pid!, target.id)) return send(204); // déjà membre : même réponse, rien à faire
         const id = rid(), t = now();
         q.upsertInvite.run(id, pid, b.data.email, b.data.role, u.id, t, t + 14 * DAY);
+        count('invite_sent');
         const p = q.project.get(pid!) as { name: string };
         await mailer.send(compose('invite', target?.locale ?? u.locale, b.data.email, { who: u.name, project: p.name, role: b.data.role, url: `${base}/#/invitations` }));
         return send(204);
@@ -542,6 +571,8 @@ export async function sweepInactive(db: Db, mailer: Mailer, publicUrl: string, t
 }
 
 export function sweepAccounts(db: Db, now: number): void {
+  // Liste d'attente : conservée 24 mois au plus.
+  db.prepare('DELETE FROM waitlist WHERE created_at <= ?').run(now - 730 * DAY);
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now);
   db.prepare('DELETE FROM tokens WHERE expires_at <= ?').run(now);
   db.prepare('DELETE FROM invites WHERE expires_at <= ?').run(now);

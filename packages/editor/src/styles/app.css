@@ -349,3 +349,11 @@ dialog.acc{width:min(640px,94vw)}
 .avatar{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;color:#fff;font:600 11px var(--font-ui)}
 .collab-warn{margin:0;padding:6px 12px;background:var(--warn-soft);color:var(--ink);border-bottom:1px solid var(--line);font-size:13px}
 .gmeta.peer-edit{color:var(--warn);font-family:var(--font-ui)}
+
+/* ---------- Essai sans compte ---------- */
+.limit-notice{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);z-index:30;max-width:min(560px,calc(100vw - 24px));background:var(--panel);color:var(--ink);border:1px solid var(--warn);border-left-width:4px;border-radius:10px;padding:12px 14px;box-shadow:var(--shadow)}
+.limit-notice p{margin:0 0 8px}
+.limit-notice .row{display:flex;gap:8px;flex-wrap:wrap}
+.fmt .lock{color:var(--ink-3);font-size:12px}
+.locked{border:1px dashed var(--line-2);border-radius:10px;padding:12px 14px;background:var(--panel-2)}
+.locked p{margin:0 0 10px}

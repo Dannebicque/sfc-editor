@@ -6,11 +6,17 @@ import { useUiStore, type ExportFormat } from '../stores/ui';
 import { shareLink } from '../share';
 import { useShareStore } from '../stores/share';
 import { useProjectStore } from '../stores/project';
+import { useAccountStore } from '../stores/account';
+import { isExportLocked } from '../limits';
+import { track } from '../usage';
 import Icon from './Icon.vue';
 
 const ui = useUiStore();
 const share = useShareStore();
 const project = useProjectStore();
+const account = useAccountStore();
+const locked = computed(() => isExportLocked(cur.value.id, project.limits));
+function signup(): void { ui.dataDialog = null; account.open('auth', 'register'); }
 const { dataView, dataText, copyMsg, importMsg, importText, importReport, exportReport, dataDialog } = storeToRefs(ui);
 const dlg = ref<HTMLDialogElement | null>(null);
 
@@ -51,12 +57,17 @@ const cur = computed(() => groups.value.flatMap((g) => g.items).find((f) => f.id
           <nav class="fmts" :aria-label="T('fmt_aria')">
             <template v-for="g in groups" :key="g.title">
               <h3>{{ g.title }}</h3>
-              <button v-for="f in g.items" :key="f.id" type="button" class="fmt" :aria-pressed="cur.id === f.id" @click="dataView = f.id">{{ T('fmt_' + f.id) }}</button>
+              <button v-for="f in g.items" :key="f.id" type="button" class="fmt" :aria-pressed="cur.id === f.id" @click="dataView = f.id; if (isExportLocked(f.id, project.limits)) track('export_locked')">{{ T('fmt_' + f.id) }}<span v-if="isExportLocked(f.id, project.limits)" class="lock"> · {{ T('lim_account') }}</span></button>
             </template>
           </nav>
           <section class="fmt-detail" :aria-label="T('fmt_' + cur.id)">
             <h3>{{ T('fmt_' + cur.id) }}</h3>
             <p class="hint">{{ T('desc_' + cur.id) }}</p>
+            <div v-if="locked" class="locked" role="status">
+              <p>{{ T('lim_export_locked') }}</p>
+              <button class="btn solid on" type="button" @click="signup">{{ T('lim_cta') }}</button>
+            </div>
+            <template v-else>
 
             <fieldset v-if="cur.pick" class="pick">
               <legend>{{ T('pick_legend') }}</legend>
@@ -102,6 +113,7 @@ const cur = computed(() => groups.value.flatMap((g) => g.items).find((f) => f.id
                 </li>
               </ul>
               </template>
+            </template>
             </template>
           </section>
         </div>

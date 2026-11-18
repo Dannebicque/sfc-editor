@@ -18,6 +18,7 @@ import CollabBar from './components/CollabBar.vue';
 import { useAccountStore } from './stores/account';
 import { useCollabStore } from './stores/collab';
 import StatusBar from './components/StatusBar.vue';
+import LimitNotice from './components/LimitNotice.vue';
 
 const ui = useUiStore();
 const { liveMsg } = storeToRefs(ui);
@@ -39,6 +40,7 @@ onMounted(() => { ui.init(); share.init(); void account.init((id) => { void coll
       <InspectorPanel />
     </main>
     <StatusBar />
+    <LimitNotice v-if="account.enabled" />
     <LegalDialog />
     <DataDialog />
     <ShareDialog v-if="share.enabled" />

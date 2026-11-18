@@ -65,6 +65,26 @@ const MIGRATIONS: string[] = [
   ALTER TABLE users ADD COLUMN purge_warned_at INTEGER;
   UPDATE users SET last_seen_at = created_at;
   `,
+  // 3 : liste d'attente des formules à venir (email + type de besoin, purgée après 24 mois) et compteurs d'usage agrégés par jour.
+  // Les compteurs ne contiennent ni identifiant, ni adresse IP, ni email : seulement « tel événement, tel jour, n fois ».
+  `
+  CREATE TABLE waitlist (
+    email TEXT PRIMARY KEY,
+    kind TEXT NOT NULL CHECK (kind IN ('teacher','school','other')),
+    locale TEXT NOT NULL DEFAULT 'fr',
+    created_at INTEGER NOT NULL
+  );
+  CREATE TABLE usage_daily (
+    day TEXT NOT NULL,
+    event TEXT NOT NULL,
+    n INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, event)
+  );
+  `,
+  // 4 : offre de la personne (`free`, `teacher`). La co-édition (invitations) est réservée à `teacher` quand COLLAB_REQUIRES_PLAN=1.
+  `
+  ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free' CHECK (plan IN ('free','teacher'));
+  `,
 ];
 
 export function migrate(db: Db): void {

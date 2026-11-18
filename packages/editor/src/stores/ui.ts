@@ -37,6 +37,8 @@ export const useUiStore = defineStore('ui', () => {
   /** GRAFCET écartés de l'export (par défaut : aucun, donc tous les GRAFCET du projet sont exportés). */
   const exportExcluded = ref<string[]>([]);
   const dataView = ref<ExportFormat>('native');
+  /** Limite de l'essai sans compte atteinte (déclenche l'invitation à créer un compte) ; `null` : rien à afficher. */
+  const limitHit = ref<'grafcets' | 'steps' | null>(null);
   /** Côté d'insertion choisi pour les éléments simples (les blocs imposent le leur : barre = avant, convergence = après). */
   const insertWhere = ref<InsertWhere>('after');
   const sim = reactive({ on: false, active: [] as string[], root: '', frozen: [] as string[] });
@@ -498,7 +500,7 @@ export const useUiStore = defineStore('ui', () => {
         const base = (fileName ?? '').replace(/\.[^.]+$/, '') || T('p_imported');
         const r = importSfcEditXml(importText.value, { projectName: base });
         importReport.value = toLines(r.report.entries);
-        project.replaceProject(r.model);
+        project.replaceProject(r.model, { enforce: true });
         openG(r.model.grafcets[0]!.id);
         importMsg.text = T('imp_ok'); importMsg.cls = 'ok'; importText.value = '';
         return;
@@ -511,7 +513,7 @@ export const useUiStore = defineStore('ui', () => {
         const r = importJson(importText.value, projectRef.value, { grafcetName: T('g_imported'), projectName: T('p_imported') }).model;
         next = r.project; activeId = r.activeId;
       }
-      project.replaceProject(next);
+      project.replaceProject(next, { enforce: true });
       openG(activeId);
       importMsg.text = T('imp_ok'); importMsg.cls = 'ok'; importText.value = '';
     } catch (e) {
@@ -555,7 +557,7 @@ export const useUiStore = defineStore('ui', () => {
   /** Remplace le projet par un modèle déjà validé et affiche le résultat. */
   function commitImport(model: ReturnType<typeof importArchive>['model'], entries: ReportEntry[] = []): void {
     importReport.value = toLines(entries);
-    project.replaceProject(model);
+    project.replaceProject(model, { enforce: true });
     openG(model.grafcets[0]!.id);
     importMsg.text = T('imp_ok'); importMsg.cls = 'ok'; importText.value = '';
   }
@@ -663,7 +665,7 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   return {
-    sel, tab, tabs, dataDialog, exportExcluded, previewSvg, exportGrafcets, exportAll, toggleExport, selectExport, downloadSvg, downloadPng, printPdf, linkedNum, linkedIn, sharedNum, citingActive, citedIn, theme, themeLabel, dataView, sim, liveMsg, announce, insertWhere, whereNow,
+    sel, tab, tabs, dataDialog, exportExcluded, previewSvg, exportGrafcets, exportAll, toggleExport, selectExport, downloadSvg, downloadPng, printPdf, linkedNum, linkedIn, sharedNum, citingActive, citedIn, theme, themeLabel, dataView, limitHit, sim, liveMsg, announce, insertWhere, whereNow,
     selItem, selEnds, selLink, selJump, selEmpty, selBranch, selText, selShort, caps, slotPos, jumpTargets, recFb, tokens, pending,
     moveBranch, canMoveBranch, insertKind, addLinkAt, addJumpSel, removeSel, setField, setAction, addAction, delAction, addToken, addBranch, delBranch, setJump,
     startPending, cancelPending, completePending, addFree, doRenumber,

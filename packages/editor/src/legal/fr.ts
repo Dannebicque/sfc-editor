@@ -48,6 +48,11 @@ export const fr: LegalDoc[] = [
         'Jetons de vérification d’adresse (24 h) et de réinitialisation du mot de passe (1 h), à usage unique.',
       ] },
       { p: 'Les autres membres d’un projet voient votre nom et votre rôle ; les propriétaires et éditeurs voient aussi votre adresse email. Le contenu d’un projet n’est visible que de ses membres.' },
+      { h: 'Liste d’attente et statistiques' },
+      { ul: [
+        'Liste d’attente des formules à venir (facultative) : si vous laissez votre adresse email sur la page d’accueil, nous la conservons avec le type de besoin choisi et la langue, uniquement pour vous prévenir de l’ouverture de ces formules. Conservation : 24 mois au plus ; suppression sur simple demande.',
+        'Statistiques d’usage : des compteurs anonymes par jour (nombre d’inscriptions, de projets créés, de limites de l’essai atteintes…). Ils ne contiennent aucun identifiant, adresse IP ni email et ne permettent pas de suivre une personne ; aucun cookie n’est utilisé pour cela.',
+      ] },
       { h: 'Finalités et bases légales' },
       { ul: [
         'Créer et gérer votre compte, enregistrer vos projets, permettre le partage et la co-édition : exécution du service que vous demandez.',

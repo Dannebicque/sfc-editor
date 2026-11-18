@@ -29,7 +29,10 @@ if (env.PUBLIC_URL) {
     db, mailer, publicUrl: env.PUBLIC_URL, allowedOrigin: env.ALLOWED_ORIGIN ?? env.PUBLIC_URL,
     secureCookies: env.INSECURE_COOKIES !== '1' && (production || env.PUBLIC_URL.startsWith('https:')),
     allowRegistration: env.ALLOW_REGISTRATION !== '0',
+    collabRequiresPlan: env.COLLAB_REQUIRES_PLAN === '1',
     maxProjectBytes: num(env.MAX_BYTES, 2_000_000),
+    // Plafond de projets en ligne par personne (offre gratuite) ; les projets déjà créés au-delà restent accessibles.
+    maxProjectsPerUser: num(env.MAX_PROJECTS_PER_USER, 5),
   });
   accountsHandler = accounts.handler;
   collab = createCollab({ db, accounts, allowedOrigin: env.ALLOWED_ORIGIN ?? env.PUBLIC_URL, maxProjectBytes: num(env.MAX_BYTES, 2_000_000) });

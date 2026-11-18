@@ -565,7 +565,7 @@
   "acc_err_not_found": "Not found, or you do not have access.",
   "acc_err_too_large": "The project is too large.",
   "acc_err_invalid_document": "The project is not valid.",
-  "acc_err_too_many_projects": "Maximum number of projects reached.",
+  "acc_err_too_many_projects": "Maximum number of online projects reached for a free account: delete or export one first.",
   "acc_err_email_not_verified": "Please confirm your email address first.",
   "acc_err_owner_cannot_leave": "The owner cannot leave the project: transfer it first.",
   "acc_err_owner_role_fixed": "The owner's role cannot be changed.",
@@ -645,5 +645,13 @@
   "collab_opened": "Project \"{x}\" opened online.",
   "collab_opened_ro": "Project \"{x}\" opened read-only.",
   "collab_conflict": "{x} is also editing this GRAFCET: if you change it at the same time, the last saved version wins.",
-  "collab_editing": "edited by {x}"
+  "collab_editing": "edited by {x}",
+  "lim_grafcets": "The no-account trial is limited to {n} GRAFCETs per project.",
+  "lim_steps": "The no-account trial is limited to {n} steps per GRAFCET.",
+  "lim_cta_text": "Create a free account to remove this limit.",
+  "lim_cta": "Create an account",
+  "lim_dismiss": "Later",
+  "lim_account": "with an account",
+  "lim_export_locked": "This format is reserved for accounts. Native JSON, images (SVG, PNG) and PDF remain available without an account.",
+  "acc_err_plan_required": "Co-editing (inviting members) is part of the upcoming “classroom and school” plan."
 }

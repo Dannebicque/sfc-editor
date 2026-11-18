@@ -12,7 +12,7 @@ export class ApiError extends Error {
 /** Codes d'erreur du serveur qui ont un message (`acc_err_<code>`) ; les autres s'affichent comme une erreur de serveur. */
 export const KNOWN_ERRORS = new Set([
   'network', 'server', 'invalid_credentials', 'rate_limit', 'invalid_body', 'password_too_short', 'password_too_long', 'password_is_email', 'invalid_token',
-  'unauthenticated', 'forbidden', 'not_found', 'too_large', 'invalid_document', 'too_many_projects', 'email_not_verified', 'owner_cannot_leave',
+  'unauthenticated', 'forbidden', 'not_found', 'too_large', 'invalid_document', 'too_many_projects', 'plan_required', 'email_not_verified', 'owner_cannot_leave',
   'owner_role_fixed', 'invalid_target', 'registration_closed', 'bad_origin', 'content_type', 'method',
 ]);
 
@@ -56,13 +56,14 @@ export interface PendingInvite { id: string; email: string; role: 'editor' | 'vi
 
 /** Routes de l'interface portées par le fragment d'adresse (jamais envoyé au serveur). */
 export type HashRoute =
-  | { kind: 'verify'; token: string } | { kind: 'reset'; token: string } | { kind: 'forgot' }
+  | { kind: 'verify'; token: string } | { kind: 'reset'; token: string } | { kind: 'forgot' } | { kind: 'register' }
   | { kind: 'invitations' } | { kind: 'project'; id: string };
 export function parseHash(hash: string): HashRoute | null {
   let m: RegExpExecArray | null;
   if ((m = /^#\/verify\/([A-Za-z0-9_-]{10,100})$/.exec(hash))) return { kind: 'verify', token: m[1]! };
   if ((m = /^#\/reset\/([A-Za-z0-9_-]{10,100})$/.exec(hash))) return { kind: 'reset', token: m[1]! };
   if (hash === '#/forgot') return { kind: 'forgot' };
+  if (hash === '#/register') return { kind: 'register' };
   if (hash === '#/invitations') return { kind: 'invitations' };
   if ((m = /^#\/p\/([A-Za-z0-9_-]{22})$/.exec(hash))) return { kind: 'project', id: m[1]! };
   return null;

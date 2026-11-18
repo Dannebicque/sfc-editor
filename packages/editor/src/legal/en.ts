@@ -48,6 +48,11 @@ export const en: LegalDoc[] = [
         'Email verification tokens (24 h) and password reset tokens (1 h), single use.',
       ] },
       { p: 'Other members of a project see your name and role; owners and editors also see your email address. A project’s content is visible only to its members.' },
+      { h: 'Waiting list and statistics' },
+      { ul: [
+        'Waiting list for upcoming plans (optional): if you leave your email address on the home page, we keep it with the type of need you chose and your language, only to let you know when these plans open. Retention: 24 months at most; deleted on simple request.',
+        'Usage statistics: anonymous daily counters (number of sign-ups, projects created, trial limits reached…). They contain no identifier, IP address or email and cannot be used to follow a person; no cookie is used for this.',
+      ] },
       { h: 'Purposes and legal bases' },
       { ul: [
         'Create and manage your account, save your projects, allow sharing and co-editing: performance of the service you request.',

@@ -10,6 +10,7 @@ import { docFromProject, docFromState, encodeState, readProject } from '@grafcet
 import { exportNative, importNative } from '@grafcet/io';
 import { atLeast, type Accounts, type Role } from './accounts';
 import type { Db } from './db';
+import { track } from './usage';
 
 const MSG_SYNC = 0, MSG_AWARENESS = 1;
 // Codes de fermeture applicatifs (4000-4999).
@@ -253,6 +254,7 @@ export function createCollab(o: CollabOptions): Collab {
       if (!user) { refuse(socket, 401, 'Unauthorized'); return true; }
       const role = accounts.roleOf(m[1]!, user.id);
       if (!role) { refuse(socket, 404, 'Not Found'); return true; }
+      track(db, 'collab_session');
       wss.handleUpgrade(req, socket, head, (ws) => connect(ws, m[1]!, user.id, user.name, cookie, role));
       return true;
     },
