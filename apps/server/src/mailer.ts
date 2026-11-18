@@ -23,6 +23,8 @@ const T = {
            en: ['Password reset', 'Hello {name},\n\nTo choose a new password, open this link (valid for 1 h):\n{url}\n\nIf you did not ask for this, ignore this message: your password is unchanged.'] },
   invite: { fr: ['{who} vous invite sur un GRAFCET', 'Bonjour,\n\n{who} vous invite à collaborer sur « {project} » (rôle : {role}).\nConnectez-vous (ou créez un compte avec cette adresse) puis ouvrez :\n{url}'],
             en: ['{who} invites you to a GRAFCET', 'Hello,\n\n{who} invites you to collaborate on "{project}" (role: {role}).\nSign in (or create an account with this address), then open:\n{url}'] },
+  inactive: { fr: ['Votre compte sera supprimé faute d\'activité', 'Bonjour {name},\n\nVous ne vous êtes pas connecté·e depuis longtemps. Sans connexion de votre part avant le {date}, votre compte et vos projets en ligne seront supprimés définitivement.\nPour le conserver, connectez-vous simplement :\n{url}\n\nPour garder une copie de vos projets, exportez-les avant cette date.'],
+              en: ['Your account will be deleted due to inactivity', 'Hello {name},\n\nYou have not signed in for a long time. Unless you sign in before {date}, your account and online projects will be permanently deleted.\nTo keep it, simply sign in:\n{url}\n\nTo keep a copy of your projects, export them before that date.'] },
 } as const;
 
 export type MailKind = keyof typeof T;

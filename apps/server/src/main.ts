@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import { createAccounts, sweepAccounts } from './accounts';
+import { createAccounts, sweepAccounts, sweepInactive } from './accounts';
 import { createApp, type Handler } from './app';
 import { createCollab, type Collab } from './collab';
 import { openDb, type Db } from './db';
@@ -35,6 +35,9 @@ if (env.PUBLIC_URL) {
   collab = createCollab({ db, accounts, allowedOrigin: env.ALLOWED_ORIGIN ?? env.PUBLIC_URL, maxProjectBytes: num(env.MAX_BYTES, 2_000_000) });
   setInterval(() => { sweepAccounts(db!, Date.now()); }, 3_600_000).unref();
   sweepAccounts(db, Date.now());
+  const inactive = (): void => { sweepInactive(db!, mailer, env.PUBLIC_URL!, Date.now()).catch(() => undefined); };
+  setInterval(inactive, 24 * 3_600_000).unref();
+  setTimeout(inactive, 60_000).unref();
 }
 
 const server = buildServer({ shares, accounts: accountsHandler, collab, trustProxy: env.TRUST_PROXY === '1', staticDir: env.STATIC_DIR ? resolve(env.STATIC_DIR) : undefined });

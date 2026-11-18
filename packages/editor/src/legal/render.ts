@@ -2,7 +2,7 @@ import type { LegalConfig } from './config';
 
 export type Segment = string | { todo: string };
 
-const TOKENS = ['product', 'publisher', 'contact', 'publisherAddress', 'hostName', 'hostAddress', 'hostUrl', 'repo', 'updated'] as const;
+const TOKENS = ['product', 'publisher', 'contact', 'publisherAddress', 'hostName', 'hostAddress', 'hostUrl', 'mailHost', 'repo', 'updated'] as const;
 
 /**
  * Remplace les jetons {contact}, {hostName}… par les valeurs de la configuration.

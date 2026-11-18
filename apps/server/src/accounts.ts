@@ -171,7 +171,7 @@ export function createAccounts(o: AccountsOptions): Accounts {
     const u = q.userById.get(s.user_id) as unknown as UserRow | undefined;
     if (!u) return null;
     const next = Math.min(t + SESSION_SLIDE, s.created_at + SESSION_MAX);
-    if (next - s.expires_at > HOUR) q.slide.run(next, hash);
+    if (next - s.expires_at > HOUR) { q.slide.run(next, hash); db.prepare('UPDATE users SET last_seen_at = ?, purge_warned_at = NULL WHERE id = ?').run(t, u.id); }
     return { user: toUser(u), hash, createdAt: s.created_at };
   }
 
@@ -181,6 +181,7 @@ export function createAccounts(o: AccountsOptions): Accounts {
   async function startSession(userId: string): Promise<string> {
     const tok = rid(32), t = now();
     q.insSession.run(sha256(tok), userId, t, t + SESSION_SLIDE);
+    db.prepare('UPDATE users SET last_seen_at = ?, purge_warned_at = NULL WHERE id = ?').run(t, userId);
     return cookie(tok, SESSION_SLIDE / 1000);
   }
 
@@ -344,14 +345,7 @@ export function createAccounts(o: AccountsOptions): Accounts {
         const row = q.userById.get(u.id) as unknown as UserRow;
         if (limiter.hit('del:' + u.id, 5, HOUR)) return fail(429, 'rate_limit');
         if (!(await verifyPassword(b.data.password, row.pw_hash))) return fail(403, 'invalid_credentials');
-        tx(db, () => {
-          // Projets possédés : transférés à un autre membre s'il y en a un (éditeur d'abord), supprimés sinon.
-          for (const p of q.ownedProjects.all(u.id) as Array<{ id: string }>) {
-            const next = q.otherMembers.get(p.id, u.id) as { user_id: string } | undefined;
-            if (next) { q.reown.run(next.user_id, p.id); q.insMember.run(p.id, next.user_id, 'owner', now()); } else q.delProject.run(p.id);
-          }
-          q.delUser.run(u.id);
-        });
+        eraseUser(db, u.id, now());
         return send(204, undefined, { 'Set-Cookie': cookie('', 0) });
       }
       return fail(405, 'method');
@@ -511,6 +505,42 @@ export function createAccounts(o: AccountsOptions): Accounts {
 }
 
 /** Ménage horaire : sessions, jetons et invitations échus. */
+/** Supprime un compte : projets dont il est propriétaire transférés à un autre membre (éditeur d'abord) ou supprimés, puis le compte. */
+export function eraseUser(db: Db, userId: string, t: number): void {
+  tx(db, () => {
+    for (const p of db.prepare('SELECT id FROM projects WHERE owner_id = ?').all(userId) as Array<{ id: string }>) {
+      const next = db.prepare("SELECT user_id FROM members WHERE project_id = ? AND user_id <> ? ORDER BY CASE role WHEN 'editor' THEN 0 ELSE 1 END, created_at LIMIT 1").get(p.id, userId) as { user_id: string } | undefined;
+      if (next) {
+        db.prepare('UPDATE projects SET owner_id = ? WHERE id = ?').run(next.user_id, p.id);
+        db.prepare("INSERT INTO members (project_id,user_id,role,created_at) VALUES (?,?,'owner',?) ON CONFLICT(project_id,user_id) DO UPDATE SET role = 'owner'").run(p.id, next.user_id, t);
+      } else db.prepare('DELETE FROM projects WHERE id = ?').run(p.id);
+    }
+    db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+  });
+}
+
+/** Durée d'inactivité avant suppression (24 mois) et préavis par mail (30 jours) : annoncés dans la politique de confidentialité. */
+export const INACTIVE_AFTER = 730 * DAY, INACTIVE_NOTICE = 30 * DAY;
+
+/**
+ * Comptes inactifs : un mail d'avertissement 30 jours avant l'échéance, puis suppression si aucune connexion entre-temps.
+ * Une connexion remet le compteur à zéro. Renvoie le nombre d'avertissements et de suppressions (pour les tests et les journaux).
+ */
+export async function sweepInactive(db: Db, mailer: Mailer, publicUrl: string, t: number): Promise<{ warned: number; erased: number }> {
+  const base = publicUrl.replace(/\/+$/, '');
+  let warned = 0, erased = 0;
+  const due = db.prepare('SELECT id FROM users WHERE purge_warned_at IS NOT NULL AND purge_warned_at <= ? AND last_seen_at <= ?').all(t - INACTIVE_NOTICE + HOUR, t - (INACTIVE_AFTER - INACTIVE_NOTICE)) as Array<{ id: string }>;
+  for (const u of due) { eraseUser(db, u.id, t); erased++; }
+  const soon = db.prepare('SELECT id, email, name, locale, last_seen_at FROM users WHERE purge_warned_at IS NULL AND last_seen_at <= ?').all(t - (INACTIVE_AFTER - INACTIVE_NOTICE)) as unknown as Array<{ id: string; email: string; name: string; locale: string; last_seen_at: number }>;
+  for (const u of soon) {
+    const date = new Date(t + INACTIVE_NOTICE).toISOString().slice(0, 10);
+    try { await mailer.send(compose('inactive', u.locale, u.email, { name: u.name, date, url: base + '/' })); } catch { continue; } // pas de suppression sans préavis réussi
+    db.prepare('UPDATE users SET purge_warned_at = ? WHERE id = ?').run(t, u.id);
+    warned++;
+  }
+  return { warned, erased };
+}
+
 export function sweepAccounts(db: Db, now: number): void {
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now);
   db.prepare('DELETE FROM tokens WHERE expires_at <= ?').run(now);

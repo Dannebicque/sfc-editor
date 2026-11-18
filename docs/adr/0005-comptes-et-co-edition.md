@@ -1,6 +1,6 @@
 # ADR 0005 — Comptes, projets en ligne et co-édition temps réel
 
-**Statut :** phases 1 à 4 implémentées (serveur, éditeur, tests) ; phase 5 : Dockerfile, Caddy et docs écrits, textes légaux et SSO restent à faire. Complète l'[ADR 0004](0004-partage-par-lien.md) (partage par lien, inchangé).
+**Statut :** phases 1 à 4 implémentées (serveur, éditeur, tests) ; phase 5 : Dockerfile, Caddy et docs écrits, textes légaux rédigés (reste à renseigner `mailHost` dans `legal/config.ts` et à faire relire) ; SSO reste à faire. Complète l'[ADR 0004](0004-partage-par-lien.md) (partage par lien, inchangé).
 
 ## Contexte
 L'éditeur est local-first. On veut en faire une vraie application web : comptes, projets enregistrés côté serveur, partage avec des
@@ -36,6 +36,8 @@ base **SQLite** ; rôles **propriétaire / éditeur / lecteur**. Hébergement au
 - **Droits RGPD** : `GET /api/me/export` (toutes les données du compte) et `DELETE /api/me` (suppression du compte, de ses sessions et des
   projets dont il est seul propriétaire ; les projets partagés sont transférés ou le compte est refusé tant que ce n'est pas réglé).
 - Aucun journal ne contient d'adresse IP ni de contenu de projet.
+- **Comptes inactifs** : après 24 mois sans connexion, un mail prévient 30 jours avant la suppression (compte + projets dont il est seul propriétaire ; les autres sont transférés). Pas de suppression si l'avertissement n'a pas pu partir. Tâche quotidienne `sweepInactive`.
+- **Mineurs** : service ouvert dès 15 ans (accord d'un parent en dessous), annoncé dans les conditions et la politique de confidentialité.
 
 ### Droits d'accès
 | Rôle | Lire | Modifier le contenu | Renommer, inviter, changer les rôles | Supprimer le projet |

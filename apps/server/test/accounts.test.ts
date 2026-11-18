@@ -1,18 +1,19 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { exportNative } from '@grafcet/io';
 import { demoProject } from '../../../packages/grafcet-core/test/helpers';
-import { createAccounts, type Accounts } from '../src/accounts';
-import { openDb } from '../src/db';
+import { createAccounts, INACTIVE_AFTER, INACTIVE_NOTICE, sweepInactive, type Accounts } from '../src/accounts';
+import { openDb, type Db } from '../src/db';
 import { MemoryMailer } from '../src/mailer';
 
 const FAST = { N: 1024, r: 8, p: 1 };
 const PW = 'correct horse battery';
-let clock: number, mailer: MemoryMailer, acc: Accounts;
+let clock: number, mailer: MemoryMailer, acc: Accounts, db: Db;
 const doc = () => exportNative(demoProject()).output;
 
 const make = (o: Partial<Parameters<typeof createAccounts>[0]> = {}) => {
   mailer = new MemoryMailer();
-  acc = createAccounts({ db: openDb(':memory:'), mailer, publicUrl: 'https://app.test', now: () => clock, scryptCost: FAST, ...o });
+  db = openDb(':memory:');
+  acc = createAccounts({ db, mailer, publicUrl: 'https://app.test', now: () => clock, scryptCost: FAST, ...o });
 };
 beforeEach(() => { clock = 1_700_000_000_000; make(); });
 
@@ -212,5 +213,42 @@ describe('inscriptions fermées', () => {
   it('n\'accepte que les personnes invitées', async () => {
     make({ allowRegistration: false });
     expect((await call('/api/auth/register', { body: { email: 'z@ex.fr', name: 'Z', password: PW } })).status).toBe(403);
+  });
+});
+
+describe('comptes inactifs', () => {
+  const sweep = () => sweepInactive(db, mailer, 'https://app.test', clock);
+  const exists = (email: string): boolean => !!db.prepare('SELECT 1 FROM users WHERE email = ?').get(email);
+
+  it('avertit 30 jours avant, puis supprime le compte et ses projets', async () => {
+    const a = await signup('a@ex.fr');
+    await newProject(a);
+    expect(await sweep()).toEqual({ warned: 0, erased: 0 });
+    clock += INACTIVE_AFTER - INACTIVE_NOTICE + 1000;
+    expect(await sweep()).toEqual({ warned: 1, erased: 0 });
+    expect(mailer.last('a@ex.fr')?.subject).toMatch(/supprimé/);
+    expect(await sweep()).toEqual({ warned: 0, erased: 0 }); // un seul avertissement
+    clock += INACTIVE_NOTICE;
+    expect(await sweep()).toEqual({ warned: 0, erased: 1 });
+    expect(exists('a@ex.fr')).toBe(false);
+    expect(db.prepare('SELECT COUNT(*) AS n FROM projects').get()).toEqual({ n: 0 });
+  });
+
+  it('une connexion après l\'avertissement conserve le compte', async () => {
+    await signup('b@ex.fr');
+    clock += INACTIVE_AFTER - INACTIVE_NOTICE + 1000;
+    await sweep();
+    expect((await call('/api/auth/login', { body: { email: 'b@ex.fr', password: PW } })).status).toBe(200);
+    clock += INACTIVE_NOTICE + 1000;
+    expect(await sweep()).toEqual({ warned: 0, erased: 0 });
+    expect(exists('b@ex.fr')).toBe(true);
+  });
+
+  it('ne supprime pas sans avertissement envoyé', async () => {
+    await signup('c@ex.fr');
+    clock += INACTIVE_AFTER + 10 * 86_400_000;
+    mailer.send = async () => { throw new Error('smtp'); };
+    expect(await sweep()).toEqual({ warned: 0, erased: 0 });
+    expect(exists('c@ex.fr')).toBe(true);
   });
 });

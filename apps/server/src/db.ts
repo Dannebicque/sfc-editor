@@ -59,6 +59,12 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX invites_email ON invites(email);
   `,
+  // 2 : dernière activité (purge des comptes inactifs, ADR 0005) et date d'avertissement.
+  `
+  ALTER TABLE users ADD COLUMN last_seen_at INTEGER;
+  ALTER TABLE users ADD COLUMN purge_warned_at INTEGER;
+  UPDATE users SET last_seen_at = created_at;
+  `,
 ];
 
 export function migrate(db: Db): void {
