@@ -5,12 +5,14 @@ import { useProjectStore } from '../stores/project';
 import { useUiStore } from '../stores/ui';
 import { useViewStore } from '../stores/view';
 import { useAccountStore } from '../stores/account';
+import { useClassesStore } from '../stores/classes';
 import Icon from './Icon.vue';
 
 const project = useProjectStore();
 const ui = useUiStore();
 const view = useViewStore();
 const account = useAccountStore();
+const classes = useClassesStore();
 const { past, future } = storeToRefs(project);
 const { sim, theme, themeLabel } = storeToRefs(ui);
 </script>
@@ -40,6 +42,7 @@ const { sim, theme, themeLabel } = storeToRefs(ui);
     <div v-if="account.enabled && account.ready" class="tools" role="toolbar" :aria-label="T('acc_label')">
       <template v-if="account.user">
         <button class="btn solid" type="button" :title="T('acc_projects_t')" @click="account.open('projects')"><span class="txt">{{ T('acc_projects') }}</span><span v-if="account.invitations.length" class="badge warn" aria-hidden="true">{{ account.invitations.length }}</span></button>
+        <button v-if="classes.visible" class="btn solid" type="button" :title="T('cls_btn_t')" @click="account.open('classes')"><span class="txt">{{ T('cls_btn') }}</span><span v-if="account.classInvitations.length" class="badge warn" aria-hidden="true">{{ account.classInvitations.length }}</span></button>
         <button class="btn solid" type="button" :title="T('acc_user_t', { x: account.user.name })" @click="account.open('account')"><span class="txt">{{ account.user.name }}</span></button>
       </template>
       <button v-else class="btn solid" type="button" :title="T('acc_signin_t')" @click="account.open('auth', 'login')"><span class="txt">{{ T('acc_signin') }}</span></button>

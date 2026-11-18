@@ -14,6 +14,7 @@ export const KNOWN_ERRORS = new Set([
   'network', 'server', 'invalid_credentials', 'rate_limit', 'invalid_body', 'password_too_short', 'password_too_long', 'password_is_email', 'invalid_token',
   'unauthenticated', 'forbidden', 'not_found', 'too_large', 'invalid_document', 'too_many_projects', 'plan_required', 'email_not_verified', 'owner_cannot_leave',
   'owner_role_fixed', 'invalid_target', 'registration_closed', 'bad_origin', 'content_type', 'method',
+  'class_managed', 'too_many_classes', 'too_many_assignments', 'already_active',
 ]);
 
 type Fetch = typeof fetch;
@@ -51,6 +52,16 @@ export function wsUrl(projectId: string, loc: { protocol: string; host: string }
 export interface UserInfo { id: string; email: string; name: string; locale: string; emailVerified: boolean }
 export interface ProjectSummary { id: string; name: string; role: 'owner' | 'editor' | 'viewer'; owner: string; updatedAt: string }
 export interface Invitation { id: string; role: 'editor' | 'viewer'; project: string; invitedBy: string; expiresAt: string }
+export interface ClassInvitation { id: string; class: string; invitedBy: string; expiresAt: string }
+export interface ClassSummary { id: string; name: string; students?: number; assignments?: number; teacher?: string }
+export interface ClassStudent { userId: string; name: string; email: string; activated: boolean }
+export interface AssignmentSummary { id: string; title: string; instructions: string; dueAt: string | null; createdAt: string; students?: number; submitted?: number;
+  submission?: { projectId: string; status: 'todo' | 'submitted'; submittedAt: string | null; comments: number } | null }
+export interface ClassDetail { role: 'teacher' | 'student'; id: string; name: string; teacher?: string; students?: ClassStudent[]; invites?: Array<{ id: string; email: string; expiresAt: string }>; assignments: AssignmentSummary[] }
+export interface Submission { userId: string; name: string; projectId: string; status: 'todo' | 'submitted'; submittedAt: string | null; updatedAt: string; access: 'viewer' | 'editor' | null; comments: number }
+export interface ClassComment { id: string; body: string; author: string; createdAt: string }
+export interface AssignmentDetail { assignment: AssignmentSummary; submissions?: Submission[]; submission?: { projectId: string; status: 'todo' | 'submitted'; submittedAt: string | null } | null; comments?: ClassComment[] }
+export interface ImportResult { email: string; status: string }
 export interface Member { userId: string; role: 'owner' | 'editor' | 'viewer'; name: string; email?: string }
 export interface PendingInvite { id: string; email: string; role: 'editor' | 'viewer'; expiresAt: string }
 

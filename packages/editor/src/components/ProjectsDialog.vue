@@ -31,6 +31,18 @@ async function answer(id: string, accept: boolean): Promise<void> { await accoun
       <p>{{ T('acc_verify_to_accept') }}</p>
       <button class="btn solid" type="button" :disabled="busy" @click="account.resendVerification()">{{ T('acc_resend') }}</button>
     </div>
+    <section v-if="account.classInvitations.length" aria-labelledby="cinv-h">
+      <h3 id="cinv-h" class="acc-h">{{ T('cls_invitations') }}</h3>
+      <ul class="acc-list">
+        <li v-for="i in account.classInvitations" :key="i.id">
+          <span>{{ T('cls_invite_line', { x: i.invitedBy, e: i.class }) }}</span>
+          <span class="row">
+            <button class="btn solid on" type="button" :disabled="busy" @click="account.answerClassInvitation(i.id, true)">{{ T('acc_accept') }}</button>
+            <button class="btn solid" type="button" :disabled="busy" @click="account.answerClassInvitation(i.id, false)">{{ T('acc_decline') }}</button>
+          </span>
+        </li>
+      </ul>
+    </section>
     <section v-if="invitations.length" aria-labelledby="inv-h">
       <h3 id="inv-h" class="acc-h">{{ T('acc_invitations') }}</h3>
       <ul class="acc-list">

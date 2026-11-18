@@ -7,13 +7,13 @@ import { GUEST_LIMITS } from '../limits';
 import { track } from '../usage';
 import {
   accountsEnabled, api, ApiError, KNOWN_ERRORS, parseHash,
-  type Invitation, type Member, type PendingInvite, type ProjectSummary, type UserInfo,
+  type ClassInvitation, type Invitation, type Member, type PendingInvite, type ProjectSummary, type UserInfo,
 } from '../api';
 import { useProjectStore } from './project';
 import { useUiStore } from './ui';
 
 export type AuthMode = 'login' | 'register' | 'forgot' | 'reset' | 'verify';
-export type Panel = 'auth' | 'projects' | 'account' | 'members' | null;
+export type Panel = 'auth' | 'projects' | 'account' | 'members' | 'classes' | null;
 
 /** Comptes et projets en ligne (ADR 0005). Inactif sans `VITE_ACCOUNTS=1` : l'éditeur reste alors strictement local. */
 export const useAccountStore = defineStore('account', () => {
@@ -31,6 +31,7 @@ export const useAccountStore = defineStore('account', () => {
   const info = ref('');
   const projects = ref<ProjectSummary[]>([]);
   const invitations = ref<Invitation[]>([]);
+  const classInvitations = ref<ClassInvitation[]>([]);
   const members = ref<{ role: string; members: Member[]; invites: PendingInvite[] } | null>(null);
   const signedIn = computed(() => !!user.value);
   /** Essai sans compte : avec les comptes activés, personne de connecté et projet local. Une instance sans comptes reste sans limite. */
@@ -65,9 +66,9 @@ export const useAccountStore = defineStore('account', () => {
 
   async function refresh(): Promise<void> {
     try {
-      const r = await api<{ user: UserInfo; invitations: Invitation[] }>('GET', '/api/me');
-      user.value = r.user; invitations.value = r.invitations;
-    } catch { user.value = null; invitations.value = []; }
+      const r = await api<{ user: UserInfo; invitations: Invitation[]; classInvitations?: ClassInvitation[] }>('GET', '/api/me');
+      user.value = r.user; invitations.value = r.invitations; classInvitations.value = r.classInvitations ?? [];
+    } catch { user.value = null; invitations.value = []; classInvitations.value = []; }
   }
 
   async function login(email: string, password: string): Promise<void> {
@@ -103,7 +104,7 @@ export const useAccountStore = defineStore('account', () => {
   }
   async function logout(): Promise<void> {
     try { await api('POST', '/api/auth/logout', {}); } catch { /* la session expirera de toute façon */ }
-    user.value = null; projects.value = []; invitations.value = [];
+    user.value = null; projects.value = []; invitations.value = []; classInvitations.value = [];
     void clearAll();
     panel.value = null;
     ui.announce(T('acc_signed_out'));
@@ -146,6 +147,10 @@ export const useAccountStore = defineStore('account', () => {
   async function deleteProject(id: string): Promise<void> {
     await run(() => api('DELETE', '/api/projects/' + id));
     if (!error.value) { projects.value = projects.value.filter((p) => p.id !== id); ui.announce(T('acc_project_deleted')); }
+  }
+  async function answerClassInvitation(id: string, accept: boolean): Promise<void> {
+    await run(() => (accept ? api('POST', `/api/class-invitations/${id}`, {}) : api('DELETE', `/api/class-invitations/${id}`)));
+    if (!error.value) await refresh();
   }
   async function answerInvitation(id: string, accept: boolean): Promise<void> {
     await run(() => (accept ? api('POST', `/api/invitations/${id}`, {}) : api('DELETE', `/api/invitations/${id}`)));
@@ -201,8 +206,8 @@ export const useAccountStore = defineStore('account', () => {
   }
 
   return {
-    enabled, user, ready, signedIn, guest, panel, authMode, token, busy, error, info, projects, invitations, members,
+    enabled, user, ready, signedIn, guest, panel, authMode, token, busy, error, info, projects, invitations, classInvitations, members,
     open, close, requireLogin, init, refresh, login, register, forgot, reset, verify, resendVerification, logout, saveProfile, changePassword,
-    exportData, deleteAccount, loadProjects, saveCurrent, deleteProject, answerInvitation, loadMembers, invite, setRole, removeMember, cancelInvite, transfer,
+    exportData, deleteAccount, loadProjects, saveCurrent, deleteProject, answerInvitation, answerClassInvitation, loadMembers, invite, setRole, removeMember, cancelInvite, transfer,
   };
 });
