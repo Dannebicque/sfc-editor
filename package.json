@@ -15,7 +15,7 @@
     "check:sfcedit": "tsx scripts/check-sfcedit.ts"
   },
   "devDependencies": {
-    "turbo": "^2.5.0",
+    "turbo": "^2.11.13",
     "typescript": "~6.0.3",
     "tsx": "^4.20.0"
   },
