@@ -3,7 +3,6 @@ import { storeToRefs } from 'pinia';
 import { T } from '../i18n';
 import { useProjectStore } from '../stores/project';
 import { useUiStore } from '../stores/ui';
-import DataPanel from './DataPanel.vue';
 import IssuesPanel from './IssuesPanel.vue';
 import PropsPanel from './PropsPanel.vue';
 import TextPanel from './TextPanel.vue';
@@ -26,6 +25,5 @@ const { issues, issueErr } = storeToRefs(useProjectStore());
     <PropsPanel v-show="tab === 'props'" />
     <IssuesPanel v-show="tab === 'issues'" />
     <TextPanel v-show="tab === 'text'" />
-    <DataPanel v-show="tab === 'data'" />
   </aside>
 </template>

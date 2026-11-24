@@ -18,6 +18,9 @@ const ICONS: Record<string, string> = {
   reset: 'M3 12a9 9 0 1 0 3-6.7 M3 4v5h5',
   check: 'm5 12 5 5 9-10',
   warn: 'M12 3 2 20h20L12 3z M12 10v4 M12 17.5v.5',
+  share: 'M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7 M16 6l-4-4-4 4 M12 2v13',
+  upload: 'M12 16V5 M7 9l5-5 5 5 M5 20h14',
+  help: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.8 M12 17v.5',
   download: 'M12 4v11 M7 11l5 5 5-5 M5 20h14',
 };
 const props = defineProps<{ n: string }>();

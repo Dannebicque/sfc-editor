@@ -5,17 +5,19 @@
   "description": "Éditeur / validateur de GRAFCET (IEC 60848), local-first.",
   "packageManager": "pnpm@10.28.0",
   "engines": {
-    "node": ">=22.12"
+    "node": ">=22.13"
   },
   "scripts": {
     "dev": "pnpm --filter @grafcet/web dev",
     "build": "turbo run build",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "check:sfcedit": "tsx scripts/check-sfcedit.ts"
   },
   "devDependencies": {
     "turbo": "^2.5.0",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "tsx": "^4.20.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

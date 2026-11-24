@@ -12,18 +12,35 @@
 - Règles structurelles dans `packages/grafcet-core/src/graph.ts` (`violations`, `checkGraph`). Toute édition passe par `trial` (`edit.ts`) : appliquée, validée, sinon annulée. Un graphe importé déjà imparfait reste éditable tant que l'édition n'ajoute pas de nouvelle violation.
 - Positions jamais stockées : `packages/grafcet-layout/src/layout.ts` les recalcule (y par récursion sur les liens, x par arbre puis balayage anti-chevauchement). Un renvoi vers le début d'une séquence libre atteinte par ce seul renvoi est tracé en trait continu et aligné.
 - La barre d'outils (`packages/editor/src/components/Toolbar.vue`) s'appuie sur `capabilities()` : seules les actions possibles sont affichées.
+- Étapes `task` de SFCEdit : drapeau `Step.task` (repère « T » sur le dessin, aller-retour XML). Contrôle d'un import : `pnpm check:sfcedit <fichier.xml>` (`packages/grafcet-io/src/verify.ts`) compare le réseau du XML à celui du modèle.
 - Anciens fichiers 1.x (arbre) : migrés à la lecture (`migrateProject`).
 - Le noyau ne contient aucun texte traduit : il renvoie des clés de message (locales dans `packages/editor/src/locales`, parité fr/en testée).
+
+## Comptes et co-édition (ADR 0005)
+- Mode local par défaut ; comptes et projets en ligne seulement si l'éditeur est construit avec `VITE_ACCOUNTS=1` et le serveur lancé avec `PUBLIC_URL`.
+- Serveur (`apps/server`) : API REST (`accounts.ts`), SQLite via `node:sqlite` (`db.ts`, migrations par `user_version`), WebSocket Yjs (`collab.ts`), éditeur statique (`server.ts`).
+- `packages/grafcet-collab` : projet ↔ document Yjs ; **un GRAFCET entier est l'unité de fusion** (valeur JSON atomique) pour garder les invariants structurels.
+- Client : `stores/account.ts`, `stores/collab.ts`, `collab/provider.ts` ; le store `project` a un mode `online` / `readOnly` (jamais écrit dans le stockage local).
+- Dev : `PUBLIC_URL=http://localhost:5173 pnpm --filter @grafcet/server start` puis `VITE_ACCOUNTS=1 pnpm dev` (voir `docs/deploiement.md`).
+
+## Landing et essai sans compte
+- `apps/web` : landing statique (`index.html` fr, `en/index.html` en, générées par `landing/plugin.ts` depuis `landing/content.ts`) et éditeur sous `/app/` (SW et manifeste dans `public/app/`).
+- Limites de l'essai : `packages/editor/src/limits-config.ts` (partagé avec la landing) ; appliquées dans `stores/project.ts` (`limits`, posées par `stores/account.ts` quand `guest`) ; exports verrouillés dans `DataDialog.vue`. Offres : Essai / Compte gratuit (5 projets en ligne, sans co-édition si `COLLAB_REQUIRES_PLAN=1`, `MAX_PROJECTS_PER_USER`) / Classe et établissement (co-édition, colonne `users.plan = teacher` attribuée via `pnpm --filter @grafcet/server plan` ; « Bientôt », liste d'attente `POST /api/waitlist`, aucun prix inventé). Compteurs anonymes : `apps/server/src/usage.ts` (`pnpm --filter @grafcet/server stats`).
 
 ## Git
 - Branche de travail : `dev` (David fusionne dans `main`). `feat/graph-model` est fusionnée dans `main` et n'est plus utilisée.
 - Fin des messages de commit : `Co-Authored-By: Claude <noreply@anthropic.com>`.
+- Espaces de classe (ADR 0006) : `apps/server/src/classes.ts` (routes `/api/classes`, branchées dans `accounts.ts`), migration 5, store `stores/classes.ts`, `components/ClassesDialog.vue`. Les copies d'élèves sont des projets ordinaires (`submissions.project_id`), l'accès de l'enseignant·e passe par `members`.
 
 ## Reste à faire (backlog)
+- Offre « classe » : espaces de classe (enseignant, classe, comptes élèves en lot, rendu de projet), puis SSO ; paiement seulement sur demande d'un établissement.
+- Landing : image Open Graph (PNG), exemples de TP prêts à ouvrir, captures à refaire en plus haute définition.
+- Test Docker de bout en bout (le build local a échoué : disque de la VM Docker plein), puis SMTP réel.
 - Dessin d'un graphe importé invalide (ex. convergence OU dont une branche finit par une étape : étape 14 qui chevauche la barre) — besoin du XML SFCEdit de David pour reproduire.
 - Saisir/importer le grand schéma réel (1_2, 30, 5_6, convergences ET, étape 30 partagée) et corriger ce qui manque.
 - Tester les exports dans de vrais outils (Beremiz, CODESYS).
 - Audit accessibilité de la barre d'outils et du mode « connecter » (clavier, lecteur d'écran, contrastes).
 - Simulation : forçages, GRAFCETs partiels, étapes englobantes.
+- Comptes : relecture des textes légaux (renseigner `mailHost` dans `packages/editor/src/legal/config.ts`), ouverture d'un projet hors ligne, SSO (OIDC/CAS), tests E2E à deux navigateurs.
 - Mentions légales : placeholders « [à compléter] » à remplir par David (ne rien inventer).
 - Vérifier les règles normatives contre la norme ; docs finales (README).

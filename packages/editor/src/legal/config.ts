@@ -13,6 +13,8 @@ export interface LegalConfig {
   hostName: string;
   hostAddress: string;
   hostUrl: string;
+  /** Service qui envoie les e-mails (vérification, invitations) : destinataire des adresses email. À renseigner selon le SMTP configuré. */
+  mailHost: string;
   repo: string;
   /** Date de dernière mise à jour des textes (ISO). */
   updated: string;
@@ -23,9 +25,10 @@ export const LEGAL: LegalConfig = {
   publisher: 'David Annebicque',
   contact: 'david.annebicque@gmail.com / david.annebicque@univ-reims.fr',
   publisherAddress: '',
-  hostName: 'PulseHeberg',
-  hostAddress: '',
-  hostUrl: '',
+  hostName: 'PulseHeberg (SAS)',
+  hostAddress: '9 boulevard de Strasbourg, 83000 Toulon, France',
+  hostUrl: 'https://pulseheberg.com',
+  mailHost: 'contact@sfceditor.com',
   repo: 'https://github.com/Dannebicque/sfc-editor',
-  updated: '2026-11-05',
+  updated: '2026-11-18',
 };

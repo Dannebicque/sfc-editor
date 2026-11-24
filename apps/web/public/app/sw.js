@@ -9,7 +9,9 @@ self.addEventListener('activate', (e) => {
 });
 self.addEventListener('fetch', (e) => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  const url = new URL(req.url);
+  // L'API (comptes, projets) ne doit jamais être mise en cache : données personnelles.
+  if (req.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/ws/')) return;
   const store = (res) => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); } return res; };
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).then(store).catch(() => caches.match(req).then((r) => r || caches.match('./'))));
