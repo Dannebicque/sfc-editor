@@ -146,6 +146,7 @@ function exportGrafcet(g: Grafcet, known: ReadonlySet<string>, report: ReportEnt
       const y = topOf(s) + k * ROW, id = plc.get(it.id)!;
       if (it.kind === 'step') {
         if (it.expansion !== undefined) report.push(warn('rep_p_macro', { g: g.name }));
+        if (it.task) report.push(warn('rep_p_task', { g: g.name }));
         nodes.push(`<step localId="${id}" name="${esc(stepName(it.num))}"${it.initial ? ' initialStep="true"' : ''}>${pos(x(s), y)}${cpin(preds)}<connectionPointOut formalParameter="sfc"/>${it.actions.length ? '<connectionPointOutAction formalParameter="action"/>' : ''}</step>`);
         if (it.actions.length) actionBlock(it, id, x(s), y);
         preds = [{ id, fp: 'sfc' }];

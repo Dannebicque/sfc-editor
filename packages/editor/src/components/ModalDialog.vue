@@ -2,7 +2,7 @@
 import { nextTick, ref, watch } from 'vue';
 import { T } from '../i18n';
 
-const props = defineProps<{ open: boolean; title: string; id: string }>();
+const props = defineProps<{ open: boolean; title: string; id: string; cls?: string }>();
 const emit = defineEmits<{ close: [] }>();
 const dlg = ref<HTMLDialogElement | null>(null);
 
@@ -18,7 +18,7 @@ function onBackdrop(e: MouseEvent): void { if (e.target === dlg.value) emit('clo
 </script>
 
 <template>
-  <dialog ref="dlg" class="legal share acc" :aria-labelledby="id + '-title'" @close="emit('close')" @click="onBackdrop">
+  <dialog ref="dlg" class="legal share acc" :class="cls" :aria-labelledby="id + '-title'" @close="emit('close')" @click="onBackdrop">
     <template v-if="open">
       <div class="legal-head">
         <h2 :id="id + '-title'">{{ title }}</h2>

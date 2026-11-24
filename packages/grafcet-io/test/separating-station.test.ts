@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { nodesOf, validateGrafcet, violations } from '@grafcet/core';
+import { nodesOf, taskLinks, validateGrafcet, violations } from '@grafcet/core';
 import { exportSfcEditXml, importSfcEditXml } from '../src';
 
 const xml = readFileSync(new URL('../../../fixtures/sfcedit/separating-station.xml', import.meta.url), 'utf8');
@@ -58,10 +58,30 @@ describe('SFCEdit : Separating Station', () => {
     const t2 = nodesOf(back).find((n) => n.kind === 'trans' && n.recept === '↑bp_start');
     expect(t2 && t2.kind === 'trans' ? t2.actions?.length : 0).toBe(4);
   });
-  it('les 16 étapes « task » de GAST sont signalées en un seul avertissement', () => {
-    const w = report.entries.filter((e) => e.message.key === 'rep_step_type');
-    expect(w).toHaveLength(1);
-    expect(w[0]!.message.params).toMatchObject({ g: 'GAST', type: 'task', n: 16 });
+  it('les 16 étapes « task » de GAST sont conservées (drapeau task), sans avertissement', () => {
+    expect(report.entries.some((e) => e.message.key === 'rep_step_type')).toBe(false);
+    const tasks = nodesOf(gast).filter((n) => n.kind === 'step' && n.task);
+    expect(tasks).toHaveLength(16);
+    const back = importSfcEditXml(exportSfcEditXml(model).output, { projectName: 'sep' }).model.grafcets.find((g) => g.name === 'GAST')!;
+    expect(nodesOf(back).filter((n) => n.kind === 'step' && n.task)).toHaveLength(16);
+  });
+  it('chaque étape-tâche est liée au GRAFCET qui démarre dessus (GT4 ← XT4A, XT4B, XT4C)', () => {
+    const links = taskLinks(model);
+    const name = (id: string) => model.grafcets.find((g) => g.id === id)!.name;
+    const byRunner = (r: string) => links.filter((l) => name(l.runner) === r).map((l) => l.num).sort();
+    expect(byRunner('GT4')).toEqual(['XT4A', 'XT4B', 'XT4C']);
+    expect(byRunner('GT2')).toEqual(['XT2A', 'XT2B']);
+    expect(byRunner('GT3I')).toEqual(['XT3I']);
+    expect(new Set(links.map((l) => l.stepId)).size).toBe(16);
+    expect(validateGrafcet(gast, { project: model }).filter((i) => i.key === 'v_task_orphan')).toEqual([]);
+  });
+  it('une étape-tâche que personne ne démarre est signalée', () => {
+    const m = structuredClone(model);
+    const gt4 = m.grafcets.find((g) => g.name === 'GT4')!;
+    const t = nodesOf(gt4).find((n) => n.kind === 'trans')!;
+    if (t.kind === 'trans') t.recept = 'x';
+    const g = m.grafcets.find((x) => x.name === 'GAST')!;
+    expect(validateGrafcet(g, { project: m }).filter((i) => i.key === 'v_task_orphan').map((i) => i.params!.n).sort()).toEqual(['XT4A', 'XT4B', 'XT4C']);
   });
   it('aller-retour SFCEdit : fronts et types d\'action conservés', () => {
     const out = exportSfcEditXml(model).output;

@@ -5,7 +5,7 @@ import {
   jumpTargets as jumpTargetsOf, mergeEnds, mergeStarts, moveBranch as moveBranchCmd, newSeq, nodesOf, parseRecept, removeBranch, removeJump, removeLink,
   removeNode, removeSeq, renumber, resolveLink, setJumpTarget, type Node, type Capabilities, type Grafcet,
 } from '@grafcet/core';
-import { createExpansion, macrosOf, referencesTo, setMacro } from '@grafcet/core';
+import { createExpansion, macrosOf, referencesTo, setMacro, taskLinks } from '@grafcet/core';
 import { exportArchive, exportFolder, importArchive, importFolder, looksLikeZip, type FolderFile, exportNative, exportSfcEditXml, FORMAT_ID, importJson, importNative, importSfcEditXml, looksLikeSfcEditXml, exportPlcopenXml, importPlcopenXml, looksLikePlcopenXml, ImportError, type ReportEntry } from '@grafcet/io';
 import { applyForcing, buildSimulation, enabledTransitions, fire, frozenGrafcets, macroActive, settle, type Forcing } from '@grafcet/simulation';
 import { layoutGrafcet, renderSvg } from '@grafcet/layout';
@@ -33,6 +33,8 @@ export const useUiStore = defineStore('ui', () => {
   const sel = ref<string | null>(null);
   const tab = ref<TabId>('props');
   const dataDialog = ref<DataSection | null>(null);
+  /** Légende des symboles et notations (dialogue d'aide). */
+  const symbolsOpen = ref(false);
   const theme = ref<Theme>('auto');
   /** GRAFCET écartés de l'export (par défaut : aucun, donc tous les GRAFCET du projet sont exportés). */
   const exportExcluded = ref<string[]>([]);
@@ -282,6 +284,10 @@ export const useUiStore = defineStore('ui', () => {
     const id = sel.value;
     if (id) project.mutate((g) => { setMacro(g, id, on); });
   }
+  function toggleTask(on: boolean): void {
+    const id = sel.value;
+    if (id) project.mutate((g) => { const it = findNode(g, id); if (it && it.kind === 'step') { if (on) it.task = true; else delete it.task; } });
+  }
   function setExpansion(gid: string | null): void {
     const id = sel.value;
     if (id) project.mutate((g) => { const it = findNode(g, id); if (it && it.kind === 'step' && it.expansion !== undefined) it.expansion = gid; });
@@ -314,6 +320,11 @@ export const useUiStore = defineStore('ui', () => {
     const out: { gid: string; name: string; itemId: string; num: string }[] = [];
     for (const g of projectRef.value.grafcets) for (const m of macrosOf(g)) if (m.expansion === project.activeId) out.push({ gid: g.id, name: g.name, itemId: m.id, num: m.num });
     return out;
+  });
+  /** GRAFCET exécutant l'étape-tâche sélectionnée. */
+  const taskRunnersOfSel = computed(() => {
+    if (!sel.value) return [];
+    return taskLinks(projectRef.value).filter((l) => l.stepId === sel.value).map((l) => ({ gid: l.runner, name: projectRef.value.grafcets.find((x) => x.id === l.runner)?.name ?? '' }));
   });
   function openG(id: string, selectId?: string): void {
     project.activeId = id;
@@ -383,6 +394,7 @@ export const useUiStore = defineStore('ui', () => {
     if (lk === km.link.toLowerCase()) { e.preventDefault(); startPending('connect'); return; }
     if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); removeSel(); return; }
     if (k === 'Enter') { e.preventDefault(); focusMainField(); return; }
+    if (k === '?') { e.preventDefault(); symbolsOpen.value = true; return; }
     if (k === 'Escape') { sel.value = null; return; }
     if (k === '+' || k === '=') viewStore.zoomBy(1.2);
     else if (k === '-') viewStore.zoomBy(1 / 1.2);
@@ -667,13 +679,13 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   return {
-    sel, tab, tabs, dataDialog, exportExcluded, previewSvg, exportGrafcets, exportAll, toggleExport, selectExport, downloadSvg, downloadPng, printPdf, linkedNum, linkedIn, sharedNum, citingActive, citedIn, theme, themeLabel, dataView, limitHit, sim, liveMsg, announce, insertWhere, whereNow,
+    sel, tab, tabs, dataDialog, symbolsOpen, exportExcluded, previewSvg, exportGrafcets, exportAll, toggleExport, selectExport, downloadSvg, downloadPng, printPdf, linkedNum, linkedIn, sharedNum, citingActive, citedIn, theme, themeLabel, dataView, limitHit, sim, liveMsg, announce, insertWhere, whereNow,
     selItem, selEnds, selLink, selJump, selEmpty, selBranch, selText, selShort, caps, slotPos, jumpTargets, recFb, tokens, pending,
     moveBranch, canMoveBranch, insertKind, addLinkAt, addJumpSel, removeSel, setField, setAction, addAction, delAction, addToken, addBranch, delBranch, setJump,
     startPending, cancelPending, completePending, addFree, doRenumber,
     openG, addGrafcet, dupGrafcet, delGrafcet,
     pick, pickFromText, focusHost, onHostFocus, goIssue, onKey,
-    simActive, simEnabled, simFrozenNames, simUnresolved, simForceable, simFrozenNow, simForce, simToggleStep, simReset, simFire, toggleSim, toggleMacro, setExpansion, makeExpansion, setRole, openExpansion, parentsOfActive,
+    simActive, simEnabled, simFrozenNames, simUnresolved, simForceable, simFrozenNow, simForce, simToggleStep, simReset, simFire, toggleSim, toggleMacro, toggleTask, taskRunnersOfSel, setExpansion, makeExpansion, setRole, openExpansion, parentsOfActive,
     dataText, importReport, exportReport, downloadSfcEdit, downloadPlcopen, downloadArchive, canFolder, saveFolder, openFolder, copyMsg, importMsg, importText, copyData, downloadNative, applyImport, onFile,
     legalDoc, openLegal, closeLegal, syncLegalFromHash,
     cycleTheme, setLang, init,

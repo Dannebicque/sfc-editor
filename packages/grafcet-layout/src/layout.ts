@@ -1,6 +1,7 @@
+import { exprDisplay, wrapExpr, type ExprSegment } from './expr';
 import { docOrder, indexOf, type Grafcet, type GraphIndex, type HLink, type Jump, type Node, type Seq } from '@grafcet/core';
 
-export const GEO = { stepW: 44, stepH: 40, transH: 40, tick: 9, actH: 22, actGap: 14, pad: 18, bar: 6, seqGap: 40, ov: 6, jumpH: 46, arrivalH: 28, xBox: 30 } as const;
+export const GEO = { stepW: 44, stepH: 40, transH: 40, tick: 9, actH: 26, actGap: 14, pad: 18, bar: 6, seqGap: 40, ov: 6, jumpH: 46, arrivalH: 28, xBox: 30, maxRecept: 300, maxAct: 240, recLine: 17 } as const;
 
 /** Mesure de la largeur d'un texte en pixels (fournie par le moteur de rendu). */
 export type TextWidth = (s: string) => number;
@@ -8,11 +9,11 @@ export type TextWidth = (s: string) => number;
 export interface Line { x1: number; y1: number; x2: number; y2: number }
 /** `mark` : pictogramme du déclenchement (drapeau : sur événement ; ▲ : à l'activation ; ▼ : à la désactivation), dessiné dans une marge de la case `markCell`. */
 export type ActionMark = 'event' | 'activation' | 'deactivation';
-export interface ActionView { i: number; x: number; y: number; condW: number; labW: number; cond: string; text: string; cell: boolean; mark: ActionMark | null; markCell: 'cond' | 'label'; labPad: number }
+export interface ActionView { i: number; x: number; y: number; /** Hauteur de la ligne d'action (plusieurs lignes de texte si le texte est long). */ h: number; condLines: ExprSegment[][]; labLines: ExprSegment[][]; condW: number; labW: number; cond: string; text: string; cell: boolean; mark: ActionMark | null; markCell: 'cond' | 'label'; labPad: number }
 interface BoxBase { id: string; x: number; y: number; l: number; r: number; h: number }
 /** `arrivals` : numéros des étapes d'où part un renvoi vers cet élément (affichés au-dessus, avec une flèche entrante). */
-export interface StepView extends BoxBase { kind: 'step'; num: string; w: number; macro: boolean; role: 'entry' | 'exit' | null; name: string; initial: boolean; acts: ActionView[]; arrivals: string[]; ay: number }
-export interface TransView extends BoxBase { kind: 'trans'; num: number; recept: string; arrivals: string[]; ay: number; acts: ActionView[] }
+export interface StepView extends BoxBase { kind: 'step'; num: string; w: number; macro: boolean; task: boolean; role: 'entry' | 'exit' | null; name: string; initial: boolean; acts: ActionView[]; arrivals: string[]; ay: number }
+export interface TransView extends BoxBase { kind: 'trans'; num: number; recept: string; /** Réceptivité coupée en lignes (barres de négation comprises). */ lines: ExprSegment[][]; arrivals: string[]; ay: number; acts: ActionView[] }
 /** `line` : renvoi tracé comme un trait continu vers la séquence cible (pas de flèche ni d'étiquette). */
 export interface JumpView extends BoxBase { kind: 'jump'; label: string; broken: boolean; line?: boolean }
 /** Barre d'un lien : une ligne pour un lien OU, deux pour un lien ET. `open` : lien sans séquence amont (divergence) ou aval (convergence). */
@@ -30,7 +31,9 @@ export interface Focus {
 }
 export interface Layout { lines: Line[]; views: View[]; focus: Focus[]; bounds: { x: number; y: number; w: number; h: number } }
 
-interface Measure { l: number; r: number; h: number; ag?: { condW: number; labW: number; w: number; labPad: number } | null }
+interface ActRow { condLines: ExprSegment[][]; labLines: ExprSegment[][]; h: number }
+interface ActGeom { condW: number; labW: number; w: number; labPad: number; rows: ActRow[]; total: number }
+interface Measure { l: number; r: number; h: number; ag?: ActGeom | null }
 
 /**
  * Mise en page d'un GRAFCET : les positions sont CALCULÉES depuis les séquences et les liens, jamais stockées.
@@ -96,21 +99,54 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
     return !t ? '?' : t.kind === 'step' ? String(t.num) : '(' + t.num + ')';
   };
   const sw = (it: Extract<Node, { kind: 'step' }>) => Math.max(GEO.stepW, Math.ceil(tw(it.num)) + 16);
-  const actGeom = (it: { actions?: { kind: string; label: string; cond: string }[] }, onTrans = false) => {
+  const lineW = (ls: ExprSegment[][]): number => Math.max(0, ...ls.map((l) => tw(l.map((x) => x.t).join(''))));
+  /** Hauteur d'une ligne d'action de `n` lignes de texte (la première ligne laisse de l'air sous la barre de négation). */
+  const rowH = (n: number): number => GEO.actH + (Math.max(n, 1) - 1) * GEO.recLine;
+  const actGeom = (it: { actions?: { kind: string; label: string; cond: string }[] }, onTrans = false): ActGeom | null => {
     const acts = it.actions ?? [];
     if (!acts.length) return null;
     const hasCond = (a: { kind: string; cond: string }) => (onTrans ? !!a.cond.trim() : a.kind === 'conditional' || a.kind === 'event');
     const inCond = (a: { kind: string; cond: string }) => markOf(a, onTrans) === 'event' && hasCond(a);
     const hasC = acts.some(hasCond);
     const condPad = acts.some(inCond) ? MARK_W : 0, labPad = acts.some((a) => markOf(a, onTrans) && !inCond(a)) ? MARK_W : 0;
-    const condW = hasC ? Math.max(28, ...acts.map((a) => (hasCond(a) ? tw(a.cond || '?') + 14 : 0))) + condPad : 0;
-    const labW = Math.max(44, ...acts.map((a) => tw(actText(a)) + 16)) + labPad;
-    return { condW, labW, w: condW + labW, labPad };
+    // Textes longs : coupés en lignes pour que les cases ne dépassent pas `maxAct`.
+    const rows0 = acts.map((a) => ({
+      condLines: hasCond(a) ? wrapExpr(a.cond || '?', tw, GEO.maxAct - 14 - condPad) : [],
+      labLines: wrapExpr(actText(a), tw, GEO.maxAct - 16 - labPad),
+    }));
+    const condW = hasC ? Math.max(28, ...rows0.map((r) => (r.condLines.length ? lineW(r.condLines) + 14 : 0))) + condPad : 0;
+    const labW = Math.max(44, ...rows0.map((r) => lineW(r.labLines) + 16)) + labPad;
+    const rows = rows0.map((r) => ({ ...r, h: rowH(Math.max(r.condLines.length, r.labLines.length)) }));
+    return { condW, labW, w: condW + labW, labPad, rows, total: rows.reduce((t, r) => t + r.h, 0) };
   };
-  const actView = (a: { kind: string; label: string; cond: string }, i: number, x: number, y: number, ag: { condW: number; labW: number; labPad: number }, onTrans: boolean): ActionView => {
+  const actView = (a: { kind: string; label: string; cond: string }, i: number, x: number, y: number, ag: ActGeom, onTrans: boolean): ActionView => {
     const mark = markOf(a, onTrans), cell = onTrans ? !!a.cond.trim() : a.kind === 'conditional' || a.kind === 'event';
-    return { i, x, y, condW: ag.condW, labW: ag.labW, cond: a.cond || '', text: actText(a), cell, mark, markCell: mark === 'event' && cell ? 'cond' : 'label', labPad: ag.labPad };
+    const row = ag.rows[i]!;
+    return { i, x, y, h: row.h, condLines: row.condLines, labLines: row.labLines, condW: ag.condW, labW: ag.labW, cond: a.cond || '', text: actText(a), cell, mark, markCell: mark === 'event' && cell ? 'cond' : 'label', labPad: ag.labPad };
   };
+  /** Place la pile d'actions à partir de `y` ; renvoie les vues. */
+  const stack = (actions: { kind: string; label: string; cond: string }[], x: number, y: number, ag: ActGeom, onTrans: boolean): ActionView[] => {
+    const out: ActionView[] = [];
+    let ry = y;
+    actions.forEach((a, i) => { out.push(actView(a, i, x, ry, ag, onTrans)); ry += ag.rows[i]!.h; });
+    return out;
+  };
+
+  /* ---- réceptivités longues : coupées en plusieurs lignes ---- */
+  const recMemo = new Map<string, { lines: ExprSegment[][]; w: number }>();
+  const recOf = (it: Extract<Node, { kind: 'trans' }>): { lines: ExprSegment[][]; w: number } => {
+    const key = it.recept;
+    let r = recMemo.get(key);
+    if (!r) {
+      const lines = wrapExpr(it.recept || '?', tw, GEO.maxRecept);
+      r = { lines, w: Math.max(...lines.map((l) => tw(l.map((s) => s.t).join('')))) };
+      recMemo.set(key, r);
+    }
+    return r;
+  };
+
+  /** Bas de l'équation d'une transition (ordonnée relative). */
+  const eqBottom = (it: Extract<Node, { kind: 'trans' }>): number => 24 + (recOf(it).lines.length - 1) * GEO.recLine + 8;
 
   /* ---- mesures ---- */
   const memo = new Map<string, Measure>();
@@ -122,14 +158,15 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
       const ag = actGeom(it), nameW = it.name ? tw(it.name) + 10 : 0;
       m = {
         l: Math.max(sw(it) / 2 + nameW, arrHalf(it.id)), r: Math.max(sw(it) / 2 + (ag ? GEO.actGap + ag.w : 0), arrHalf(it.id)),
-        h: arrTop(it.id) + Math.max(GEO.stepH, it.actions.length * GEO.actH + 10), ag,
+        h: arrTop(it.id) + Math.max(GEO.stepH, (ag?.total ?? 0) + 10), ag,
       };
     } else {
       const ag = actGeom(it, true);
       m = {
         l: Math.max(GEO.tick + 8 + tw('(' + it.num + ')'), arrHalf(it.id)),
-        r: Math.max(GEO.tick + 8 + tw(it.recept || '?') + (ag ? GEO.actGap + ag.w : 0), arrHalf(it.id)),
-        h: arrTop(it.id) + Math.max(GEO.transH, (it.actions?.length ?? 0) * GEO.actH + 10), ag,
+        // L'équation d'abord, puis les actions juste en dessous (alignées sur son début).
+        r: Math.max(GEO.tick + 8 + Math.max(recOf(it).w, ag ? ag.w : 0), arrHalf(it.id)),
+        h: arrTop(it.id) + Math.max(GEO.transH, eqBottom(it) + (ag ? 6 + ag.total + 8 : 0)), ag,
       };
     }
     memo.set(it.id, m);
@@ -295,7 +332,7 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
   /* ---- résolution des chevauchements (poussée vers la droite) puis recentrage des séquences portant une divergence ---- */
   const y0 = (s: Seq) => topOf(s) - 4, y1 = (s: Seq) => bottom(s) + 4;
   const byX = () => [...seqs].sort((a, b) => x.get(a.id)! - x.get(b.id)! || seqs.indexOf(a) - seqs.indexOf(b));
-  for (let pass = 0; pass < 4; pass++) {
+  for (let pass = 0; pass < 8; pass++) {
     const order = byX();
     for (let i = 0; i < order.length; i++) {
       const t = order[i]!, mt = seqM.get(t.id)!;
@@ -306,7 +343,8 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
         if (contTo.get(t.id) === s.id || contTo.get(s.id) === t.id) continue;
         min = Math.max(min, x.get(s.id)! + seqM.get(s.id)!.r + GEO.seqGap + mt.l);
       }
-      if (x.get(t.id)! < min) x.set(t.id, min);
+      // Une séquence qui porte une divergence entraîne son arbre : sinon le recentrage ci-dessous la ramènerait sur place.
+      if (x.get(t.id)! < min) shift(t, min - x.get(t.id)!);
     }
     // recentrage : base de divergence au milieu de ses branches, aval de convergence au milieu de ses branches
     for (const s of seqs) {
@@ -329,21 +367,26 @@ export function layoutGrafcet(g: Grafcet, tw: TextWidth): Layout {
       const acts: ActionView[] = [];
       if (m.ag) {
         const ax = cx + sw(it) / 2 + GEO.actGap;
-        it.actions.forEach((a, i) => acts.push(actView(a, i, ax, y + 9 + i * GEO.actH, m.ag!, false)));
-        L(cx + sw(it) / 2, y + 20, ax, y + 20);
+        acts.push(...stack(it.actions, ax, y + 20 - GEO.actH / 2, m.ag, false));
+        // Le lien rejoint la première case ; sans condition, celle-ci est dans la colonne des actions (les colonnes restent alignées).
+        L(cx + sw(it) / 2, y + 20, ax + (acts[0]!.cell ? 0 : m.ag.condW), y + 20);
       }
       if (m.h > GEO.stepH) L(cx, y + GEO.stepH, cx, y + m.h);
-      views.push({ kind: 'step', id: it.id, x: cx, y, l: m.l, r: m.r, h: m.h, num: it.num, w: sw(it), macro: it.expansion !== undefined, role: it.role ?? null, name: it.name, initial: it.initial, acts, arrivals: arrivals(it.id), ay });
+      views.push({ kind: 'step', id: it.id, x: cx, y, l: m.l, r: m.r, h: m.h, num: it.num, w: sw(it), macro: it.expansion !== undefined, task: !!it.task, role: it.role ?? null, name: it.name, initial: it.initial, acts, arrivals: arrivals(it.id), ay });
       focus.push({ id: it.id, x: cx, y: y + 20, slot: { x: cx, y: y + GEO.stepH + 11 }, slotBefore: { x: cx, y: y - 11 } });
     } else {
       L(cx, y, cx, y + m.h);
       const acts: ActionView[] = [];
       if (m.ag) {
-        const rx = cx + GEO.tick + 8 + tw(it.recept || '?') + 4, ax = rx + GEO.actGap;
-        (it.actions ?? []).forEach((a, i) => acts.push(actView(a, i, ax, y + 9 + i * GEO.actH, m.ag!, true)));
-        L(rx, y + 20, ax, y + 20);
+        // Sous l'équation, alignées sur son début ; un lien en équerre les rattache au trait de la transition.
+        const ax = cx + GEO.tick + 8, ry = y + eqBottom(it) + 6;
+        acts.push(...stack(it.actions ?? [], ax, ry, m.ag, true));
+        // Le lien part du bout du trait de la transition (jamais de l'axe), descend, puis rejoint la première case.
+        const ly = ry + acts[0]!.h / 2, tx = cx + GEO.tick;
+        L(tx, y + 20, tx, ly);
+        L(tx, ly, ax + (acts[0]!.cell ? 0 : m.ag.condW), ly);
       }
-      views.push({ kind: 'trans', id: it.id, x: cx, y, l: m.l, r: m.r, h: m.h, num: it.num, recept: it.recept, arrivals: arrivals(it.id), ay, acts });
+      views.push({ kind: 'trans', id: it.id, x: cx, y, l: m.l, r: m.r, h: m.h, num: it.num, recept: it.recept, lines: recOf(it).lines, arrivals: arrivals(it.id), ay, acts });
       focus.push({ id: it.id, x: cx, y: y + 20, slot: { x: cx, y: y + 31 }, slotBefore: { x: cx, y: y - 11 } });
     }
   }

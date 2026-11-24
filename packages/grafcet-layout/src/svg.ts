@@ -1,4 +1,5 @@
-import type { ActionView, Layout, View } from './layout';
+import { exprSegments } from './expr';
+import { GEO, type ActionView, type Layout, type View } from './layout';
 
 /** Rendu statique d'un GRAFCET en SVG autonome (pour l'export image / PDF) : noir sur blanc, sans élément d'interface. */
 export interface SvgOptions {
@@ -20,22 +21,38 @@ const text = (x: number, y: number, s: string, o: { anchor?: 'middle' | 'end'; s
 const rect = (x: number, y: number, w: number, h: number, o: { fill?: string; sw?: number; dash?: string; rx?: number } = {}): string =>
   `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" fill="${o.fill ?? '#fff'}" stroke="${INK}" stroke-width="${o.sw ?? 1.3}"${o.dash ? ` stroke-dasharray="${o.dash}"` : ''}${o.rx ? ` rx="${o.rx}"` : ''}/>`;
 const line = (x1: number, y1: number, x2: number, y2: number, sw: number): string => `<line x1="${n(x1)}" y1="${n(y1)}" x2="${n(x2)}" y2="${n(y2)}" stroke="${INK}" stroke-width="${sw}"/>`;
+/** Texte d'une expression logique : les opérandes niés portent une barre. */
+const seg = (s: { t: string; over: boolean }): string => (s.over ? `<tspan text-decoration="overline">${esc(s.t)}</tspan>` : esc(s.t));
+/** Réceptivité coupée en lignes. */
+const exprLines = (x: number, y: number, lines: { t: string; over: boolean }[][]): string =>
+  `<text x="${n(x)}" y="${n(y)}" font-family="${MONO}" font-size="12.5" fill="${INK}" xml:space="preserve">${lines.map((l, i) => `<tspan x="${n(x)}" dy="${i ? GEO.recLine : 0}">${l.map(seg).join('')}</tspan>`).join('')}</text>`;
+const expr = (x: number, y: number, src: string, o: { anchor?: 'middle' | 'end'; style?: string } = {}): string =>
+  `<text x="${n(x)}" y="${n(y)}"${o.anchor ? ` text-anchor="${o.anchor}"` : ''} font-family="${MONO}" font-size="12.5" fill="${INK}"${o.style ? ` font-style="${o.style}"` : ''} xml:space="preserve">${exprSegments(src).map((s) => (s.over ? `<tspan text-decoration="overline">${esc(s.t)}</tspan>` : esc(s.t))).join('')}</text>`;
 const poly = (pts: string): string => `<polygon points="${pts}" fill="${INK}"/>`;
 
+/** Ligne de base du texte d'une case d'action : laisse de l'air sous la barre de négation. */
+const ACT_BASE = GEO.actH - 8;
+
 function markPoints(a: ActionView): string {
-  const x = a.markCell === 'cond' ? a.x : a.x + a.condW, y = a.y;
+  const x = a.markCell === 'cond' ? a.x : a.x + a.condW, y = a.y + (GEO.actH - 22) / 2;
   if (a.mark === 'event') return `${x + 3},${y + 11} ${x + 12},${y + 5} ${x + 12},${y + 17}`;
-  if (a.mark === 'activation') return `${x + 3},${y + 16} ${x + 13},${y + 16} ${x + 8},${y + 6}`;
-  return `${x + 3},${y + 6} ${x + 13},${y + 6} ${x + 8},${y + 16}`;
+  // Flèches pleines : ↑ à l'activation, ↓ à la désactivation.
+  if (a.mark === 'activation') return `${x + 8},${y + 4} ${x + 13},${y + 11} ${x + 9.5},${y + 11} ${x + 9.5},${y + 18} ${x + 6.5},${y + 18} ${x + 6.5},${y + 11} ${x + 3},${y + 11}`;
+  return `${x + 6.5},${y + 4} ${x + 9.5},${y + 4} ${x + 9.5},${y + 11} ${x + 13},${y + 11} ${x + 8},${y + 18} ${x + 3},${y + 11} ${x + 6.5},${y + 11}`;
 }
+
+/** Texte en plusieurs lignes : `x` fixe, une ligne tous les `GEO.recLine` ; les opérandes niés portent une barre. */
+const lines = (x: number, y: number, ls: { t: string; over: boolean }[][], o: { anchor?: 'middle'; style?: string } = {}): string =>
+  `<text x="${n(x)}" y="${n(y)}"${o.anchor ? ` text-anchor="${o.anchor}"` : ''} font-family="${MONO}" font-size="12.5" fill="${INK}"${o.style ? ` font-style="${o.style}"` : ''} xml:space="preserve">${ls.map((l, i) => `<tspan x="${n(x)}" dy="${i ? GEO.recLine : 0}">${l.map(seg).join('')}</tspan>`).join('')}</text>`;
 
 function actions(acts: ActionView[]): string {
   return acts.map((a) => [
-    a.cell ? rect(a.x, a.y, a.condW, 22, { fill: COND, dash: '4 2.5' }) : '',
-    a.cell ? text(a.x + a.condW / 2 + (a.markCell === 'cond' && a.mark ? 8 : 0), a.y + 15, a.cond || '?', { anchor: 'middle', style: 'italic' }) : '',
-    rect(a.x + a.condW, a.y, a.labW, 22),
+    // Case de condition distinguée (fond coloré, pointillés) ; les cases d'action restent alignées dans leur colonne.
+    a.cell ? rect(a.x, a.y, a.condW, a.h, { fill: COND, dash: '4 2.5' }) : '',
+    a.cell ? lines(a.x + a.condW / 2 + (a.markCell === 'cond' && a.mark ? 8 : 0), a.y + ACT_BASE, a.condLines, { anchor: 'middle', style: 'italic' }) : '',
+    rect(a.x + a.condW, a.y, a.labW, a.h),
     a.mark ? poly(markPoints(a)) : '',
-    text(a.x + a.condW + 8 + a.labPad, a.y + 15, a.text),
+    lines(a.x + a.condW + 8 + a.labPad, a.y + ACT_BASE, a.labLines),
   ].join('')).join('');
 }
 
@@ -58,7 +75,7 @@ function view(v: View): string {
       arrivals(v),
       line(v.x - 9, v.y + 20, v.x + 9, v.y + 20, 2.6),
       text(v.x - 17, v.y + 24, `(${v.num})`, { anchor: 'end', size: 11, fill: GREY }),
-      text(v.x + 17, v.y + 24, v.recept || '?', v.recept ? {} : { fill: WARN, style: 'italic' }),
+      v.recept ? exprLines(v.x + 17, v.y + 24, v.lines) : text(v.x + 17, v.y + 24, '?', { fill: WARN, style: 'italic' }),
       actions(v.acts),
     ].join('');
     case 'jump':

@@ -2,6 +2,7 @@ import { checkGraph, flatten, nodesOf } from './graph';
 import { parseRecept } from './recept';
 import type { Grafcet, Message, Project } from './types';
 import { expansionReaches, macrosOf } from './macro';
+import { taskLinks } from './task';
 import { DEFAULT_PROFILE, profileIssues, type ValidationProfile } from './profiles';
 
 export type IssueLevel = 'error' | 'warning';
@@ -52,6 +53,10 @@ export function validateGrafcet(g: Grafcet, opts: ValidateOptions = {}): Issue[]
     else if (opts.project.grafcets.some((x) => x.id !== g.id && macrosOf(x).some((o) => o.expansion === m.expansion)) || macrosOf(g).some((o) => o !== m && o.expansion === m.expansion)) {
       issues.push({ level: 'warning', key: 'v_macro_shared', params: { n: m.num }, id: m.id });
     }
+  }
+  if (opts.project && steps.some((s) => s.task)) {
+    const linked = new Set(taskLinks(opts.project).filter((l) => l.gid === g.id).map((l) => l.stepId));
+    for (const s of steps) if (s.task && !linked.has(s.id)) issues.push({ level: 'warning', key: 'v_task_orphan', params: { n: s.num }, id: s.id });
   }
   const seen = new Map<string, string>();
   for (const s of steps) {

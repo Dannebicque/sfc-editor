@@ -1,6 +1,7 @@
 export * from './contract';
 export { exportNative, importNative, type NativeEnvelope } from './native';
 export { importJson, type JsonImport } from './legacy';
+export { checkSfcEditImport, type GrafcetCheck } from './verify';
 export { importSfcEditXml, exportSfcEditXml, looksLikeSfcEditXml, type SfcEditImportOptions } from './sfcedit';
 export { FORMAT_ID, SCHEMA_VERSION, ProjectSchema, GrafcetSchema, SeqSchema } from './schema';
 export { exportFolder, importFolder, exportArchive, importArchive, looksLikeZip, PROJECT_FILE, type FolderFile } from './archive';

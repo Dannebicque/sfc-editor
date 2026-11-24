@@ -4,6 +4,7 @@ import { T, keys as K } from '../i18n';
 import { useProjectStore } from '../stores/project';
 import { useUiStore } from '../stores/ui';
 import Icon from './Icon.vue';
+import AutoText from './AutoText.vue';
 
 const project = useProjectStore();
 const ui = useUiStore();
@@ -45,6 +46,13 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
           <li v-for="p in ui.parentsOfActive" :key="p.gid + p.itemId"><button class="btn solid" @click="ui.openG(p.gid, p.itemId)">{{ T('exp_back', { n: p.num, g: p.name || '?' }) }}</button></li>
         </ul>
       </div>
+      <div v-if="selItem.task && ui.taskRunnersOfSel.length" class="shared-box">
+        <h3>{{ T('h_task_runners') }}</h3>
+        <ul class="shared-list">
+          <li v-for="r in ui.taskRunnersOfSel" :key="r.gid"><button class="btn solid" @click="ui.openG(r.gid)">{{ T('task_go', { g: r.name }) }}</button></li>
+        </ul>
+      </div>
+      <label class="check"><input type="checkbox" :checked="!!selItem.task" @change="ui.toggleTask(checked($event))" /> {{ T('f_task') }}</label>
       <label class="check"><input type="checkbox" :checked="selItem.expansion !== undefined" @change="ui.toggleMacro(checked($event))" /> {{ T('f_macro') }}</label>
       <template v-if="selItem.expansion !== undefined">
         <div class="field">
@@ -63,16 +71,25 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
       <h3>{{ T('h_actions') }}</h3>
       <ul v-if="selItem.actions.length" class="acts">
         <li v-for="(a, i) in selItem.actions" :key="i">
-          <div class="mini">
-            <input type="text" class="mono" :aria-label="T('act_label_aria', { n: i + 1 })" :placeholder="T('act_ph')" :value="a.label" @input="ui.setAction(i, 'label', val($event))" />
+          <div class="act-h">
+            <strong>{{ T('act_n', { n: i + 1 }) }}</strong>
+            <span v-if="a.label" class="act-sum mono">{{ a.label }}</span>
             <button class="btn icon" :aria-label="T('act_del_aria', { n: i + 1 })" @click="ui.delAction(i)"><Icon n="trash" /></button>
           </div>
-          <div class="mini two">
-            <select :aria-label="T('act_type_aria', { n: i + 1 })" :value="a.kind" @change="ui.setAction(i, 'kind', val($event))">
+          <div class="field">
+            <label :for="'act-k-' + i">{{ T('act_f_type') }}</label>
+            <select :id="'act-k-' + i" :value="a.kind" @change="ui.setAction(i, 'kind', val($event))">
               <option value="continue">{{ T('act_continue') }}</option><option value="conditional">{{ T('act_conditional') }}</option>
               <option value="activation">{{ T('act_activation') }}</option><option value="deactivation">{{ T('act_deactivation') }}</option><option value="event">{{ T('act_event') }}</option>
             </select>
-            <input v-if="a.kind === 'conditional' || a.kind === 'event'" type="text" class="mono" :aria-label="T(a.kind === 'event' ? 'act_event_aria' : 'act_cond_aria', { n: i + 1 })" :placeholder="T(a.kind === 'event' ? 'act_event_ph' : 'act_cond_ph')" :value="a.cond" @input="ui.setAction(i, 'cond', val($event))" />
+          </div>
+          <div v-if="a.kind === 'conditional' || a.kind === 'event'" class="field">
+            <label :for="'act-c-' + i">{{ T(a.kind === 'event' ? 'act_f_event' : 'act_f_cond') }}</label>
+            <AutoText :id="'act-c-' + i" class="mono cond" spellcheck="false" autocomplete="off" :placeholder="T(a.kind === 'event' ? 'act_event_ph' : 'act_cond_ph')" :model-value="a.cond" @update:model-value="(v: string) => ui.setAction(i, 'cond', v)" />
+          </div>
+          <div class="field">
+            <label :for="'act-l-' + i">{{ T('act_f_action') }}</label>
+            <AutoText :id="'act-l-' + i" class="mono" spellcheck="false" autocomplete="off" :placeholder="T('act_ph')" :model-value="a.label" @update:model-value="(v: string) => ui.setAction(i, 'label', v)" />
           </div>
         </li>
       </ul>
@@ -85,7 +102,7 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
       <h2>{{ T('d_trans', { n: selItem.num }) }}</h2>
       <div class="field">
         <label for="f-rec">{{ T('f_recept') }}</label>
-        <input id="f-rec" type="text" class="mono" data-main-field spellcheck="false" autocomplete="off" aria-describedby="rec-fb" :value="selItem.recept" @input="ui.setField('recept', val($event), true)" />
+        <AutoText id="f-rec" class="mono" data-main-field spellcheck="false" autocomplete="off" aria-describedby="rec-fb" :model-value="selItem.recept" @update:model-value="(v: string) => ui.setField('recept', v, true)" />
       </div>
       <p id="rec-fb" class="fb" :class="recFb.cls"><Icon :n="recFb.cls === 'ok' ? 'check' : 'warn'" /><span>{{ recFb.msg }}</span></p>
       <div class="chips" role="group" :aria-label="T('chips_aria')">
@@ -96,12 +113,18 @@ const checked = (e: Event) => (e.target as HTMLInputElement).checked;
       <p class="hint">{{ T('trans_act_help') }}</p>
       <ul v-if="selItem.actions?.length" class="acts">
         <li v-for="(a, i) in selItem.actions" :key="i">
-          <div class="mini">
-            <input type="text" class="mono" :aria-label="T('act_label_aria', { n: i + 1 })" :placeholder="T('act_ph')" :value="a.label" @input="ui.setAction(i, 'label', val($event))" />
+          <div class="act-h">
+            <strong>{{ T('act_n', { n: i + 1 }) }}</strong>
+            <span v-if="a.label" class="act-sum mono">{{ a.label }}</span>
             <button class="btn icon" :aria-label="T('act_del_aria', { n: i + 1 })" @click="ui.delAction(i)"><Icon n="trash" /></button>
           </div>
-          <div class="mini">
-            <input type="text" class="mono" :aria-label="T('act_cond_aria', { n: i + 1 })" :placeholder="T('act_cond_ph')" :value="a.cond" @input="ui.setAction(i, 'cond', val($event))" />
+          <div class="field">
+            <label :for="'tact-c-' + i">{{ T('act_f_cond_opt') }}</label>
+            <AutoText :id="'tact-c-' + i" class="mono cond" spellcheck="false" autocomplete="off" :placeholder="T('act_cond_ph')" :model-value="a.cond" @update:model-value="(v: string) => ui.setAction(i, 'cond', v)" />
+          </div>
+          <div class="field">
+            <label :for="'tact-l-' + i">{{ T('act_f_action') }}</label>
+            <AutoText :id="'tact-l-' + i" class="mono" spellcheck="false" autocomplete="off" :placeholder="T('act_ph')" :model-value="a.label" @update:model-value="(v: string) => ui.setAction(i, 'label', v)" />
           </div>
         </li>
       </ul>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
-import { macrosOf } from '@grafcet/core';
+import { macrosOf, taskLinks } from '@grafcet/core';
 import { T } from '../i18n';
 import { useProjectStore } from '../stores/project';
 import { useUiStore } from '../stores/ui';
@@ -14,6 +15,8 @@ const { project: proj, activeId, sums } = storeToRefs(project);
 const { linkedIn, linkedNum, citedIn } = storeToRefs(ui);
 const cited = (gid: string) => citedIn.value.find((c) => c.gid === gid);
 const parents = (gid: string) => proj.value.grafcets.flatMap((x) => macrosOf(x).filter((m) => m.expansion === gid).map((m) => ({ itemId: m.id, num: m.num })));
+const tasks = computed(() => taskLinks(proj.value));
+const taskNums = (gid: string) => tasks.value.filter((l) => l.runner === gid).map((l) => l.num).join(', ');
 const shared = (gid: string) => linkedIn.value.some((l) => l.gid === gid);
 const val = (e: Event) => (e.target as HTMLInputElement).value;
 </script>
@@ -28,6 +31,7 @@ const val = (e: Event) => (e.target as HTMLInputElement).value;
           <span class="gname">{{ g.name }}</span>
           <span v-if="collab.editors[g.id]?.length" class="gmeta peer-edit">{{ T('collab_editing', { x: collab.editors[g.id]!.join(', ') }) }}</span>
           <span v-for="p in parents(g.id)" :key="p.itemId" class="gmeta">{{ T('gmeta_expansion', { n: p.num }) }}</span>
+          <span v-if="taskNums(g.id)" class="gmeta">{{ T('gmeta_task', { n: taskNums(g.id) }) }}</span>
           <span class="gmeta">{{ T('meta', { s: sums[g.id]!.steps, t: sums[g.id]!.trans }) }}</span>
           <span v-if="cited(g.id)" class="shared" :title="T('cite_title', { n: linkedNum! })">{{ T('cite_badge', { n: linkedNum!, c: cited(g.id)!.count }) }}</span>
           <span v-if="shared(g.id)" class="shared" :title="T('shared_title', { n: linkedNum! })">{{ T('shared_badge', { n: linkedNum! }) }}</span>

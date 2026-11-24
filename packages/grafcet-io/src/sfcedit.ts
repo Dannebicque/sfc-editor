@@ -26,7 +26,7 @@ export const looksLikeSfcEditXml = (text: string): boolean => /<project[\s>]/.te
 const ATOM = /^(?:[A-Za-zÀ-ÿ_][A-Za-z0-9À-ÿ_]*|\d+)$/;
 
 /** Contenu d'une condition SFCEdit → syntaxe de réceptivité de SFC Editor (`<cpl>x</cpl>` devient `/x`). */
-function convertCondition(node: XNode, report: ReportEntry[]): string {
+export function convertCondition(node: XNode, report: ReportEntry[]): string {
   const render = (n: XNode): string =>
     n.children.map((c) => {
       if (typeof c === 'string') return c;
@@ -63,11 +63,12 @@ function importGrafcet(P: Project, gx: XNode, report: ReportEntry[], index: numb
         const rawName = (c.attrs.name ?? '').trim();
         const m = /^X(\d\w*)$/i.exec(rawName);
         const type = c.attrs.type ?? 'normal';
-        if (type !== 'normal' && type !== 'initial') oddSteps.set(type, [...(oddSteps.get(type) ?? []), c.attrs.name ?? '?']);
+        if (type !== 'normal' && type !== 'initial' && type !== 'task') oddSteps.set(type, [...(oddSteps.get(type) ?? []), c.attrs.name ?? '?']);
         const step: Extract<Node, { kind: 'step' }> = {
           id: nid(), kind: 'step', num: m ? m[1]! : rawName || '', name: c.attrs['x-label'] ?? '', initial: type === 'initial',
           actions: elements(c, 'action').map((a) => importAction(a, g.name, report)),
         };
+        if (type === 'task' || c.attrs['x-task'] === '1') step.task = true;
         if (!rawName) { pendingNumbers.push(step); report.push(warn('rep_step_name', { g: g.name, name: '' })); }
         seq.items.push(step);
       } else if (c.tag === 'transition') {
@@ -150,10 +151,11 @@ function resolvePlaceholderJump(g: Grafcet, from: Seq, to: Seq, nid: (p?: string
 }
 const violationCount = (g: Grafcet): number => violations(g).length;
 
-function importAction(a: XNode, gname: string, report: ReportEntry[]): Action {
+export function importAction(a: XNode, gname: string, report: ReportEntry[]): Action {
   const type = a.attrs.type ?? 'normal';
   const textNode = elements(a, 'text')[0];
-  const label = (textNode ? textOf(textNode) : textOf(a)).trim();
+  // Les négations du libellé (<cpl>x</cpl>) sont conservées sous la forme « /x », comme dans les conditions.
+  const label = (textNode ? convertCondition(textNode, report) : textOf(a)).trim();
   const condNode = elements(a, 'condition')[0];
   const cond = condNode ? convertCondition(condNode, report) : '';
   let kind: Action['kind'] = 'continue';
@@ -241,7 +243,7 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
   let actionKinds = false, macroFlag = false;
 
   function stepXml(it: Extract<Node, { kind: 'step' }>): string {
-    const attrs = `type="${it.initial ? 'initial' : 'normal'}" name="${/^\d/.test(it.num) ? 'X' + esc(it.num) : esc(it.num)}"` + (it.name ? ` x-label="${esc(it.name)}"` : '');
+    const attrs = `type="${it.initial ? 'initial' : it.task ? 'task' : 'normal'}"${it.initial && it.task ? ' x-task="1"' : ''} name="${/^\d/.test(it.num) ? 'X' + esc(it.num) : esc(it.num)}"` + (it.name ? ` x-label="${esc(it.name)}"` : '');
     if (it.name) flags.labels = true;
     if (it.expansion !== undefined) macroFlag = true;
     if (!it.actions.length) return `\t\t\t<step ${attrs} />`;
@@ -252,13 +254,13 @@ function exportGrafcet(g: Grafcet, report: ReportEntry[], flags: { labels: boole
       const type = a.kind === 'event' ? 'on event' : a.kind === 'deactivation' ? 'on deact' : hasCond ? 'conditional' : 'normal';
       const ext = a.kind === 'activation' ? ' x-kind="activation"' : '';
       const cond = hasCond ? `<condition>${toSfcCondition(a.cond, notes)}</condition>` : '';
-      return `\t\t\t\t<action type="${type}"${ext}>${cond}<text>${esc(a.label)}</text></action>`;
+      return `\t\t\t\t<action type="${type}"${ext}>${cond}<text>${toSfcCondition(a.label, notes)}</text></action>`;
     });
     return `\t\t\t<step ${attrs}>\n${acts.join('\n')}\n\t\t\t</step>`;
   }
   const nodeXml = (it: Node): string => {
     if (it.kind === 'step') return stepXml(it);
-    const tActs = (it.actions ?? []).map((a) => `\t\t\t\t<action type="normal">${a.cond.trim() ? `<condition>${toSfcCondition(a.cond, notes)}</condition>` : ''}<text>${esc(a.label)}</text></action>`);
+    const tActs = (it.actions ?? []).map((a) => `\t\t\t\t<action type="normal">${a.cond.trim() ? `<condition>${toSfcCondition(a.cond, notes)}</condition>` : ''}<text>${toSfcCondition(a.label, notes)}</text></action>`);
     return `\t\t\t<transition>\n\t\t\t\t<condition>${toSfcCondition(it.recept, notes)}</condition>${tActs.length ? '\n' + tActs.join('\n') : ''}\n\t\t\t</transition>`;
   };
 

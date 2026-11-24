@@ -26,6 +26,8 @@ export interface Step {
    * Absent pour une étape ordinaire.
    */
   expansion?: string | null;
+  /** Étape-tâche (type « task » de SFCEdit) : conservée telle quelle à l'import/export et signalée sur le dessin. */
+  task?: boolean;
   /** Rôle dans une expansion : étape d'entrée (E) ou de sortie (S). */
   role?: 'entry' | 'exit';
 }

@@ -12,6 +12,7 @@ export { parseForcingOrder, sameStepNum, type ForcingOrder, type ForcingWhat } f
 export { parseRecept, type ReceptResult } from './recept';
 export { referencesTo, syncLinks, type SyncLink } from './references';
 export { isMacro, macrosOf, setMacro, createExpansion, expansionReaches } from './macro';
+export { taskLinks, type TaskLink } from './task';
 export { PROFILES, DEFAULT_PROFILE, isProfile, provablyExclusive, type ValidationProfile } from './profiles';
 export { validateGrafcet, type Issue, type IssueLevel, type ValidateOptions } from './validate';
 export { describe, describeId, type Description } from './describe';

@@ -47,6 +47,7 @@ const { sim, theme, themeLabel } = storeToRefs(ui);
       </template>
       <button v-else class="btn solid" type="button" :title="T('acc_signin_t')" @click="account.open('auth', 'login')"><span class="txt">{{ T('acc_signin') }}</span></button>
     </div>
+    <button class="btn solid" type="button" :title="T('sym_btn_t')" @click="ui.symbolsOpen = true"><Icon n="help" /><span class="txt">{{ T('sym_btn') }}</span></button>
     <button class="btn solid" :class="{ on: sim.on }" :aria-pressed="sim.on" @click="ui.toggleSim()"><Icon :n="sim.on ? 'stop' : 'play'" /><span class="txt">{{ sim.on ? T('sim_stop') : T('sim') }}</span></button>
     <div class="seg langseg" role="group" :aria-label="T('lang_label')">
       <button type="button" lang="fr" title="Français" :aria-pressed="lang === 'fr'" @click="ui.setLang('fr')">FR</button>

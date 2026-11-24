@@ -12,6 +12,7 @@
 - Règles structurelles dans `packages/grafcet-core/src/graph.ts` (`violations`, `checkGraph`). Toute édition passe par `trial` (`edit.ts`) : appliquée, validée, sinon annulée. Un graphe importé déjà imparfait reste éditable tant que l'édition n'ajoute pas de nouvelle violation.
 - Positions jamais stockées : `packages/grafcet-layout/src/layout.ts` les recalcule (y par récursion sur les liens, x par arbre puis balayage anti-chevauchement). Un renvoi vers le début d'une séquence libre atteinte par ce seul renvoi est tracé en trait continu et aligné.
 - La barre d'outils (`packages/editor/src/components/Toolbar.vue`) s'appuie sur `capabilities()` : seules les actions possibles sont affichées.
+- Étapes `task` de SFCEdit : drapeau `Step.task` (repère « T » sur le dessin, aller-retour XML). Contrôle d'un import : `pnpm check:sfcedit <fichier.xml>` (`packages/grafcet-io/src/verify.ts`) compare le réseau du XML à celui du modèle.
 - Anciens fichiers 1.x (arbre) : migrés à la lecture (`migrateProject`).
 - Le noyau ne contient aucun texte traduit : il renvoie des clés de message (locales dans `packages/editor/src/locales`, parité fr/en testée).
 

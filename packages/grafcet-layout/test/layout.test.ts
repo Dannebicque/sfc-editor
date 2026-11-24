@@ -132,13 +132,34 @@ describe('séquences libres, liens ouverts, X', () => {
 });
 
 describe('actions liées à une transition', () => {
-  it('place les actions à droite de la réceptivité', () => {
-    const t = { ...(T('t1', 1, 'abc') as Extract<Node, { kind: 'trans' }>), actions: [{ kind: 'event' as const, label: 'B:=0', cond: 'X5' }] };
+  it('place les actions SOUS la réceptivité, alignées sur son début', () => {
+    const t = { ...(T('t1', 1, 'abc') as Extract<Node, { kind: 'trans' }>), actions: [{ kind: 'event' as const, label: 'B:=0', cond: 'X5' }, { kind: 'event' as const, label: 'C:=1', cond: '' }] };
     const L = layoutGrafcet(G([['q', [S('s0', '0', true), t, S('s1', '1')]]]), tw);
     const v = L.views.find((x) => x.kind === 'trans') as TransView;
-    expect(v.acts).toHaveLength(1);
-    expect(v.acts[0]!.x).toBeGreaterThan(v.x + 7 * 3);
+    expect(v.acts).toHaveLength(2);
+    expect(v.acts[0]!.x).toBe(v.x + GEO.tick + 8);
+    expect(v.acts[0]!.y).toBeGreaterThan(v.y + 24); // sous la ligne de l'équation
+    expect(v.acts[1]!.y).toBe(v.acts[0]!.y + v.acts[0]!.h);
     expect(v.acts[0]!.cell).toBe(true);
+    const plain = (L.views.find((x) => x.kind === 'trans') as TransView).h;
+    const sans = layoutGrafcet(G([['q', [S('s0', '0', true), T('t1', 1, 'abc'), S('s1', '1')]]]), tw).views.find((x) => x.kind === 'trans') as TransView;
+    expect(plain).toBeGreaterThan(sans.h);
+  });
+  it('une équation longue passe d\'abord, les actions viennent après ses lignes', () => {
+    const long = Array.from({ length: 30 }, (_, i) => 'v' + i).join('.');
+    const t = { ...(T('t1', 1, long) as Extract<Node, { kind: 'trans' }>), actions: [{ kind: 'event' as const, label: 'B:=0', cond: '' }] };
+    const v = layoutGrafcet(G([['q', [S('s0', '0', true), t, S('s1', '1')]]]), tw).views.find((x) => x.kind === 'trans') as TransView;
+    expect(v.lines.length).toBeGreaterThan(2);
+    expect(v.acts[0]!.y).toBeGreaterThanOrEqual(v.y + 24 + (v.lines.length - 1) * GEO.recLine);
+  });
+  it('une action au texte long est coupée en lignes : case plus haute, largeur bornée', () => {
+    const lab = 'flag1c1:=' + Array.from({ length: 12 }, (_, i) => 'pp' + i).join('+');
+    const s = { ...(S('s1', '1') as Extract<Node, { kind: 'step' }>), actions: [{ kind: 'continue' as const, label: lab, cond: '' }, { kind: 'continue' as const, label: 'A+', cond: '' }] };
+    const v = layoutGrafcet(G([['q', [S('s0', '0', true), T('t1', 1), s]]]), tw).views.find((x) => x.id === 's1') as StepView;
+    expect(v.acts[0]!.labLines.length).toBeGreaterThan(1);
+    expect(v.acts[0]!.h).toBeGreaterThan(v.acts[1]!.h);
+    expect(v.acts[0]!.labW).toBeLessThanOrEqual(GEO.maxAct + 1);
+    expect(v.acts[1]!.y).toBe(v.acts[0]!.y + v.acts[0]!.h);
   });
 });
 
@@ -183,5 +204,67 @@ describe('rendu SVG statique', () => {
     expect(svg).toContain('↑bp &amp; &lt;x&gt;');
     expect(svg).toContain('B:=0');
     expect(svg).not.toMatch(/class=|pointer|NaN|undefined/);
+  });
+});
+
+import { exprDisplay, exprSegments } from '../src';
+describe('expressions : négation affichée en barre', () => {
+  const show = (s: string) => exprSegments(s).map((x) => (x.over ? `[${x.t}]` : x.t)).join('');
+  it('opérande, groupe, imbrication', () => {
+    expect(show('/XT3O./XT7O./XT3I')).toBe('[XT3O].[XT7O].[XT3I]');
+    expect(show('X30./(a+b).c')).toBe('X30.[(a+b)].c');
+    expect(show('/(a./b)')).toBe('[(a./b)]');
+    expect(show('/[dcc1=1]+a')).toBe('[[dcc1=1]]+a');
+    expect(show('↑bp_start')).toBe('↑bp_start');
+  });
+  it('une temporisation « 500ms/X60 » n\'est pas une négation', () => {
+    expect(show('500ms/X60')).toBe('500ms/X60');
+    expect(show('t1/X2/3s./a')).toBe('t1/X2/3s.[a]');
+  });
+  it('le texte affiché ne contient plus les « / » de négation', () => {
+    expect(exprDisplay('/a.b')).toBe('a.b');
+  });
+});
+
+import { wrapExpr, GEO } from '../src';
+describe('réceptivités longues', () => {
+  const tw = (s: string) => s.length * 8;
+  it('coupe après « . » ou « + », sans rien perdre ni dépasser', () => {
+    const src = 'X2_1.X6_5.X30.XT1_1.XT2_1.XT3_1.XT4_1.XT5_1.XT6_1.XT7_1.XT8_1.XT3A1.XT7A1';
+    const lines = wrapExpr(src, tw, 200);
+    expect(lines.length).toBeGreaterThan(2);
+    expect(lines.map((l) => l.map((s) => s.t).join('')).join('')).toBe(src);
+    for (const l of lines) expect(tw(l.map((s) => s.t).join(''))).toBeLessThanOrEqual(200);
+  });
+  it('une barre coupée reste une barre sur les deux lignes', () => {
+    const lines = wrapExpr('/(aaaa.bbbb.cccc.dddd)', tw, 100);
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines.every((l) => l.every((s) => s.over))).toBe(true);
+  });
+  it('une expression courte tient sur une ligne ; un terme trop large reste entier', () => {
+    expect(wrapExpr('a.b', tw, 200)).toHaveLength(1);
+    expect(wrapExpr('uneVariableVraimentTresLongue', tw, 50)).toHaveLength(1);
+  });
+  it('la transition longue d\'un GRAFCET est plus haute mais moins large', () => {
+    const g = demoProject().grafcets[0]!;
+    const t = g.seqs.flatMap((s) => s.items).find((n) => n.kind === 'trans') as Extract<Node, { kind: 'trans' }>;
+    const v0 = layoutGrafcet(g, tw).views.find((v) => v.id === t.id) as TransView;
+    t.recept = Array.from({ length: 30 }, (_, i) => 'v' + i).join('.');
+    const v1 = layoutGrafcet(g, tw).views.find((v) => v.id === t.id) as TransView;
+    expect(v1.lines.length).toBeGreaterThan(2);
+    expect(v1.r).toBeLessThanOrEqual(GEO.tick + 8 + GEO.maxRecept + 1);
+    expect(v1.h).toBeGreaterThan(v0.h);
+  });
+});
+
+describe('lien des actions d\'une transition', () => {
+  it('part du bout du trait de la transition, jamais de son axe', () => {
+    const t = { ...(T('t1', 1, 'abc') as Extract<Node, { kind: 'trans' }>), actions: [{ kind: 'event' as const, label: 'B:=0', cond: '' }] };
+    const L = layoutGrafcet(G([['q', [S('s0', '0', true), t, S('s1', '1')]]]), tw);
+    const v = L.views.find((x) => x.kind === 'trans') as TransView;
+    const tx = v.x + GEO.tick;
+    const links = L.lines.filter((l) => l.x1 >= tx && l.y1 >= v.y + 20 && l.y1 < v.y + v.h);
+    expect(links.some((l) => l.x1 === tx && l.x2 === tx && l.y1 === v.y + 20)).toBe(true); // descend depuis le trait
+    expect(L.lines.some((l) => l.x1 === v.x && l.x2 > v.x && l.y1 === l.y2 && l.y1 > v.y + 24)).toBe(false); // aucun trait horizontal issu de l'axe
   });
 });

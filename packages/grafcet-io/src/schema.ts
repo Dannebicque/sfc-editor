@@ -12,7 +12,7 @@ const StepNum = z.preprocess((v) => (typeof v === 'number' ? String(v) : v), z.s
 const StepSchema = z.object({
   id: z.string().min(1), kind: z.literal('step'), num: StepNum,
   name: z.string(), initial: z.boolean(), actions: z.array(ActionSchema),
-  expansion: z.string().nullable().optional(), role: z.enum(['entry', 'exit']).optional(),
+  expansion: z.string().nullable().optional(), role: z.enum(['entry', 'exit']).optional(), task: z.boolean().optional(),
 });
 const TransSchema = z.object({ id: z.string().min(1), kind: z.literal('trans'), num: z.number().int().min(0), recept: z.string(), actions: z.array(ActionSchema).optional() });
 const NodeSchema = z.union([StepSchema, TransSchema]);

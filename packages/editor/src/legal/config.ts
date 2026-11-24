@@ -28,7 +28,7 @@ export const LEGAL: LegalConfig = {
   hostName: 'PulseHeberg (SAS)',
   hostAddress: '9 boulevard de Strasbourg, 83000 Toulon, France',
   hostUrl: 'https://pulseheberg.com',
-  mailHost: '',
+  mailHost: 'contact@sfceditor.com',
   repo: 'https://github.com/Dannebicque/sfc-editor',
   updated: '2026-11-18',
 };
